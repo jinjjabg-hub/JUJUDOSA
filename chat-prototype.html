@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주주도사 · 상담소 (프로토타입)</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;900&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --night:#151A26; --night2:#1D2433; --hanji:#F4EDDD; --hanji-line:#DDD2B8;
+  --ink:#221C12; --ink-soft:#5C5546; --gold:#C89B3C; --seal:#B33A2B;
+  --wood:#3E7C4F; --fire:#B5432F; --earth:#A8842C; --metal:#8A8F98; --water:#2C4A73;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--night);color:var(--hanji);font-family:'Noto Sans KR',sans-serif;
+  background-image:radial-gradient(1px 1px at 20% 30%,rgba(255,255,255,.3),transparent),
+    radial-gradient(1.5px 1.5px at 85% 60%,rgba(200,155,60,.35),transparent),
+    radial-gradient(1px 1px at 40% 80%,rgba(255,255,255,.18),transparent);}
+.wrap{max-width:520px;margin:0 auto;padding:24px 14px 40px;display:flex;flex-direction:column;min-height:100%}
+header{text-align:center;margin-bottom:18px}
+.brand{font-family:'Noto Serif KR',serif;font-weight:900;font-size:28px;letter-spacing:.12em;color:var(--gold)}
+.brand small{display:block;font-size:11px;letter-spacing:.32em;color:#8B93A5;font-weight:400;margin-top:4px}
+
+.panel{background:var(--night2);border:1px solid #2A3245;border-radius:14px;padding:16px;margin-bottom:14px}
+.panel h2{font-size:12px;color:var(--gold);letter-spacing:.15em;margin-bottom:12px;font-weight:700}
+.row{display:flex;gap:8px;margin-bottom:10px}.row>*{flex:1}
+label.f{display:block;font-size:11px;color:#9AA2B5;margin-bottom:4px}
+input,select{width:100%;background:#111623;border:1px solid #333B4D;color:var(--hanji);
+  border-radius:8px;padding:10px;font-size:15px;font-family:inherit}
+input:focus,select:focus{outline:none;border-color:var(--gold)}
+.gender{display:flex;gap:8px}
+.gbtn{flex:1;padding:10px;border-radius:8px;border:1px solid #333B4D;background:#111623;color:#9AA2B5;
+  font-size:14px;cursor:pointer;text-align:center}
+.gbtn.on{border-color:var(--gold);color:var(--gold);font-weight:700}
+button.go{width:100%;margin-top:6px;background:var(--gold);color:#1A140A;border:none;border-radius:10px;
+  padding:13px;font-size:15px;font-weight:700;font-family:'Noto Serif KR',serif;letter-spacing:.2em;cursor:pointer}
+button.go:active{transform:scale(.98)}
+.opt{display:flex;align-items:center;gap:8px;font-size:12px;color:#C6CCDA;margin-top:4px}
+.opt input{width:auto}
+
+/* 명식 요약 바 */
+#summary{display:none;background:var(--hanji);color:var(--ink);border-radius:12px;padding:10px 12px;
+  margin-bottom:12px;font-family:'Noto Serif KR',serif;text-align:center}
+#summary .gz{font-size:19px;font-weight:900;letter-spacing:.18em}
+#summary .meta{font-size:11px;color:var(--ink-soft);margin-top:3px;font-family:'Noto Sans KR',sans-serif}
+
+/* 채팅 */
+#chatArea{display:none;flex-direction:column;flex:1}
+#log{flex:1;display:flex;flex-direction:column;gap:10px;margin-bottom:12px;min-height:280px}
+.msg{max-width:88%;padding:11px 13px;border-radius:14px;font-size:14px;line-height:1.75;white-space:pre-wrap}
+.msg.dosa{background:var(--hanji);color:var(--ink);border-bottom-left-radius:4px;align-self:flex-start;
+  box-shadow:0 3px 12px rgba(0,0,0,.35)}
+.msg.dosa::before{content:'주주도사';display:block;font-size:10px;color:var(--seal);font-weight:700;
+  letter-spacing:.15em;margin-bottom:4px}
+.msg.me{background:#2A3550;color:var(--hanji);border-bottom-right-radius:4px;align-self:flex-end}
+.msg.thinking{background:var(--hanji);opacity:.75;align-self:flex-start;color:var(--ink-soft);font-style:italic}
+.inputbar{display:flex;gap:8px}
+.inputbar input{flex:1}
+.inputbar button{background:var(--seal);color:#fff;border:none;border-radius:8px;padding:0 18px;
+  font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Serif KR',serif}
+.err{color:#E87E6D;font-size:12px;margin-top:8px;display:none}
+footer{text-align:center;font-size:10px;color:#525B70;margin-top:20px;letter-spacing:.1em}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">주주도사<small>相談所 · 프로토타입</small></div>
+  </header>
+
+  <div class="panel" id="setup">
+    <h2>명식을 먼저 펼치겠습니다</h2>
+    <div class="row">
+      <div><label class="f">생년월일 (양력, 8자리)</label><input type="text" id="bdate" inputmode="numeric" maxlength="10" placeholder="예: 19711116" autocomplete="off"></div>
+      <div><label class="f">태어난 시각</label><input type="time" id="btime" value="12:00"></div>
+    </div>
+    <div class="row">
+      <div>
+        <label class="f">성별 (대운 방향 결정)</label>
+        <div class="gender">
+          <div class="gbtn" id="gM" onclick="setG('M')">남</div>
+          <div class="gbtn" id="gF" onclick="setG('F')">여</div>
+        </div>
+      </div>
+      <div>
+        <label class="f">출생 지역</label>
+        <select id="region">
+          <option value="126.98">서울·수도권</option>
+          <option value="129.08">부산</option>
+          <option value="128.60">대구</option>
+          <option value="126.85">광주</option>
+          <option value="127.38">대전</option>
+          <option value="128.90">강릉</option>
+          <option value="126.53">제주</option>
+        </select>
+      </div>
+    </div>
+    <label class="opt"><input type="checkbox" id="timeUnknown"> 태어난 시간 모름</label>
+    <button class="go" onclick="start()">주주도사 만나기</button>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div id="summary"></div>
+
+  <div id="chatArea">
+    <div id="log"></div>
+    <div class="inputbar">
+      <input type="text" id="q" placeholder="도사님께 여쭤보세요" onkeydown="if(event.key==='Enter')send()">
+      <button onclick="send()">여쭙기</button>
+    </div>
+    <div class="err" id="cerr"></div>
+  </div>
+
+  <footer>JUJU DOSA · 계산은 코드, 해석은 AI · 상담 내용은 참고용입니다</footer>
+</div>
+
+<script>
+/* ===== 만세력 코어 (검증 완료 엔진 v0.1 + 대운) ===== */
+const SH=['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'],SK=['갑','을','병','정','무','기','경','신','임','계'];
+const BH=['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'],BK=['자','축','인','묘','진','사','오','미','신','유','술','해'];
+const SE=[0,0,1,1,2,2,3,3,4,4],BE=[4,2,0,0,2,1,1,2,3,3,2,4],EK=['목','화','토','금','수'];
+const DST=[['1948-06-01T00:00','1948-09-13T00:00'],['1949-04-03T00:00','1949-09-11T00:00'],
+['1950-04-01T00:00','1950-09-10T00:00'],['1951-05-06T00:00','1951-09-09T00:00'],
+['1955-05-05T00:00','1955-09-09T00:00'],['1956-05-20T00:00','1956-09-30T00:00'],
+['1957-05-05T00:00','1957-09-22T00:00'],['1958-05-04T00:00','1958-09-21T00:00'],
+['1959-05-03T00:00','1959-09-20T00:00'],['1960-05-01T00:00','1960-09-18T00:00'],
+['1987-05-10T02:00','1987-10-11T03:00'],['1988-05-08T02:00','1988-10-09T03:00']];
+const K830S='1954-03-21T00:00',K830E='1961-08-10T00:00';
+const pad=(n,w=2)=>String(n).padStart(w,'0');
+const tk=(y,mo,d,h,mi)=>`${pad(y,4)}-${pad(mo)}-${pad(d)}T${pad(h)}:${pad(mi)}`;
+function jdn(y,mo,d){const a=Math.floor((14-mo)/12),yy=y+4800-a,mm=mo+12*a-3;
+ return d+Math.floor((153*mm+2)/5)+365*yy+Math.floor(yy/4)-Math.floor(yy/100)+Math.floor(yy/400)-32045;}
+function fromJdn(j){let a=j+32044;const b=Math.floor((4*a+3)/146097),c=a-Math.floor(146097*b/4),
+ dd=Math.floor((4*c+3)/1461),e=c-Math.floor(1461*dd/4),m=Math.floor((5*e+2)/153);
+ return{d:e-Math.floor((153*m+2)/5)+1,mo:m+3-12*Math.floor(m/10),y:100*b+dd-4800+Math.floor(m/10)};}
+function addMin(y,mo,d,h,mi,del){let t=h*60+mi+del,ds=Math.floor(t/1440);t-=ds*1440;
+ const dt=fromJdn(jdn(y,mo,d)+ds);return{y:dt.y,mo:dt.mo,d:dt.d,h:Math.floor(t/60),mi:t%60};}
+function sunLon(jde){const T=(jde-2451545)/36525,r=Math.PI/180;
+ const L0=280.46646+36000.76983*T+.0003032*T*T,M=357.52911+35999.05029*T-.0001537*T*T;
+ const C=(1.914602-.004817*T-.000014*T*T)*Math.sin(M*r)+(.019993-.000101*T)*Math.sin(2*M*r)+.000289*Math.sin(3*M*r);
+ let L=L0+C-.00569-.00478*Math.sin((125.04-1934.136*T)*r);L%=360;return L<0?L+360:L;}
+const jdeUT=(y,mo,d,h,mi)=>jdn(y,mo,d)-0.5+(h+mi/60)/24;
+function ipchun(year){let lo=jdeUT(year,1,25,0,0),hi=jdeUT(year,2,15,0,0);
+ const f=j=>{let d=sunLon(j)-315;while(d>180)d-=360;while(d<-180)d+=360;return d;};
+ for(let i=0;i<60;i++){const m=(lo+hi)/2;if(f(m)<0)lo=m;else hi=m;}return(lo+hi)/2;}
+function computeSaju(inp){
+ const{y,mo,d,h=12,mi=0,timeUnknown=false,lonDeg=127,useLon=true,yajasi=false}=inp;
+ const key=tk(y,mo,d,h,mi);let dstMin=0;
+ for(const[s,e]of DST)if(key>=s&&key<e){dstMin=-60;break;}
+ const is830=key>=K830S&&key<K830E,mer=is830?127.5:135,lonMin=useLon?Math.round((lonDeg-mer)*4):0;
+ const std=addMin(y,mo,d,h,mi,dstMin),ut=addMin(std.y,std.mo,std.d,std.h,std.mi,-(is830?510:540));
+ const jde=jdeUT(ut.y,ut.mo,ut.d,ut.h,ut.mi),lon=sunLon(jde);
+ let sy=std.y;if(jde<ipchun(std.y))sy=std.y-1;
+ const ys=((sy-4)%10+10)%10,yb=((sy-4)%12+12)%12;
+ const mIdx=Math.floor((((lon-315)%360)+360)%360/30),mb=(mIdx+2)%12,ms=((ys%5)*2+2+mIdx)%10;
+ const app=addMin(std.y,std.mo,std.d,std.h,std.mi,lonMin);
+ let dj=jdn(app.y,app.mo,app.d);if(!timeUnknown&&app.h===23&&!yajasi)dj+=1;
+ const dgz=((dj+49)%60+60)%60,ds=dgz%10,db=dgz%12;
+ let hs=null,hb=null;
+ if(!timeUnknown){hb=Math.floor(((app.h*60+app.mi+60)%1440)/120);hs=((ds%5)*2+hb)%10;}
+ const P=[{label:'년주',stem:ys,branch:yb},{label:'월주',stem:ms,branch:mb},{label:'일주',stem:ds,branch:db}];
+ if(hs!==null)P.push({label:'시주',stem:hs,branch:hb});
+ const ec=[0,0,0,0,0];for(const p of P){ec[SE[p.stem]]++;ec[BE[p.branch]]++;}
+ return{pillars:P,elemCount:ec,sajuYear:sy,jde,corrections:{lonMin,dst:dstMin!==0,is830,appliedTime:app},timeUnknown};}
+function adjTerm(jde,fw){const lon=sunLon(jde),mod=((lon-15)%30+30)%30;
+ const tg=fw?(((lon-mod+30)%360)+360)%360:(((lon-mod)%360)+360)%360;
+ const f=t=>{let d=sunLon(t)-tg;while(d>180)d-=360;while(d<-180)d+=360;return d;};
+ let lo,hi;if(fw){lo=jde;hi=jde+(30-mod)/0.95+2;}else{hi=jde;lo=jde-mod/0.95-2;}
+ for(let i=0;i<60;i++){const m=(lo+hi)/2;if(f(m)<0)lo=m;else hi=m;}return(lo+hi)/2;}
+function computeDaeun(jde,ys,ms,mb,gender,count=8){
+ const fw=(ys%2===0)===(gender==='M');
+ const days=Math.abs(adjTerm(jde,fw)-jde);
+ let sa=Math.round(days/3);if(sa<1)sa=1;if(sa>10)sa=10;
+ let mg=-1;for(let k=0;k<60;k++)if(k%10===ms&&k%12===mb){mg=k;break;}
+ const ps=[];for(let i=1;i<=count;i++){const g=((mg+(fw?i:-i))%60+60)%60;
+  ps.push({ageStart:sa+(i-1)*10,ageEnd:sa+i*10-1,stem:g%10,branch:g%12});}
+ return{forward:fw,startAge:sa,pillars:ps};}
+
+/* ===== 앱 로직 ===== */
+let gender=null,history=[],persona='';
+const bdateEl=document.getElementById('bdate');
+bdateEl.addEventListener('input',()=>{const dg=bdateEl.value.replace(/\D/g,'').slice(0,8);
+ let o=dg;if(dg.length>6)o=dg.slice(0,4)+'-'+dg.slice(4,6)+'-'+dg.slice(6);
+ else if(dg.length>4)o=dg.slice(0,4)+'-'+dg.slice(4);bdateEl.value=o;});
+function setG(g){gender=g;document.getElementById('gM').classList.toggle('on',g==='M');
+ document.getElementById('gF').classList.toggle('on',g==='F');}
+function gz(p){return SH[p.stem]+BH[p.branch];}
+function gzk(p){return SK[p.stem]+BK[p.branch];}
+
+function start(){
+ const err=document.getElementById('err');err.style.display='none';
+ const dg=bdateEl.value.replace(/\D/g,'');
+ if(dg.length!==8){err.textContent='생년월일을 8자리로 입력해 주세요. 예: 19711116';err.style.display='block';return;}
+ const y=+dg.slice(0,4),mo=+dg.slice(4,6),d=+dg.slice(6,8);
+ if(y<1900||y>2030){err.textContent='연도는 1900~2030년 사이여야 합니다.';err.style.display='block';return;}
+ const c=new Date(y,mo-1,d);
+ if(c.getFullYear()!==y||c.getMonth()!==mo-1||c.getDate()!==d){err.textContent='존재하지 않는 날짜입니다.';err.style.display='block';return;}
+ if(!gender){err.textContent='성별을 선택해 주세요. (대운 방향이 갈립니다)';err.style.display='block';return;}
+ const tu=document.getElementById('timeUnknown').checked;
+ const[h,mi]=(document.getElementById('btime').value||'12:00').split(':').map(Number);
+ const lon=parseFloat(document.getElementById('region').value);
+
+ const r=computeSaju({y,mo,d,h,mi,timeUnknown:tu,lonDeg:lon,useLon:true});
+ const mp=r.pillars[1],yp=r.pillars[0];
+ const daeun=tu?null:computeDaeun(r.jde,yp.stem,mp.stem,mp.branch,gender);
+ const nowY=new Date().getFullYear(),age=nowY-y+1;
+ let curDaeun=null;
+ if(daeun)for(const p of daeun.pillars)if(age>=p.ageStart&&age<=p.ageEnd)curDaeun=p;
+ const seun=[];for(let yy=nowY-1;yy<=nowY+2;yy++){const s=((yy-4)%10+10)%10,b=((yy-4)%12+12)%12;
+  seun.push(`${yy}년 ${SH[s]}${BH[b]}(${SK[s]}${BK[b]})`);}
+
+ // 명식 요약 바
+ const sum=document.getElementById('summary');
+ sum.innerHTML=`<div class="gz">${r.pillars.map(p=>gz(p)).reverse().join(' · ')}</div>
+  <div class="meta">${gzk(r.pillars[2])}일주 · ${gender==='M'?'남':'여'} · 오행 ${r.elemCount.map((c,i)=>EK[i]+c).join(' ')}${daeun?` · 대운 ${daeun.startAge}세 ${daeun.forward?'순행':'역행'}`:''}</div>`;
+ sum.style.display='block';
+ document.getElementById('setup').style.display='none';
+ document.getElementById('chatArea').style.display='flex';
+
+ // 페르소나 + 데이터 시스템 프롬프트
+ persona=`너는 "주주도사"다. 명리학에 정통한 도사로서 찾아온 사람의 명식을 읽고 상담한다. 너는 점쟁이가 아니라 시간의 흐름을 읽어주는 조언자다.
+
+[말투] 존댓말 기본("~입니다","~하시지요"). 감탄사·웃음("허허" 등) 금지, 진중함이 품격이다. 문장은 짧게 끊는다. 전문용어는 반드시 비유로 풀되 한 답변에 비유 1~2개까지.
+[상담] 모든 풀이는 명식의 실제 글자에서 출발하고 어느 글자를 읽는지 살짝 밝힌다("을목이시라"). 한 답변에 되묻는 질문은 최대 하나. 성격 묘사에 머물지 말고 대운·세운의 시기 조언으로 연결한다. 사업·이직·결혼 등 큰 결정은 시기 판단 전에 "왜 하려 하는지"를 한 번 묻는다.
+[금지선] 단정적 불운 예언 금지 — 나쁜 흐름은 "운은 정해진 결말이 아니라 날씨" 프레임과 대처법을 함께. 건강 진단·예언 금지(병원 상담 권유). 특정 종목·코인·도박·로또 등 투자 지시 금지. 사망·수명 질문은 정중히 거절. 상담자가 심리적 위기를 보이면 풀이를 멈추고 전문 기관 상담을 권한다.
+[데이터] 아래 JSON은 검증된 엔진이 계산한 것이다. 절대 재계산하거나 데이터에 없는 글자를 지어내지 않는다. 연도별 흐름은 제공된 세운 범위 안에서만 말한다.
+[형식] 채팅이다. 3~6개의 짧은 문단. 마크다운 기호(#, *, - 등) 없이 순수한 글로만 답한다.
+
+## 상담자 명식 데이터
+사주: ${r.pillars.map(p=>`${p.label} ${gz(p)}(${gzk(p)})`).join(', ')}${r.timeUnknown?' — 시주 미상':''}
+오행 분포: ${r.elemCount.map((c,i)=>`${EK[i]}${c}`).join(' ')}
+성별: ${gender==='M'?'남':'여'} · 올해 ${nowY}년 세는나이 ${age}세
+${daeun?`대운(${daeun.forward?'순행':'역행'}, ${daeun.startAge}세 시작): ${daeun.pillars.map(p=>`${p.ageStart}세 ${gz(p)}`).join(' → ')}
+현재 대운: ${curDaeun?`${curDaeun.ageStart}~${curDaeun.ageEnd}세 ${gz(curDaeun)}(${gzk(curDaeun)})`:'범위 밖'}`:'대운: 시주 미상으로 생략'}
+세운: ${seun.join(', ')}
+
+첫 인사에서는 일주를 중심으로 첫인상을 짧게 풀고, 무엇이 궁금한지 되물어라.`;
+
+ history=[{role:'user',content:'(상담자가 방에 들어와 절을 올린다. 첫 인사를 건네라.)'}];
+ callDosa();
+}
+
+function addMsg(txt,cls){const log=document.getElementById('log');
+ const m=document.createElement('div');m.className='msg '+cls;m.textContent=txt;
+ log.appendChild(m);m.scrollIntoView({behavior:'smooth',block:'end'});return m;}
+
+async function callDosa(){
+ const th=addMsg('명식을 살피는 중…','thinking');
+ try{
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+   method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,system:persona,messages:history})});
+  const data=await res.json();
+  th.remove();
+  if(data.error){document.getElementById('cerr').textContent='도사님이 잠시 자리를 비웠습니다: '+(data.error.message||'오류');
+   document.getElementById('cerr').style.display='block';return;}
+  const txt=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
+  history.push({role:'assistant',content:txt});
+  addMsg(txt,'dosa');
+ }catch(e){th.remove();
+  document.getElementById('cerr').textContent='연결에 문제가 있습니다: '+e.message;
+  document.getElementById('cerr').style.display='block';}
+}
+
+function send(){
+ const q=document.getElementById('q');const t=q.value.trim();if(!t)return;
+ document.getElementById('cerr').style.display='none';
+ addMsg(t,'me');history.push({role:'user',content:t});q.value='';callDosa();
+}
+</script>
+</body>
+</html>

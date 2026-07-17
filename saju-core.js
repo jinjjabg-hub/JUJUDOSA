@@ -221,3 +221,59 @@ function fmtPillar(p){
 if (typeof module !== 'undefined') {
   module.exports = { computeSaju, fmtPillar, ELEM_KO, STEMS_HANJA, BRANCH_HANJA, findIpchunJde, sunApparentLongitude, jdeFromUT, jdnFromDate };
 }
+
+// ---------- 대운 계산 (2주차 추가) ----------
+
+// 출생 시점(jde)에서 앞/뒤로 가장 가까운 절입 시각 탐색
+function findAdjacentTerm(jde, forward){
+  const lon = sunApparentLongitude(jde);
+  const mod = ((lon - 15) % 30 + 30) % 30; // 직전 절입선에서 지나온 각도
+  const target = forward
+    ? (((lon - mod + 30) % 360) + 360) % 360
+    : (((lon - mod) % 360) + 360) % 360;
+  const f = t => { let d = sunApparentLongitude(t) - target; while(d>180)d-=360; while(d<-180)d+=360; return d; };
+  let lo, hi;
+  if(forward){ lo = jde; hi = jde + (30 - mod)/0.95 + 2; }
+  else       { hi = jde; lo = jde - mod/0.95 - 2; }
+  for(let i=0;i<60;i++){ const m=(lo+hi)/2; if(f(m)<0) lo=m; else hi=m; }
+  return (lo+hi)/2;
+}
+
+/**
+ * 대운 계산. gender: 'M' | 'F'
+ * 순역: 양간년+남 / 음간년+여 = 순행, 그 외 역행
+ * 대운수: 절입까지 일수 / 3 (반올림, 최소 1)
+ */
+function computeDaeun({ jde, yearStem, monthStem, monthBranch, gender, count = 8 }){
+  const yangYear = yearStem % 2 === 0;
+  const male = gender === 'M';
+  const forward = (yangYear && male) || (!yangYear && !male);
+  const termJde = findAdjacentTerm(jde, forward);
+  const days = Math.abs(termJde - jde);
+  let startAge = Math.round(days / 3);
+  if(startAge < 1) startAge = 1; if(startAge > 10) startAge = 10;
+
+  // 월주의 60갑자 인덱스
+  let mGz = -1;
+  for(let k=0;k<60;k++){ if(k%10===monthStem && k%12===monthBranch){ mGz=k; break; } }
+
+  const pillars = [];
+  for(let i=1;i<=count;i++){
+    const gz = ((mGz + (forward ? i : -i)) % 60 + 60) % 60;
+    pillars.push({
+      order: i,
+      ageStart: startAge + (i-1)*10,
+      ageEnd: startAge + i*10 - 1,
+      stem: gz % 10,
+      branch: gz % 12,
+    });
+  }
+  return { forward, startAge, daysToTerm: Math.round(days*10)/10, pillars };
+}
+
+if (typeof module !== 'undefined') {
+  module.exports.computeDaeun = computeDaeun;
+  module.exports.findAdjacentTerm = findAdjacentTerm;
+  module.exports.STEMS_KO = STEMS_KO;
+  module.exports.BRANCH_KO = BRANCH_KO;
+}
