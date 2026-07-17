@@ -87,7 +87,7 @@ footer{text-align:center;font-size:10px;color:#525B70;margin-top:30px;letter-spa
   <div class="panel">
     <h2>생년월일시 입력 (당시 시계·호적 기준)</h2>
     <div class="row">
-      <div><label class="f">생년월일 (양력)</label><input type="date" id="bdate" value="1990-01-01" min="1900-01-01" max="2030-12-31"></div>
+      <div><label class="f">생년월일 (양력)</label><input type="text" id="bdate" inputmode="numeric" maxlength="10" placeholder="예: 19711116" autocomplete="off"></div>
       <div><label class="f">태어난 시각</label><input type="time" id="btime" value="12:00"></div>
     </div>
     <div class="row">
@@ -144,12 +144,26 @@ footer{text-align:center;font-size:10px;color:#525B70;margin-top:30px;letter-spa
 <script>
 const ELEM_SHORT = ['목','화','토','금','수'];
 
+// 날짜 입력: 숫자만 받아 1971-11-16 형태로 자동 포맷
+const bdateEl = document.getElementById('bdate');
+bdateEl.addEventListener('input', ()=>{
+  const dg = bdateEl.value.replace(/\D/g,'').slice(0,8);
+  let out = dg;
+  if(dg.length > 6) out = dg.slice(0,4)+'-'+dg.slice(4,6)+'-'+dg.slice(6);
+  else if(dg.length > 4) out = dg.slice(0,4)+'-'+dg.slice(4);
+  bdateEl.value = out;
+});
+
 function run(){
-  const bd = document.getElementById('bdate').value;
+  const dg = bdateEl.value.replace(/\D/g,'');
   const bt = document.getElementById('btime').value || '12:00';
-  if(!bd){ alert('생년월일을 입력해 주세요.'); return; }
-  const [y,mo,d] = bd.split('-').map(Number);
-  if(!y || y < 1900 || y > 2030){ alert('연도는 1900~2030년 사이로 입력해 주세요.\n(입력값: ' + y + '년)'); return; }
+  if(dg.length !== 8){ alert('생년월일을 8자리로 입력해 주세요.\n예: 19711116'); return; }
+  const y = +dg.slice(0,4), mo = +dg.slice(4,6), d = +dg.slice(6,8);
+  if(y < 1900 || y > 2030){ alert('연도는 1900~2030년 사이로 입력해 주세요.\n(입력값: ' + y + '년)'); return; }
+  const chk = new Date(y, mo-1, d);
+  if(chk.getFullYear()!==y || chk.getMonth()!==mo-1 || chk.getDate()!==d){
+    alert('존재하지 않는 날짜입니다: ' + y + '년 ' + mo + '월 ' + d + '일'); return;
+  }
   const [h,mi] = bt.split(':').map(Number);
   const input = {
     y,mo,d,h,mi,
