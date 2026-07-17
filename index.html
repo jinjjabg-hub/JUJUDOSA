@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주주도사 · 만세력 검증기 v0.1</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;900&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --night:#151A26; --night2:#1D2433;
+  --hanji:#F4EDDD; --hanji-line:#DDD2B8;
+  --ink:#221C12; --ink-soft:#5C5546;
+  --gold:#C89B3C; --seal:#B33A2B;
+  --wood:#3E7C4F; --fire:#B5432F; --earth:#A8842C; --metal:#8A8F98; --water:#2C4A73;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--night);color:var(--hanji);font-family:'Noto Sans KR',sans-serif;min-height:100vh;
+  background-image:radial-gradient(1px 1px at 20% 30%,rgba(255,255,255,.35),transparent),
+    radial-gradient(1px 1px at 70% 15%,rgba(255,255,255,.25),transparent),
+    radial-gradient(1.5px 1.5px at 85% 60%,rgba(200,155,60,.4),transparent),
+    radial-gradient(1px 1px at 40% 80%,rgba(255,255,255,.2),transparent);}
+.wrap{max-width:520px;margin:0 auto;padding:28px 16px 60px}
+header{text-align:center;margin-bottom:26px}
+.brand{font-family:'Noto Serif KR',serif;font-weight:900;font-size:34px;letter-spacing:.12em;color:var(--gold)}
+.brand small{display:block;font-size:12px;letter-spacing:.35em;color:#8B93A5;font-weight:400;margin-top:6px}
+.stage{display:inline-block;margin-top:10px;font-size:11px;color:#8B93A5;border:1px solid #333B4D;border-radius:999px;padding:3px 12px}
+
+.panel{background:var(--night2);border:1px solid #2A3245;border-radius:14px;padding:18px 16px;margin-bottom:16px}
+.panel h2{font-size:13px;color:var(--gold);letter-spacing:.15em;margin-bottom:14px;font-weight:700}
+.row{display:flex;gap:8px;margin-bottom:10px}
+.row>*{flex:1}
+label.f{display:block;font-size:11px;color:#9AA2B5;margin-bottom:4px}
+input,select{width:100%;background:#111623;border:1px solid #333B4D;color:var(--hanji);
+  border-radius:8px;padding:10px;font-size:15px;font-family:inherit}
+input:focus,select:focus{outline:none;border-color:var(--gold)}
+.opts{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.opt{display:flex;align-items:center;gap:8px;font-size:13px;color:#C6CCDA}
+.opt input{width:auto}
+.opt .hint{font-size:11px;color:#7A8296}
+button.go{width:100%;margin-top:8px;background:var(--gold);color:#1A140A;border:none;border-radius:10px;
+  padding:14px;font-size:16px;font-weight:700;font-family:'Noto Serif KR',serif;letter-spacing:.2em;cursor:pointer}
+button.go:active{transform:scale(.98)}
+
+/* 명식 카드 */
+#result{display:none}
+.myeongsik{background:var(--hanji);border-radius:14px;padding:22px 14px 16px;position:relative;color:var(--ink);
+  box-shadow:0 8px 30px rgba(0,0,0,.45)}
+.myeongsik .title{font-family:'Noto Serif KR',serif;text-align:center;font-size:13px;color:var(--ink-soft);
+  letter-spacing:.3em;margin-bottom:16px}
+.pillars{display:flex;gap:8px;justify-content:center}
+.pillar{flex:1;max-width:100px;text-align:center;border:1px solid var(--hanji-line);border-radius:10px;
+  padding:10px 4px;background:rgba(255,255,255,.35)}
+.pillar.ilju{border:2px solid var(--seal);position:relative}
+.pillar.ilju::after{content:'나';position:absolute;top:-9px;left:50%;transform:translateX(-50%);
+  background:var(--seal);color:#fff;font-size:10px;padding:1px 8px;border-radius:999px}
+.pillar .plabel{font-size:11px;color:var(--ink-soft);letter-spacing:.2em;margin-bottom:8px}
+.gan,.ji{font-family:'Noto Serif KR',serif;font-weight:900;font-size:34px;line-height:1.25}
+.reading{font-size:11px;color:var(--ink-soft);margin-top:6px}
+.e0{color:var(--wood)}.e1{color:var(--fire)}.e2{color:var(--earth)}.e3{color:var(--metal)}.e4{color:var(--water)}
+.seal{position:absolute;right:14px;bottom:12px;width:38px;height:38px;background:var(--seal);border-radius:6px;
+  color:#F7EDE4;font-family:'Noto Serif KR',serif;font-size:11px;font-weight:600;display:flex;align-items:center;
+  justify-content:center;text-align:center;line-height:1.3;letter-spacing:.05em}
+
+.elems{display:flex;gap:6px;margin-top:14px}
+.elem{flex:1;text-align:center;border-radius:8px;padding:8px 2px;color:#fff;font-size:12px}
+.elem b{display:block;font-size:18px;font-family:'Noto Serif KR',serif}
+.b0{background:var(--wood)}.b1{background:var(--fire)}.b2{background:var(--earth)}.b3{background:var(--metal)}.b4{background:var(--water)}
+.elem.zero{opacity:.35}
+
+.notes{margin-top:14px;font-size:12px;color:#C6CCDA;line-height:1.7}
+.notes .warn{color:#E8B04B}
+.notes .crit{color:#E87E6D;font-weight:700}
+
+.verify{font-size:12px;color:#9AA2B5;line-height:1.8}
+.verify b{color:var(--hanji)}
+.verify ol{padding-left:18px}
+footer{text-align:center;font-size:10px;color:#525B70;margin-top:30px;letter-spacing:.1em}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">주주도사<small>JUJU DOSA · 萬歲曆</small></div>
+    <span class="stage">1주차 · 만세력 엔진 검증기 v0.1</span>
+  </header>
+
+  <div class="panel">
+    <h2>생년월일시 입력 (당시 시계·호적 기준)</h2>
+    <div class="row">
+      <div><label class="f">생년월일 (양력)</label><input type="date" id="bdate" value="1990-01-01"></div>
+      <div><label class="f">태어난 시각</label><input type="time" id="btime" value="12:00"></div>
+    </div>
+    <div class="row">
+      <div>
+        <label class="f">출생 지역 (경도 보정용)</label>
+        <select id="region">
+          <option value="126.98">서울·수도권 (126.98°)</option>
+          <option value="129.08" selected>부산 (129.08°)</option>
+          <option value="128.60">대구 (128.60°)</option>
+          <option value="126.85">광주 (126.85°)</option>
+          <option value="127.38">대전 (127.38°)</option>
+          <option value="128.90">강릉 (128.90°)</option>
+          <option value="126.53">제주 (126.53°)</option>
+        </select>
+      </div>
+    </div>
+    <div class="opts">
+      <label class="opt"><input type="checkbox" id="timeUnknown"> 태어난 시간 모름 <span class="hint">(시주 생략)</span></label>
+      <label class="opt"><input type="checkbox" id="useLon"> 경도 보정 적용 <span class="hint">(대조 사이트와 설정을 맞추세요)</span></label>
+      <label class="opt"><input type="checkbox" id="yajasi"> 야자시 적용 <span class="hint">(23시~24시 출생을 당일 일주로)</span></label>
+    </div>
+    <button class="go" onclick="run()">명식 뽑기</button>
+  </div>
+
+  <div id="result">
+    <div class="myeongsik">
+      <div class="title">命 式</div>
+      <div class="pillars" id="pillars"></div>
+      <div class="elems" id="elems"></div>
+      <div class="seal">주주<br>도사</div>
+    </div>
+    <div class="panel" style="margin-top:14px">
+      <h2>계산 내역</h2>
+      <div class="notes" id="notes"></div>
+    </div>
+    <div class="panel">
+      <h2>검증 방법</h2>
+      <div class="verify">
+        <ol>
+          <li>포스텔러 앱 · <b>만세력닷컴</b>에 같은 생년월일시 입력</li>
+          <li>팔자 <b>8글자(한자)</b>가 일치하는지 대조</li>
+          <li>시주가 다르면 → <b>경도 보정</b> 켜고/끄고 재대조</li>
+          <li>불일치 사례는 생년월일시와 함께 기록</li>
+        </ol>
+        목표: <b>5개 이상 사례 전부 일치</b> → 2주차(채팅 상담) 진행
+      </div>
+    </div>
+  </div>
+
+  <footer>JUJU DOSA · 계산은 코드, 해석은 AI · T.M LINK</footer>
+</div>
+
+<script src="saju-core.js"></script>
+<script>
+const ELEM_SHORT = ['목','화','토','금','수'];
+
+function run(){
+  const bd = document.getElementById('bdate').value;
+  const bt = document.getElementById('btime').value || '12:00';
+  if(!bd){ alert('생년월일을 입력해 주세요.'); return; }
+  const [y,mo,d] = bd.split('-').map(Number);
+  const [h,mi] = bt.split(':').map(Number);
+  const input = {
+    y,mo,d,h,mi,
+    timeUnknown: document.getElementById('timeUnknown').checked,
+    lonDeg: parseFloat(document.getElementById('region').value),
+    useLon: document.getElementById('useLon').checked,
+    yajasi: document.getElementById('yajasi').checked,
+  };
+  const r = computeSaju(input);
+  render(r);
+}
+
+function render(r){
+  // 기둥: 시 일 월 년 (오른쪽이 년 — 만세력 표기 순서)
+  const order = r.timeUnknown ? [2,1,0] : [3,2,1,0];
+  const html = order.map(i=>{
+    if(i >= r.pillars.length) return '';
+    const p = fmtPillar(r.pillars[i]);
+    const ilju = p.label === '일주' ? ' ilju' : '';
+    return `<div class="pillar${ilju}">
+      <div class="plabel">${p.label}</div>
+      <div class="gan e${p.stemElem}">${p.stemHanja}</div>
+      <div class="ji e${p.branchElem}">${p.branchHanja}</div>
+      <div class="reading">${p.ko}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('pillars').innerHTML = html;
+
+  document.getElementById('elems').innerHTML = r.elemCount.map((c,i)=>
+    `<div class="elem b${i}${c===0?' zero':''}">${ELEM_SHORT[i]}<b>${c}</b></div>`).join('');
+
+  const c = r.corrections;
+  const lines = [];
+  lines.push(`사주 기준년: <b>${r.sajuYear}년</b> (입춘 기준) · 태양 황경 ${r.sunLongitude.toFixed(2)}°`);
+  if(c.dstApplied) lines.push(`<span class="warn">✦ 서머타임 자동 보정: 시계에서 1시간 차감${c.dstFuzzy ? ' (1948~60년은 경계 ±1일 오차 가능)' : ''}</span>`);
+  if(c.kst830) lines.push(`<span class="warn">✦ 당시 표준시 UTC+8:30 (1954~61년) 자동 반영</span>`);
+  if(c.useLon) lines.push(`✦ 경도 보정 ${c.lonMin}분 적용 → 적용 시각 ${String(c.appliedTime.h).padStart(2,'0')}:${String(c.appliedTime.mi).padStart(2,'0')}`);
+  if(c.lateNight) lines.push(`✦ 23시대 출생: ${c.yajasi ? '야자시 적용 (당일 일주)' : '정자시 적용 (다음 날 일주)'}`);
+  if(r.nearTerm) lines.push(`<span class="crit">⚠ 절기 경계 ±2시간 이내 출생 — 월주가 바뀔 수 있는 민감 구간입니다. 대조 사이트와 반드시 교차 확인하세요.</span>`);
+  if(r.timeUnknown) lines.push(`✦ 시간 미상: 시주 생략 (6글자)`);
+  document.getElementById('notes').innerHTML = lines.join('<br>');
+
+  document.getElementById('result').style.display = 'block';
+  document.getElementById('result').scrollIntoView({behavior:'smooth'});
+}
+</script>
+</body>
+</html>
