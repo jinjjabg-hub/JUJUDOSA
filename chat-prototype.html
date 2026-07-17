@@ -29,6 +29,11 @@ label.f{display:block;font-size:11px;color:#9AA2B5;margin-bottom:4px}
 input,select{width:100%;background:#111623;border:1px solid #333B4D;color:var(--hanji);
   border-radius:8px;padding:10px;font-size:15px;font-family:inherit}
 input:focus,select:focus{outline:none;border-color:var(--gold)}
+.tabs{display:flex;gap:6px;margin-bottom:14px}
+.tab{flex:1;text-align:center;padding:9px;border-radius:8px;border:1px solid #333B4D;background:#111623;
+  color:#9AA2B5;font-size:13px;cursor:pointer;font-family:'Noto Serif KR',serif;letter-spacing:.1em}
+.tab.on{border-color:var(--gold);color:var(--gold);font-weight:700}
+.pb{display:none;border-top:1px dashed #333B4D;margin-top:12px;padding-top:12px}
 .gender{display:flex;gap:8px}
 .gbtn{flex:1;padding:10px;border-radius:8px;border:1px solid #333B4D;background:#111623;color:#9AA2B5;
   font-size:14px;cursor:pointer;text-align:center}
@@ -70,7 +75,11 @@ footer{text-align:center;font-size:10px;color:#525B70;margin-top:20px;letter-spa
   </header>
 
   <div class="panel" id="setup">
-    <h2>명식을 먼저 펼치겠습니다</h2>
+    <div class="tabs">
+      <div class="tab on" id="tabS" onclick="setMode('S')">개인 상담</div>
+      <div class="tab" id="tabG" onclick="setMode('G')">궁합 상담</div>
+    </div>
+    <h2 id="setupTitle">명식을 먼저 펼치겠습니다</h2>
     <div class="row">
       <div><label class="f">생년월일 (양력, 8자리)</label><input type="text" id="bdate" inputmode="numeric" maxlength="10" placeholder="예: 19711116" autocomplete="off"></div>
       <div><label class="f">태어난 시각</label><input type="time" id="btime" value="12:00"></div>
@@ -97,7 +106,49 @@ footer{text-align:center;font-size:10px;color:#525B70;margin-top:20px;letter-spa
       </div>
     </div>
     <label class="opt"><input type="checkbox" id="timeUnknown"> 태어난 시간 모름</label>
-    <button class="go" onclick="start()">주주도사 만나기</button>
+
+    <div class="pb" id="pB">
+      <h2>상대의 명식</h2>
+      <div class="row">
+        <div><label class="f">상대 생년월일 (8자리)</label><input type="text" id="bdate2" inputmode="numeric" maxlength="10" placeholder="예: 19750305" autocomplete="off"></div>
+        <div><label class="f">태어난 시각</label><input type="time" id="btime2" value="12:00"></div>
+      </div>
+      <div class="row">
+        <div>
+          <label class="f">상대 성별</label>
+          <div class="gender">
+            <div class="gbtn" id="g2M" onclick="setG2('M')">남</div>
+            <div class="gbtn" id="g2F" onclick="setG2('F')">여</div>
+          </div>
+        </div>
+        <div>
+          <label class="f">상대 출생 지역</label>
+          <select id="region2">
+            <option value="126.98">서울·수도권</option>
+            <option value="129.08">부산</option>
+            <option value="128.60">대구</option>
+            <option value="126.85">광주</option>
+            <option value="127.38">대전</option>
+            <option value="128.90">강릉</option>
+            <option value="126.53">제주</option>
+          </select>
+        </div>
+      </div>
+      <label class="opt"><input type="checkbox" id="timeUnknown2"> 상대 태어난 시간 모름</label>
+      <div style="margin-top:10px">
+        <label class="f">두 분의 관계</label>
+        <select id="relType">
+          <option value="연인">연인</option>
+          <option value="부부">부부·배우자</option>
+          <option value="결혼을 생각하는 상대">결혼을 생각하는 상대</option>
+          <option value="사업 파트너">사업 파트너</option>
+          <option value="직장 동료·상사">직장 동료·상사</option>
+          <option value="친구·지인">친구·지인</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="go" id="goBtn" onclick="start()">주주도사 만나기</button>
     <div class="err" id="err"></div>
   </div>
 
@@ -186,12 +237,68 @@ function computeDaeun(jde,ys,ms,mb,gender,count=8){
   ps.push({ageStart:sa+(i-1)*10,ageEnd:sa+i*10-1,stem:g%10,branch:g%12});}
  return{forward:fw,startAge:sa,pillars:ps};}
 
+/* ===== 궁합 합충 계산 ===== */
+const SAMHAP=[[8,0,4],[2,6,10],[5,9,1],[11,3,7]]; // 신자진 인오술 사유축 해묘미
+function stemRel(a,b){
+ if(a===b)return '같은 글자';
+ if(Math.abs(a-b)===5)return '천간합';
+ const de=SE[a],oe=SE[b];
+ if(de===oe)return '같은 오행';
+ if((de+1)%5===oe)return '나가 상대를 생함';
+ if((oe+1)%5===de)return '상대가 나를 생함';
+ if((de+2)%5===oe)return '나가 상대를 극함';
+ return '상대가 나를 극함';}
+function branchRel(a,b){
+ if(a===b)return '같은 글자';
+ if(a+b===13||(a===0&&b===1)||(a===1&&b===0))return '육합';
+ if(Math.abs(a-b)===6)return '충';
+ for(const g of SAMHAP)if(g.includes(a)&&g.includes(b))return '삼합(반합)';
+ return '합충 없음';}
+
 /* ===== 앱 로직 ===== */
-let gender=null,history=[],persona='';
+let gender=null,gender2=null,mode='S',history=[],persona='';
+function setMode(m){mode=m;
+ document.getElementById('tabS').classList.toggle('on',m==='S');
+ document.getElementById('tabG').classList.toggle('on',m==='G');
+ document.getElementById('pB').style.display=m==='G'?'block':'none';
+ document.getElementById('setupTitle').textContent=m==='G'?'두 분의 명식을 펼치겠습니다':'명식을 먼저 펼치겠습니다';
+ document.getElementById('goBtn').textContent=m==='G'?'궁합 펼치기':'주주도사 만나기';}
+function setG2(g){gender2=g;document.getElementById('g2M').classList.toggle('on',g==='M');
+ document.getElementById('g2F').classList.toggle('on',g==='F');}
 const bdateEl=document.getElementById('bdate');
-bdateEl.addEventListener('input',()=>{const dg=bdateEl.value.replace(/\D/g,'').slice(0,8);
+function autoFmt(el){el.addEventListener('input',()=>{const dg=el.value.replace(/\D/g,'').slice(0,8);
  let o=dg;if(dg.length>6)o=dg.slice(0,4)+'-'+dg.slice(4,6)+'-'+dg.slice(6);
- else if(dg.length>4)o=dg.slice(0,4)+'-'+dg.slice(4);bdateEl.value=o;});
+ else if(dg.length>4)o=dg.slice(0,4)+'-'+dg.slice(4);el.value=o;});}
+autoFmt(bdateEl);autoFmt(document.getElementById('bdate2'));
+
+function parsePerson(dateId,timeId,tuId,regionId,g,who){
+ const dg=document.getElementById(dateId).value.replace(/\D/g,'');
+ if(dg.length!==8)return{err:who+' 생년월일을 8자리로 입력해 주세요.'};
+ const y=+dg.slice(0,4),mo=+dg.slice(4,6),d=+dg.slice(6,8);
+ if(y<1900||y>2030)return{err:who+' 연도는 1900~2030년 사이여야 합니다.'};
+ const c=new Date(y,mo-1,d);
+ if(c.getFullYear()!==y||c.getMonth()!==mo-1||c.getDate()!==d)return{err:who+' 날짜가 존재하지 않습니다.'};
+ if(!g)return{err:who+' 성별을 선택해 주세요.'};
+ const tu=document.getElementById(tuId).checked;
+ const[h,mi]=(document.getElementById(timeId).value||'12:00').split(':').map(Number);
+ const lon=parseFloat(document.getElementById(regionId).value);
+ const r=computeSaju({y,mo,d,h,mi,timeUnknown:tu,lonDeg:lon,useLon:true});
+ const mp=r.pillars[1],yp=r.pillars[0];
+ const daeun=tu?null:computeDaeun(r.jde,yp.stem,mp.stem,mp.branch,g);
+ const nowY=new Date().getFullYear(),age=nowY-y+1;
+ let cur=null;if(daeun)for(const p of daeun.pillars)if(age>=p.ageStart&&age<=p.ageEnd)cur=p;
+ return{r,daeun,cur,age,gender:g,nowY};}
+
+function personBlock(P,title){
+ const r=P.r,ds=r.pillars[2].stem;
+ return `${title}
+사주: ${r.pillars.map(p=>{const ss=p.label==='일주'?'일간(나)':sipseong(ds,p.stem);
+  const bs=sipseong(ds,BMAIN[p.branch]);
+  return `${p.label} ${gz(p)}(${gzk(p)}) [천간:${ss}/지지:${bs}]`;}).join(', ')}${r.timeUnknown?' — 시주 미상':''}
+오행 분포: ${r.elemCount.map((c,i)=>`${EK[i]}${c}`).join(' ')}
+성별: ${P.gender==='M'?'남':'여'} · 세는나이 ${P.age}세
+${P.daeun?`대운(${P.daeun.forward?'순행':'역행'}, ${P.daeun.startAge}세 시작): ${P.daeun.pillars.map(p=>`${p.ageStart}세 ${gz(p)}`).join(' → ')}
+현재 대운: ${P.cur?`${P.cur.ageStart}~${P.cur.ageEnd}세 ${gz(P.cur)}`:'범위 밖'}`:'대운: 시주 미상으로 생략'}`;}
 function setG(g){gender=g;document.getElementById('gM').classList.toggle('on',g==='M');
  document.getElementById('gF').classList.toggle('on',g==='F');}
 function gz(p){return SH[p.stem]+BH[p.branch];}
@@ -199,57 +306,72 @@ function gzk(p){return SK[p.stem]+BK[p.branch];}
 
 function start(){
  const err=document.getElementById('err');err.style.display='none';
- const dg=bdateEl.value.replace(/\D/g,'');
- if(dg.length!==8){err.textContent='생년월일을 8자리로 입력해 주세요. 예: 19711116';err.style.display='block';return;}
- const y=+dg.slice(0,4),mo=+dg.slice(4,6),d=+dg.slice(6,8);
- if(y<1900||y>2030){err.textContent='연도는 1900~2030년 사이여야 합니다.';err.style.display='block';return;}
- const c=new Date(y,mo-1,d);
- if(c.getFullYear()!==y||c.getMonth()!==mo-1||c.getDate()!==d){err.textContent='존재하지 않는 날짜입니다.';err.style.display='block';return;}
- if(!gender){err.textContent='성별을 선택해 주세요. (대운 방향이 갈립니다)';err.style.display='block';return;}
- const tu=document.getElementById('timeUnknown').checked;
- const[h,mi]=(document.getElementById('btime').value||'12:00').split(':').map(Number);
- const lon=parseFloat(document.getElementById('region').value);
-
- const r=computeSaju({y,mo,d,h,mi,timeUnknown:tu,lonDeg:lon,useLon:true});
- const mp=r.pillars[1],yp=r.pillars[0];
- const daeun=tu?null:computeDaeun(r.jde,yp.stem,mp.stem,mp.branch,gender);
- const nowY=new Date().getFullYear(),age=nowY-y+1;
- let curDaeun=null;
- if(daeun)for(const p of daeun.pillars)if(age>=p.ageStart&&age<=p.ageEnd)curDaeun=p;
+ const A=parsePerson('bdate','btime','timeUnknown','region',gender,mode==='G'?'[나]':'');
+ if(A.err){err.textContent=A.err;err.style.display='block';return;}
+ let B=null;
+ if(mode==='G'){
+  B=parsePerson('bdate2','btime2','timeUnknown2','region2',gender2,'[상대]');
+  if(B.err){err.textContent=B.err;err.style.display='block';return;}
+ }
+ const nowY=A.nowY;
  const seun=[];for(let yy=nowY-1;yy<=nowY+2;yy++){const s=((yy-4)%10+10)%10,b=((yy-4)%12+12)%12;
   seun.push(`${yy}년 ${SH[s]}${BH[b]}(${SK[s]}${BK[b]})`);}
 
- // 명식 요약 바
  const sum=document.getElementById('summary');
- sum.innerHTML=`<div class="gz">${r.pillars.map(p=>gz(p)).reverse().join(' · ')}</div>
-  <div class="meta">${gzk(r.pillars[2])}일주 · ${gender==='M'?'남':'여'} · 오행 ${r.elemCount.map((c,i)=>EK[i]+c).join(' ')}${daeun?` · 대운 ${daeun.startAge}세 ${daeun.forward?'순행':'역행'}`:''}</div>`;
+ const baseRules=`너는 "주주도사"다. 명리학에 정통한 도사로서 찾아온 사람의 명식을 읽고 상담한다. 너는 점쟁이가 아니라 시간의 흐름을 읽어주는 조언자다.
+
+[말투] 존댓말 기본("~입니다","~하시지요"). 감탄사·웃음("허허" 등) 금지, 진중함이 품격이다. 문장은 짧게 끊는다. 전문용어는 반드시 비유로 풀되 한 답변에 비유 1~2개까지.
+[상담] 모든 풀이는 명식의 실제 글자에서 출발하고 어느 글자를 읽는지 살짝 밝힌다. 한 답변에 되묻는 질문은 최대 하나. 성격 묘사에 머물지 말고 시기와 행동의 조언으로 연결한다. 큰 결정은 시기 판단 전에 "왜 하려 하는지"를 한 번 묻는다.
+[금지선] 단정적 불운 예언 금지 — 나쁜 흐름은 "운은 정해진 결말이 아니라 날씨" 프레임과 대처법을 함께. 건강 진단·예언 금지(병원 상담 권유). 특정 종목·코인·도박·로또 등 투자 지시 금지. 사망·수명 질문은 정중히 거절. 상담자가 심리적 위기를 보이면 풀이를 멈추고 전문 기관 상담을 권한다.
+[데이터] 아래 JSON은 검증된 엔진이 계산한 것이다. 절대 재계산하거나 데이터에 없는 글자를 지어내지 않는다. 연도별 흐름은 제공된 세운 범위 안에서만 말한다.
+[형식] 채팅이다. 짧은 문단들로. 마크다운 기호(#, *, - 등) 없이 순수한 글로만 답한다.`;
+
+ if(mode==='S'){
+  const r=A.r;
+  sum.innerHTML=`<div class="gz">${r.pillars.map(p=>gz(p)).reverse().join(' · ')}</div>
+   <div class="meta">${gzk(r.pillars[2])}일주 · ${A.gender==='M'?'남':'여'} · 오행 ${r.elemCount.map((c,i)=>EK[i]+c).join(' ')}${A.daeun?` · 대운 ${A.daeun.startAge}세 ${A.daeun.forward?'순행':'역행'}`:''}</div>`;
+  persona=`${baseRules}
+
+## 상담자 명식 데이터
+${personBlock(A,'')}
+세운: ${seun.join(', ')}
+
+[첫 풀이 — 매우 중요] 첫 응답은 인사가 아니라 종합 풀이다. 다음 네 부분을 문단으로 나눠 차례로 풀어라. 첫째, 타고난 본질 — 일간과 일주가 말하는 이 사람의 그릇. 둘째, 오행의 균형 — 넘치는 기운과 모자란 기운이 삶에서 어떻게 나타나는지. 셋째, 구조 — 십성 배치가 보여주는 재능과 과제. 넷째, 지금의 흐름 — 현재 대운과 올해 세운이 어떤 계절인지. 각 부분은 2~4문장으로 짧게, 근거 글자를 밝히며. 마지막에 "무엇이 궁금하십니까" 하나로 마무리하고, 이후 대화부터는 이 풀이를 기초로 상담한다.`;
+  history=[{role:'user',content:'(상담자가 방에 들어와 절을 올리고 명식을 내민다. 종합 풀이를 시작하라.)'}];
+ } else {
+  const ra=A.r,rb=B.r,rel=document.getElementById('relType').value;
+  const dA=ra.pillars[2],dB=rb.pillars[2],yA=ra.pillars[0],yB=rb.pillars[0];
+  const facts=[
+   `일간 관계: 나 ${SH[dA.stem]} ↔ 상대 ${SH[dB.stem]} → ${stemRel(dA.stem,dB.stem)}`,
+   `일지 관계: 나 ${BH[dA.branch]} ↔ 상대 ${BH[dB.branch]} → ${branchRel(dA.branch,dB.branch)}`,
+   `띠(년지) 관계: 나 ${BH[yA.branch]} ↔ 상대 ${BH[yB.branch]} → ${branchRel(yA.branch,yB.branch)}`,
+  ].join('\n');
+  sum.innerHTML=`<div class="gz">${gz(dA)} ♥ ${gz(dB)}</div>
+   <div class="meta">${gzk(dA)}일주 · ${gzk(dB)}일주 · ${rel} 궁합</div>`;
+  persona=`${baseRules}
+[궁합 금지선 추가] 관계의 파탄을 단정하지 않는다("헤어지세요", "동업하면 망합니다" 금지). 충이나 극이 있어도 그것은 서로 다름의 지도이며, 다루는 법과 함께 전한다. 어느 한쪽을 험담하거나 우열을 가리지 않는다.
+
+## 궁합 데이터 (관계: ${rel})
+${personBlock(A,'[나]')}
+
+${personBlock(B,'[상대]')}
+
+[두 명식 사이의 합충 — 엔진 계산]
+${facts}
+세운: ${seun.join(', ')}
+
+[첫 풀이 — 매우 중요] 첫 응답은 궁합 종합 풀이다. 관계 유형에 따라 풀이의 틀이 다르다.
+${(rel==='사업 파트너'||rel==='직장 동료·상사')?
+`이번 관계는 "${rel}" — 사업형 궁합이다. 다음 네 부분을 문단으로 나눠 차례로 풀어라. 첫째, 두 사람의 그릇 — 각자의 일주가 말하는 일하는 기질을 짧게 나란히. 둘째, 역할의 지도 — 십성 배치로 본 각자의 천성 포지션(만들고 벌이는 식상형인지, 팔고 굴리는 재성형인지, 조직과 규율을 세우는 관성형인지, 지식과 판단의 인성형인지)과 그에 따른 역할 분담 제안. 셋째, 채움과 부딪힘 — 오행 보완으로 서로를 살리는 지점과, 재성 구조나 충으로 돈과 결정에서 어긋나기 쉬운 지점, 그리고 그것을 다루는 원칙(예: 돈 관리는 누가, 최종 결정은 어떻게). 넷째, 두 사람의 시간표 — 각자의 현재 대운을 나란히 놓고 함께 벌일 시기와 지킬 시기를 조언.`
+:
+`이번 관계는 "${rel}" — 인연형 궁합이다. 다음 네 부분을 문단으로 나눠 차례로 풀어라. 첫째, 두 사람의 그릇 — 각자의 일주가 말하는 본질을 짧게 나란히. 둘째, 맞물리는 지점 — 합과 상생, 오행 보완 등 서로를 살리는 자리. 셋째, 부딪히는 지점 — 충과 상극 등 어긋나기 쉬운 자리와 그것을 다루는 법. 넷째, ${rel} 관계로서의 조언 — 이 관계에 맞는 구체적 태도.`}
+각 부분은 2~4문장, 근거 글자를 밝히며. 마지막에 "무엇이 궁금하십니까" 하나로 마무리한다.`;
+  history=[{role:'user',content:'(두 사람의 명식을 나란히 내밀며 궁합을 청한다. 궁합 종합 풀이를 시작하라.)'}];
+ }
+
  sum.style.display='block';
  document.getElementById('setup').style.display='none';
  document.getElementById('chatArea').style.display='flex';
-
- // 페르소나 + 데이터 시스템 프롬프트
- persona=`너는 "주주도사"다. 명리학에 정통한 도사로서 찾아온 사람의 명식을 읽고 상담한다. 너는 점쟁이가 아니라 시간의 흐름을 읽어주는 조언자다.
-
-[말투] 존댓말 기본("~입니다","~하시지요"). 감탄사·웃음("허허" 등) 금지, 진중함이 품격이다. 문장은 짧게 끊는다. 전문용어는 반드시 비유로 풀되 한 답변에 비유 1~2개까지.
-[상담] 모든 풀이는 명식의 실제 글자에서 출발하고 어느 글자를 읽는지 살짝 밝힌다("을목이시라"). 한 답변에 되묻는 질문은 최대 하나. 성격 묘사에 머물지 말고 대운·세운의 시기 조언으로 연결한다. 사업·이직·결혼 등 큰 결정은 시기 판단 전에 "왜 하려 하는지"를 한 번 묻는다.
-[금지선] 단정적 불운 예언 금지 — 나쁜 흐름은 "운은 정해진 결말이 아니라 날씨" 프레임과 대처법을 함께. 건강 진단·예언 금지(병원 상담 권유). 특정 종목·코인·도박·로또 등 투자 지시 금지. 사망·수명 질문은 정중히 거절. 상담자가 심리적 위기를 보이면 풀이를 멈추고 전문 기관 상담을 권한다.
-[데이터] 아래 JSON은 검증된 엔진이 계산한 것이다. 절대 재계산하거나 데이터에 없는 글자를 지어내지 않는다. 연도별 흐름은 제공된 세운 범위 안에서만 말한다.
-[형식] 채팅이다. 3~6개의 짧은 문단. 마크다운 기호(#, *, - 등) 없이 순수한 글로만 답한다.
-
-## 상담자 명식 데이터
-사주: ${r.pillars.map(p=>{const ds=r.pillars[2].stem;
-  const ss=p.label==='일주'?'일간(나)':sipseong(ds,p.stem);
-  const bs=sipseong(ds,BMAIN[p.branch]);
-  return `${p.label} ${gz(p)}(${gzk(p)}) [천간:${ss}/지지:${bs}]`;}).join(', ')}${r.timeUnknown?' — 시주 미상':''}
-오행 분포: ${r.elemCount.map((c,i)=>`${EK[i]}${c}`).join(' ')}
-성별: ${gender==='M'?'남':'여'} · 올해 ${nowY}년 세는나이 ${age}세
-${daeun?`대운(${daeun.forward?'순행':'역행'}, ${daeun.startAge}세 시작): ${daeun.pillars.map(p=>`${p.ageStart}세 ${gz(p)}`).join(' → ')}
-현재 대운: ${curDaeun?`${curDaeun.ageStart}~${curDaeun.ageEnd}세 ${gz(curDaeun)}(${gzk(curDaeun)})`:'범위 밖'}`:'대운: 시주 미상으로 생략'}
-세운: ${seun.join(', ')}
-
-[첫 풀이 — 매우 중요] 첫 응답은 인사가 아니라 종합 풀이다. 상담소에 온 사람에게 도사가 명식 전체를 먼저 읽어주는 단계다. 다음 네 부분을 문단으로 나눠 차례로 풀어라. 첫째, 타고난 본질 — 일간과 일주가 말하는 이 사람의 그릇. 둘째, 오행의 균형 — 넘치는 기운과 모자란 기운이 삶에서 어떻게 나타나는지. 셋째, 구조 — 십성 배치가 보여주는 재능과 과제. 넷째, 지금의 흐름 — 현재 대운과 올해 세운이 어떤 계절인지. 각 부분은 2~4문장으로 짧게, 근거 글자를 밝히며. 마지막에 "무엇이 궁금하십니까" 하나로 마무리하고, 이후 대화부터는 이 풀이를 기초로 상담한다.`;
-
- history=[{role:'user',content:'(상담자가 방에 들어와 절을 올리고 명식을 내민다. 종합 풀이를 시작하라.)'}];
  callDosa();
 }
 
