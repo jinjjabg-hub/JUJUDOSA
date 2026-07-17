@@ -43,7 +43,7 @@ button.go:active{transform:scale(.98)}
 
 /* 명식 카드 */
 #result{display:none}
-.myeongsik{background:var(--hanji);border-radius:14px;padding:22px 14px 16px;position:relative;color:var(--ink);
+.myeongsik{background:var(--hanji);border-radius:14px;padding:22px 14px 58px;position:relative;color:var(--ink);
   box-shadow:0 8px 30px rgba(0,0,0,.45)}
 .myeongsik .title{font-family:'Noto Serif KR',serif;text-align:center;font-size:13px;color:var(--ink-soft);
   letter-spacing:.3em;margin-bottom:16px}
@@ -87,7 +87,7 @@ footer{text-align:center;font-size:10px;color:#525B70;margin-top:30px;letter-spa
   <div class="panel">
     <h2>생년월일시 입력 (당시 시계·호적 기준)</h2>
     <div class="row">
-      <div><label class="f">생년월일 (양력)</label><input type="date" id="bdate" value="1990-01-01"></div>
+      <div><label class="f">생년월일 (양력)</label><input type="date" id="bdate" value="1990-01-01" min="1900-01-01" max="2030-12-31"></div>
       <div><label class="f">태어난 시각</label><input type="time" id="btime" value="12:00"></div>
     </div>
     <div class="row">
@@ -149,6 +149,7 @@ function run(){
   const bt = document.getElementById('btime').value || '12:00';
   if(!bd){ alert('생년월일을 입력해 주세요.'); return; }
   const [y,mo,d] = bd.split('-').map(Number);
+  if(!y || y < 1900 || y > 2030){ alert('연도는 1900~2030년 사이로 입력해 주세요.\n(입력값: ' + y + '년)'); return; }
   const [h,mi] = bt.split(':').map(Number);
   const input = {
     y,mo,d,h,mi,
