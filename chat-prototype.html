@@ -3,114 +3,129 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>주주도사 · 상담소 (프로토타입)</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;900&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<title>주주도사 · 사주 상담</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
 :root{
-  --night:#151A26; --night2:#1D2433; --hanji:#F4EDDD; --hanji-line:#DDD2B8;
-  --ink:#221C12; --ink-soft:#5C5546; --gold:#C89B3C; --seal:#B33A2B;
-  --wood:#3E7C4F; --fire:#B5432F; --earth:#A8842C; --metal:#8A8F98; --water:#2C4A73;
+  --bg:#F7F8FA; --card:#FFF; --text:#191F28; --sub:#8B95A1; --line:#E5E8EB;
+  --primary:#5D5FEF; --primary-tint:#EFF0FE;
+  --wood:#12B76A; --fire:#F04438; --earth:#F79009; --metal:#667085; --water:#2E90FA;
 }
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%}
-body{background:var(--night);color:var(--hanji);font-family:'Noto Sans KR',sans-serif;
-  background-image:radial-gradient(1px 1px at 20% 30%,rgba(255,255,255,.3),transparent),
-    radial-gradient(1.5px 1.5px at 85% 60%,rgba(200,155,60,.35),transparent),
-    radial-gradient(1px 1px at 40% 80%,rgba(255,255,255,.18),transparent);}
-.wrap{max-width:520px;margin:0 auto;padding:24px 14px 40px;display:flex;flex-direction:column;min-height:100%}
-header{text-align:center;margin-bottom:18px}
-.brand{font-family:'Noto Serif KR',serif;font-weight:900;font-size:28px;letter-spacing:.12em;color:var(--gold)}
-.brand small{display:block;font-size:11px;letter-spacing:.32em;color:#8B93A5;font-weight:400;margin-top:4px}
+body{background:var(--bg);color:var(--text);
+  font-family:'Pretendard Variable',Pretendard,-apple-system,'Noto Sans KR',sans-serif;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:480px;margin:0 auto;padding:20px 16px 32px;display:flex;flex-direction:column;min-height:100%}
+header{display:flex;align-items:center;gap:8px;margin-bottom:18px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--primary)}
+.brand{font-size:18px;font-weight:800;letter-spacing:-.02em}
+.badge{margin-left:auto;font-size:11px;color:var(--sub);background:#fff;border:1px solid var(--line);
+  border-radius:999px;padding:4px 10px}
 
-.panel{background:var(--night2);border:1px solid #2A3245;border-radius:14px;padding:16px;margin-bottom:14px}
-.panel h2{font-size:12px;color:var(--gold);letter-spacing:.15em;margin-bottom:12px;font-weight:700}
-.row{display:flex;gap:8px;margin-bottom:10px}.row>*{flex:1}
-label.f{display:block;font-size:11px;color:#9AA2B5;margin-bottom:4px}
-input,select{width:100%;background:#111623;border:1px solid #333B4D;color:var(--hanji);
-  border-radius:8px;padding:10px;font-size:15px;font-family:inherit}
-input:focus,select:focus{outline:none;border-color:var(--gold)}
-.tabs{display:flex;gap:6px;margin-bottom:14px}
-.tab{flex:1;text-align:center;padding:9px;border-radius:8px;border:1px solid #333B4D;background:#111623;
-  color:#9AA2B5;font-size:13px;cursor:pointer;font-family:'Noto Serif KR',serif;letter-spacing:.1em}
-.tab.on{border-color:var(--gold);color:var(--gold);font-weight:700}
-.pb{display:none;border-top:1px dashed #333B4D;margin-top:12px;padding-top:12px}
+.panel{background:var(--card);border-radius:20px;padding:20px;margin-bottom:14px;
+  box-shadow:0 1px 3px rgba(25,31,40,.06)}
+.tabs{display:flex;background:#F2F4F6;border-radius:12px;padding:4px;margin-bottom:18px}
+.tab{flex:1;text-align:center;padding:9px;border-radius:9px;font-size:14px;font-weight:600;
+  color:var(--sub);cursor:pointer;transition:.15s}
+.tab.on{background:#fff;color:var(--text);box-shadow:0 1px 4px rgba(25,31,40,.1)}
+h2{font-size:15px;font-weight:700;margin-bottom:14px;letter-spacing:-.02em}
+.row{display:flex;gap:10px;margin-bottom:12px}.row>*{flex:1}
+label.f{display:block;font-size:12px;color:var(--sub);margin-bottom:6px;font-weight:500}
+input,select{width:100%;background:#fff;border:1.5px solid var(--line);color:var(--text);
+  border-radius:12px;padding:13px 14px;font-size:15px;font-family:inherit;transition:.15s}
+input:focus,select:focus{outline:none;border-color:var(--primary)}
+input::placeholder{color:#B0B8C1}
 .gender{display:flex;gap:8px}
-.gbtn{flex:1;padding:10px;border-radius:8px;border:1px solid #333B4D;background:#111623;color:#9AA2B5;
-  font-size:14px;cursor:pointer;text-align:center}
-.gbtn.on{border-color:var(--gold);color:var(--gold);font-weight:700}
-button.go{width:100%;margin-top:6px;background:var(--gold);color:#1A140A;border:none;border-radius:10px;
-  padding:13px;font-size:15px;font-weight:700;font-family:'Noto Serif KR',serif;letter-spacing:.2em;cursor:pointer}
-button.go:active{transform:scale(.98)}
-.opt{display:flex;align-items:center;gap:8px;font-size:12px;color:#C6CCDA;margin-top:4px}
-.opt input{width:auto}
+.gbtn{flex:1;padding:12px;border-radius:12px;border:1.5px solid var(--line);background:#fff;
+  color:var(--sub);font-size:14px;font-weight:600;cursor:pointer;text-align:center;transition:.15s}
+.gbtn.on{border-color:var(--primary);color:var(--primary);background:var(--primary-tint)}
+.opt{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--sub);margin-top:2px}
+.opt input{width:16px;height:16px;accent-color:var(--primary)}
+.advbtn{background:none;border:none;color:var(--sub);font-size:13px;font-weight:500;
+  cursor:pointer;padding:8px 0;font-family:inherit}
+.adv{display:none;padding-top:4px}
+button.go{width:100%;margin-top:14px;background:var(--primary);color:#fff;border:none;border-radius:14px;
+  padding:16px;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:-.02em;transition:.15s}
+button.go:active{transform:scale(.98);opacity:.9}
+.pb{display:none;border-top:1px solid var(--line);margin-top:16px;padding-top:16px}
 
-/* 명식 요약 바 */
-#summary{display:none;background:var(--hanji);color:var(--ink);border-radius:12px;padding:10px 12px;
-  margin-bottom:12px;font-family:'Noto Serif KR',serif;text-align:center}
-#summary .gz{font-size:19px;font-weight:900;letter-spacing:.18em}
-#summary .meta{font-size:11px;color:var(--ink-soft);margin-top:3px;font-family:'Noto Sans KR',sans-serif}
+#summary{display:none;background:var(--card);border-radius:20px;padding:16px 18px;margin-bottom:12px;
+  box-shadow:0 1px 3px rgba(25,31,40,.06);text-align:center}
+#summary .gz{font-size:22px;font-weight:800;letter-spacing:.06em}
+#summary .meta{font-size:12px;color:var(--sub);margin-top:5px}
 
-/* 채팅 */
 #chatArea{display:none;flex-direction:column;flex:1}
-#log{flex:1;display:flex;flex-direction:column;gap:10px;margin-bottom:12px;min-height:280px}
-.msg{max-width:88%;padding:11px 13px;border-radius:14px;font-size:14px;line-height:1.75;white-space:pre-wrap}
-.msg.dosa{background:var(--hanji);color:var(--ink);border-bottom-left-radius:4px;align-self:flex-start;
-  box-shadow:0 3px 12px rgba(0,0,0,.35)}
-.msg.dosa::before{content:'주주도사';display:block;font-size:10px;color:var(--seal);font-weight:700;
-  letter-spacing:.15em;margin-bottom:4px}
-.msg.me{background:#2A3550;color:var(--hanji);border-bottom-right-radius:4px;align-self:flex-end}
-.msg.thinking{background:var(--hanji);opacity:.75;align-self:flex-start;color:var(--ink-soft);font-style:italic}
-.inputbar{display:flex;gap:8px}
-.inputbar input{flex:1}
-.inputbar button{background:var(--seal);color:#fff;border:none;border-radius:8px;padding:0 18px;
-  font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Serif KR',serif}
-.err{color:#E87E6D;font-size:12px;margin-top:8px;display:none}
-footer{text-align:center;font-size:10px;color:#525B70;margin-top:20px;letter-spacing:.1em}
+#log{flex:1;display:flex;flex-direction:column;gap:10px;margin-bottom:14px;min-height:300px}
+.msg{max-width:86%;padding:12px 15px;border-radius:18px;font-size:15px;line-height:1.7;
+  white-space:pre-wrap;letter-spacing:-.01em}
+.msg.dosa{background:#fff;color:var(--text);border-bottom-left-radius:6px;align-self:flex-start;
+  box-shadow:0 1px 3px rgba(25,31,40,.06)}
+.msg.dosa::before{content:'주주도사';display:block;font-size:11px;color:var(--primary);
+  font-weight:700;margin-bottom:5px}
+.msg.me{background:var(--primary);color:#fff;border-bottom-right-radius:6px;align-self:flex-end}
+.msg.thinking{background:#fff;align-self:flex-start;color:var(--sub);font-style:normal;
+  box-shadow:0 1px 3px rgba(25,31,40,.06)}
+.inputbar{display:flex;gap:8px;background:#fff;border:1.5px solid var(--line);border-radius:16px;
+  padding:6px 6px 6px 16px;align-items:center}
+.inputbar input{flex:1;border:none;padding:10px 0;font-size:15px}
+.inputbar input:focus{border:none}
+.inputbar button{background:var(--primary);color:#fff;border:none;border-radius:11px;
+  padding:11px 16px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0}
+.err{color:#F04438;font-size:13px;margin-top:10px;display:none;font-weight:500}
+footer{text-align:center;font-size:11px;color:#B0B8C1;margin-top:20px}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div class="brand">주주도사<small>相談所 · 프로토타입</small></div>
+    <div class="dot"></div>
+    <div class="brand">주주도사</div>
+    <div class="badge">프로토타입</div>
   </header>
 
   <div class="panel" id="setup">
     <div class="tabs">
-      <div class="tab on" id="tabS" onclick="setMode('S')">개인 상담</div>
-      <div class="tab" id="tabG" onclick="setMode('G')">궁합 상담</div>
+      <div class="tab on" id="tabS" onclick="setMode('S')">사주 상담</div>
+      <div class="tab" id="tabG" onclick="setMode('G')">궁합</div>
     </div>
-    <h2 id="setupTitle">명식을 먼저 펼치겠습니다</h2>
+    <h2 id="setupTitle">생년월일시를 알려주세요</h2>
     <div class="row">
-      <div><label class="f">생년월일 (양력, 8자리)</label><input type="text" id="bdate" inputmode="numeric" maxlength="10" placeholder="예: 19711116" autocomplete="off"></div>
+      <div><label class="f">생년월일</label><input type="text" id="bdate" inputmode="numeric" maxlength="10" placeholder="19711116" autocomplete="off"></div>
       <div><label class="f">태어난 시각</label><input type="time" id="btime" value="12:00"></div>
     </div>
     <div class="row">
       <div>
-        <label class="f">성별 (대운 방향 결정)</label>
+        <label class="f">성별</label>
         <div class="gender">
           <div class="gbtn" id="gM" onclick="setG('M')">남</div>
           <div class="gbtn" id="gF" onclick="setG('F')">여</div>
         </div>
       </div>
-      <div>
-        <label class="f">출생 지역</label>
-        <select id="region">
-          <option value="126.98">서울·수도권</option>
-          <option value="129.08">부산</option>
-          <option value="128.60">대구</option>
-          <option value="126.85">광주</option>
-          <option value="127.38">대전</option>
-          <option value="128.90">강릉</option>
-          <option value="126.53">제주</option>
-        </select>
-      </div>
     </div>
-    <label class="opt"><input type="checkbox" id="timeUnknown"> 태어난 시간 모름</label>
+    <button class="advbtn" onclick="advToggle('advA',this)">출생지 등 상세 설정 ⌄</button>
+    <div class="adv" id="advA">
+      <div class="row">
+        <div>
+          <label class="f">출생 지역 (시각 보정)</label>
+          <select id="region">
+            <option value="126.98">서울·수도권</option>
+            <option value="129.08">부산</option>
+            <option value="128.60">대구</option>
+            <option value="126.85">광주</option>
+            <option value="127.38">대전</option>
+            <option value="128.90">강릉</option>
+            <option value="126.53">제주</option>
+          </select>
+        </div>
+      </div>
+      <label class="opt"><input type="checkbox" id="timeUnknown"> 태어난 시간을 몰라요</label>
+    </div>
 
     <div class="pb" id="pB">
-      <h2>상대의 명식</h2>
+      <h2>상대방 정보</h2>
       <div class="row">
-        <div><label class="f">상대 생년월일 (8자리)</label><input type="text" id="bdate2" inputmode="numeric" maxlength="10" placeholder="예: 19750305" autocomplete="off"></div>
+        <div><label class="f">상대 생년월일</label><input type="text" id="bdate2" inputmode="numeric" maxlength="10" placeholder="19750305" autocomplete="off"></div>
         <div><label class="f">태어난 시각</label><input type="time" id="btime2" value="12:00"></div>
       </div>
       <div class="row">
@@ -122,33 +137,38 @@ footer{text-align:center;font-size:10px;color:#525B70;margin-top:20px;letter-spa
           </div>
         </div>
         <div>
-          <label class="f">상대 출생 지역</label>
-          <select id="region2">
-            <option value="126.98">서울·수도권</option>
-            <option value="129.08">부산</option>
-            <option value="128.60">대구</option>
-            <option value="126.85">광주</option>
-            <option value="127.38">대전</option>
-            <option value="128.90">강릉</option>
-            <option value="126.53">제주</option>
+          <label class="f">두 분의 관계</label>
+          <select id="relType">
+            <option value="연인">연인</option>
+            <option value="부부">부부·배우자</option>
+            <option value="결혼을 생각하는 상대">결혼을 생각하는 상대</option>
+            <option value="사업 파트너">사업 파트너</option>
+            <option value="직장 동료·상사">직장 동료·상사</option>
+            <option value="친구·지인">친구·지인</option>
           </select>
         </div>
       </div>
-      <label class="opt"><input type="checkbox" id="timeUnknown2"> 상대 태어난 시간 모름</label>
-      <div style="margin-top:10px">
-        <label class="f">두 분의 관계</label>
-        <select id="relType">
-          <option value="연인">연인</option>
-          <option value="부부">부부·배우자</option>
-          <option value="결혼을 생각하는 상대">결혼을 생각하는 상대</option>
-          <option value="사업 파트너">사업 파트너</option>
-          <option value="직장 동료·상사">직장 동료·상사</option>
-          <option value="친구·지인">친구·지인</option>
-        </select>
+      <button class="advbtn" onclick="advToggle('advB',this)">상대 출생지 등 상세 설정 ⌄</button>
+      <div class="adv" id="advB">
+        <div class="row">
+          <div>
+            <label class="f">상대 출생 지역</label>
+            <select id="region2">
+              <option value="126.98">서울·수도권</option>
+              <option value="129.08">부산</option>
+              <option value="128.60">대구</option>
+              <option value="126.85">광주</option>
+              <option value="127.38">대전</option>
+              <option value="128.90">강릉</option>
+              <option value="126.53">제주</option>
+            </select>
+          </div>
+        </div>
+        <label class="opt"><input type="checkbox" id="timeUnknown2"> 상대 태어난 시간을 몰라요</label>
       </div>
     </div>
 
-    <button class="go" id="goBtn" onclick="start()">주주도사 만나기</button>
+    <button class="go" id="goBtn" onclick="start()">내 사주 보기</button>
     <div class="err" id="err"></div>
   </div>
 
@@ -157,13 +177,13 @@ footer{text-align:center;font-size:10px;color:#525B70;margin-top:20px;letter-spa
   <div id="chatArea">
     <div id="log"></div>
     <div class="inputbar">
-      <input type="text" id="q" placeholder="도사님께 여쭤보세요" onkeydown="if(event.key==='Enter')send()">
-      <button onclick="send()">여쭙기</button>
+      <input type="text" id="q" placeholder="도사님께 물어보세요" onkeydown="if(event.key==='Enter')send()">
+      <button onclick="send()">전송</button>
     </div>
     <div class="err" id="cerr"></div>
   </div>
 
-  <footer>JUJU DOSA · 계산은 코드, 해석은 AI · 상담 내용은 참고용입니다</footer>
+  <footer>주주도사 · 상담 내용은 참고용입니다</footer>
 </div>
 
 <script>
@@ -261,8 +281,8 @@ function setMode(m){mode=m;
  document.getElementById('tabS').classList.toggle('on',m==='S');
  document.getElementById('tabG').classList.toggle('on',m==='G');
  document.getElementById('pB').style.display=m==='G'?'block':'none';
- document.getElementById('setupTitle').textContent=m==='G'?'두 분의 명식을 펼치겠습니다':'명식을 먼저 펼치겠습니다';
- document.getElementById('goBtn').textContent=m==='G'?'궁합 펼치기':'주주도사 만나기';}
+ document.getElementById('setupTitle').textContent=m==='G'?'두 분의 정보를 알려주세요':'생년월일시를 알려주세요';
+ document.getElementById('goBtn').textContent=m==='G'?'궁합 보기':'내 사주 보기';}
 function setG2(g){gender2=g;document.getElementById('g2M').classList.toggle('on',g==='M');
  document.getElementById('g2F').classList.toggle('on',g==='F');}
 const bdateEl=document.getElementById('bdate');
@@ -402,6 +422,10 @@ function send(){
  document.getElementById('cerr').style.display='none';
  addMsg(t,'me');history.push({role:'user',content:t});q.value='';callDosa();
 }
+
+function advToggle(id,btn){const el=document.getElementById(id);
+ const open=el.style.display==='block';el.style.display=open?'none':'block';
+ btn.textContent=open?'출생지 등 상세 설정 ⌄':'상세 설정 접기 ⌃';}
 </script>
 </body>
 </html>
