@@ -357,13 +357,15 @@ function start(){
 ${personBlock(A,'')}
 세운: ${seun.join(', ')}
 
-[첫 풀이 — 매우 중요] 첫 응답은 인사가 아니라 종합 풀이다. 아래 다섯 섹션을 라벨과 함께 차례로. 각 섹션 2~4문장.
+[첫 풀이 — 매우 중요] 첫 응답은 인사가 아니라 종합 풀이다. 이것은 상담의 기초 공사이므로 충분히 길고 자세해야 한다. 아래 일곱 섹션을 라벨과 함께 차례로, 각 섹션 4~6문장씩 풀어라.
 「한 줄 요약」 이 사주를 일상 언어 한 문장으로. 예: "혼자 여러 가지를 벌이고, 사람을 통해 돈이 들어오는 사주입니다."
-「타고난 성격」 행동으로 확인되는 성격 3가지. 본인이 "맞네" 할 수 있게 구체적으로.
-「강점과 조심할 점」 강점 2가지, 조심할 습관이나 패턴 1~2가지. 상황으로 말할 것.
-「일과 돈」 어떤 방식으로 일할 때 성과가 나는지, 돈이 들어오고 나가는 습관은 어떤지.
-「지금 흐름」 현재 대운과 올해가 무엇을 하기 좋은 시기인지 할 일 단위로. 예: "확장보다 정리", "새 사람보다 기존 인연".
-마지막에 "무엇이 궁금하십니까" 하나로 마무리하고, 이후 대화는 이 풀이를 기초로 한다.`;
+「타고난 성격」 행동으로 확인되는 성격 4~5가지. 결정하는 방식, 말하는 방식, 스트레스 받을 때 나오는 습관까지. 본인이 "맞네" 할 수 있게.
+「강점과 조심할 점」 강점 3가지를 실제 상황으로, 조심할 패턴 2~3가지를 실제로 겪었을 법한 장면으로.
+「일과 돈」 어떤 방식으로 일할 때 성과가 나는지(혼자/팀, 벌이기/관리, 사람 상대/기술), 돈이 들어오는 경로의 특징과 새는 습관까지.
+「사람과 관계」 사람을 대하는 방식, 가까운 사람(배우자·동료·친구)과의 관계에서 반복되는 패턴.
+「지난 흐름 돌아보기」 지나온 대운 2~3개를 나이대로 짚으며 그 시기에 있었을 법한 변화를 말한다. 예: "23세부터의 십 년은 배움보다 부딪히며 큰 시기였을 겁니다. 33세 무렵 일의 방향이 한 번 크게 바뀌었을 것이고요." 본인이 과거를 대조해볼 수 있는 검증형 문장으로.
+「지금과 앞으로」 현재 대운의 성격, 올해와 내년이 무엇을 하기 좋은 시기인지 할 일 단위로. 다음 대운이 언제 바뀌고 무엇이 달라지는지까지.
+마지막에 "무엇이 궁금하십니까" 하나로 마무리하고, 이후 대화는 이 풀이를 기초로 한다. 이후의 일반 답변은 3~6문단이면 충분하다.`;
   history=[{role:'user',content:'(상담자가 방에 들어와 절을 올리고 명식을 내민다. 종합 풀이를 시작하라.)'}];
  } else {
   const ra=A.r,rb=B.r,rel=document.getElementById('relType').value;
@@ -387,7 +389,7 @@ ${personBlock(B,'[상대]')}
 ${facts}
 세운: ${seun.join(', ')}
 
-[첫 풀이 — 매우 중요] 첫 응답은 궁합 종합 풀이다. 아래 섹션을 라벨과 함께 차례로. 각 섹션 2~4문장, 손에 잡히는 상황으로.
+[첫 풀이 — 매우 중요] 첫 응답은 궁합 종합 풀이다. 아래 섹션을 라벨과 함께 차례로. 각 섹션 3~6문장, 손에 잡히는 상황으로. 첫 풀이는 기초 공사이므로 충분히 자세하게.
 ${(rel==='사업 파트너'||rel==='직장 동료·상사')?
 `관계는 "${rel}" — 사업형 궁합이다.
 「한 줄 요약」 이 조합을 한 문장으로. 예: "한 사람이 벌이고 한 사람이 지키는, 역할만 나누면 오래가는 조합입니다."
@@ -409,19 +411,19 @@ ${(rel==='사업 파트너'||rel==='직장 동료·상사')?
  sum.style.display='block';
  document.getElementById('setup').style.display='none';
  document.getElementById('chatArea').style.display='flex';
- callDosa();
+ callDosa(4000);
 }
 
 function addMsg(txt,cls){const log=document.getElementById('log');
  const m=document.createElement('div');m.className='msg '+cls;m.textContent=txt;
  log.appendChild(m);m.scrollIntoView({behavior:'smooth',block:'end'});return m;}
 
-async function callDosa(){
+async function callDosa(maxTok){
  const th=addMsg('명식을 살피는 중…','thinking');
  try{
   const res=await fetch('https://api.anthropic.com/v1/messages',{
    method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1800,system:persona,messages:history})});
+   body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:maxTok||1500,system:persona,messages:history})});
   const data=await res.json();
   th.remove();
   if(data.error){document.getElementById('cerr').textContent='도사님이 잠시 자리를 비웠습니다: '+(data.error.message||'오류');
@@ -437,7 +439,7 @@ async function callDosa(){
 function send(){
  const q=document.getElementById('q');const t=q.value.trim();if(!t)return;
  document.getElementById('cerr').style.display='none';
- addMsg(t,'me');history.push({role:'user',content:t});q.value='';callDosa();
+ addMsg(t,'me');history.push({role:'user',content:t});q.value='';callDosa(1500);
 }
 
 function advToggle(id,btn){const el=document.getElementById(id);
