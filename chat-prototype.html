@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주주도사 · 사주 상담</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<style>
+:root{
+  --bg:#F7F8FA; --card:#FFF; --text:#191F28; --sub:#8B95A1; --line:#E5E8EB;
+  --primary:#5D5FEF; --primary-tint:#EFF0FE;
+  --wood:#12B76A; --fire:#F04438; --earth:#F79009; --metal:#667085; --water:#2E90FA;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);
+  font-family:'Pretendard Variable',Pretendard,-apple-system,'Noto Sans KR',sans-serif;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:480px;margin:0 auto;padding:20px 16px 32px;display:flex;flex-direction:column;min-height:100%}
+header{display:flex;align-items:center;gap:8px;margin-bottom:18px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--primary)}
+.brand{font-size:18px;font-weight:800;letter-spacing:-.02em}
+.badge{margin-left:auto;font-size:11px;color:var(--sub);background:#fff;border:1px solid var(--line);
+  border-radius:999px;padding:4px 10px}
+
+.authbar{display:flex;align-items:center;gap:8px;background:var(--card);border-radius:14px;
+  padding:10px 14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(25,31,40,.06)}
+.authbar .uname{font-size:13px;font-weight:600;flex:1}
+.authbar button{border:none;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:700;
+  cursor:pointer;font-family:inherit}
+.kakaobtn{background:#FEE500;color:#191600;width:100%}
+.logoutbtn{background:#F2F4F6;color:var(--sub)}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.chip{background:var(--primary-tint);color:var(--primary);border-radius:999px;padding:8px 14px;
+  font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:inherit}
+
+.panel{background:var(--card);border-radius:20px;padding:20px;margin-bottom:14px;
+  box-shadow:0 1px 3px rgba(25,31,40,.06)}
+.tabs{display:flex;background:#F2F4F6;border-radius:12px;padding:4px;margin-bottom:18px}
+.tab{flex:1;text-align:center;padding:9px;border-radius:9px;font-size:14px;font-weight:600;
+  color:var(--sub);cursor:pointer;transition:.15s}
+.tab.on{background:#fff;color:var(--text);box-shadow:0 1px 4px rgba(25,31,40,.1)}
+h2{font-size:15px;font-weight:700;margin-bottom:14px;letter-spacing:-.02em}
+.row{display:flex;gap:10px;margin-bottom:12px}.row>*{flex:1}
+label.f{display:block;font-size:12px;color:var(--sub);margin-bottom:6px;font-weight:500}
+input,select{width:100%;background:#fff;border:1.5px solid var(--line);color:var(--text);
+  border-radius:12px;padding:13px 14px;font-size:15px;font-family:inherit;transition:.15s}
+input:focus,select:focus{outline:none;border-color:var(--primary)}
+input::placeholder{color:#B0B8C1}
+.gender{display:flex;gap:8px}
+.gbtn{flex:1;padding:12px;border-radius:12px;border:1.5px solid var(--line);background:#fff;
+  color:var(--sub);font-size:14px;font-weight:600;cursor:pointer;text-align:center;transition:.15s}
+.gbtn.on{border-color:var(--primary);color:var(--primary);background:var(--primary-tint)}
+.opt{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--sub);margin-top:2px}
+.opt input{width:16px;height:16px;accent-color:var(--primary)}
+.advbtn{background:none;border:none;color:var(--sub);font-size:13px;font-weight:500;
+  cursor:pointer;padding:8px 0;font-family:inherit}
+.adv{display:none;padding-top:4px}
+button.go{width:100%;margin-top:14px;background:var(--primary);color:#fff;border:none;border-radius:14px;
+  padding:16px;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:-.02em;transition:.15s}
+button.go:active{transform:scale(.98);opacity:.9}
+.pb{display:none;border-top:1px solid var(--line);margin-top:16px;padding-top:16px}
+
+#summary{display:none;background:var(--card);border-radius:20px;padding:16px 18px;margin-bottom:12px;
+  box-shadow:0 1px 3px rgba(25,31,40,.06);text-align:center}
+#summary .gz{font-size:22px;font-weight:800;letter-spacing:.06em}
+#summary .meta{font-size:12px;color:var(--sub);margin-top:5px}
+
+#chatArea{display:none;flex-direction:column;flex:1}
+#log{flex:1;display:flex;flex-direction:column;gap:10px;margin-bottom:14px;min-height:300px}
+.msg{max-width:86%;padding:12px 15px;border-radius:18px;font-size:15px;line-height:1.7;
+  white-space:pre-wrap;letter-spacing:-.01em}
+.msg.dosa{background:#fff;color:var(--text);border-bottom-left-radius:6px;align-self:flex-start;
+  box-shadow:0 1px 3px rgba(25,31,40,.06)}
+.msg.dosa::before{content:'주주도사';display:block;font-size:11px;color:var(--primary);
+  font-weight:700;margin-bottom:5px}
+.msg.me{background:var(--primary);color:#fff;border-bottom-right-radius:6px;align-self:flex-end}
+.msg.thinking{background:#fff;align-self:flex-start;color:var(--sub);font-style:normal;
+  box-shadow:0 1px 3px rgba(25,31,40,.06)}
+.inputbar{display:flex;gap:8px;background:#fff;border:1.5px solid var(--line);border-radius:16px;
+  padding:6px 6px 6px 16px;align-items:center}
+.inputbar input{flex:1;border:none;padding:10px 0;font-size:15px}
+.inputbar input:focus{border:none}
+.inputbar button{background:var(--primary);color:#fff;border:none;border-radius:11px;
+  padding:11px 16px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0}
+.err{color:#F04438;font-size:13px;margin-top:10px;display:none;font-weight:500}
+footer{text-align:center;font-size:11px;color:#B0B8C1;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="dot"></div>
+    <div class="brand">주주도사</div>
+    <div class="badge">프로토타입</div>
+  </header>
+
+  <div class="authbar" id="authBar">
+    <button class="kakaobtn" onclick="loginKakao()">카카오로 시작하기</button>
+  </div>
+
+  <div class="panel" id="setup">
+    <div class="tabs">
+      <div class="tab on" id="tabS" onclick="setMode('S')">사주 상담</div>
+      <div class="tab" id="tabG" onclick="setMode('G')">궁합</div>
+    </div>
+    <div class="chips" id="profileChips" style="display:none"></div>
+    <h2 id="setupTitle">생년월일시를 알려주세요</h2>
+    <div class="row">
+      <div><label class="f">생년월일</label><input type="text" id="bdate" inputmode="numeric" maxlength="10" placeholder="19711116" autocomplete="off"></div>
+      <div><label class="f">태어난 시각</label><input type="time" id="btime" value="12:00"></div>
+    </div>
+    <div class="row">
+      <div>
+        <label class="f">성별</label>
+        <div class="gender">
+          <div class="gbtn" id="gM" onclick="setG('M')">남</div>
+          <div class="gbtn" id="gF" onclick="setG('F')">여</div>
+        </div>
+      </div>
+    </div>
+    <button class="advbtn" onclick="advToggle('advA',this)">출생지 등 상세 설정 ⌄</button>
+    <div class="adv" id="advA">
+      <div class="row">
+        <div>
+          <label class="f">출생 지역 (시각 보정)</label>
+          <select id="region">
+            <option value="126.98">서울·수도권</option>
+            <option value="129.08">부산</option>
+            <option value="128.60">대구</option>
+            <option value="126.85">광주</option>
+            <option value="127.38">대전</option>
+            <option value="128.90">강릉</option>
+            <option value="126.53">제주</option>
+          </select>
+        </div>
+      </div>
+      <label class="opt"><input type="checkbox" id="timeUnknown"> 태어난 시간을 몰라요</label>
+    </div>
+
+    <div class="pb" id="pB">
+      <h2>상대방 정보</h2>
+      <div class="row">
+        <div><label class="f">상대 생년월일</label><input type="text" id="bdate2" inputmode="numeric" maxlength="10" placeholder="19750305" autocomplete="off"></div>
+        <div><label class="f">태어난 시각</label><input type="time" id="btime2" value="12:00"></div>
+      </div>
+      <div class="row">
+        <div>
+          <label class="f">상대 성별</label>
+          <div class="gender">
+            <div class="gbtn" id="g2M" onclick="setG2('M')">남</div>
+            <div class="gbtn" id="g2F" onclick="setG2('F')">여</div>
+          </div>
+        </div>
+        <div>
+          <label class="f">두 분의 관계</label>
+          <select id="relType">
+            <option value="연인">연인</option>
+            <option value="부부">부부·배우자</option>
+            <option value="결혼을 생각하는 상대">결혼을 생각하는 상대</option>
+            <option value="사업 파트너">사업 파트너</option>
+            <option value="직장 동료·상사">직장 동료·상사</option>
+            <option value="친구·지인">친구·지인</option>
+          </select>
+        </div>
+      </div>
+      <button class="advbtn" onclick="advToggle('advB',this)">상대 출생지 등 상세 설정 ⌄</button>
+      <div class="adv" id="advB">
+        <div class="row">
+          <div>
+            <label class="f">상대 출생 지역</label>
+            <select id="region2">
+              <option value="126.98">서울·수도권</option>
+              <option value="129.08">부산</option>
+              <option value="128.60">대구</option>
+              <option value="126.85">광주</option>
+              <option value="127.38">대전</option>
+              <option value="128.90">강릉</option>
+              <option value="126.53">제주</option>
+            </select>
+          </div>
+        </div>
+        <label class="opt"><input type="checkbox" id="timeUnknown2"> 상대 태어난 시간을 몰라요</label>
+      </div>
+    </div>
+
+    <button class="go" id="goBtn" onclick="start()">내 사주 보기</button>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div id="summary"></div>
+
+  <div id="chatArea">
+    <div id="log"></div>
+    <div class="inputbar">
+      <input type="text" id="q" placeholder="도사님께 물어보세요" onkeydown="if(event.key==='Enter')send()">
+      <button onclick="send()">전송</button>
+    </div>
+    <div class="err" id="cerr"></div>
+  </div>
+
+  <footer>주주도사 · 상담 내용은 참고용입니다</footer>
+</div>
+
+<script>
+/* ===== Firebase 설정 =====
+   ↓↓↓ 아래 6개 값을 Firebase 콘솔에서 채워넣으세요 ↓↓↓
+   경로: Firebase 콘솔 > 프로젝트 개요 옆 ⚙️(설정) > 프로젝트 설정
+        > 아래로 스크롤 > "내 앱" > 웹 아이콘(</>) 눌러서 웹 앱 추가
+        > 앱 닉네임 아무거나 입력(예: jujudosa-web) > 앱 등록
+        > 화면에 뜨는 firebaseConfig 객체의 값을 그대로 복사해서 아래에 붙여넣기
+*/
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCL4lIbgD1EtzfA9YMzbfqb24hrm9WXXSA",
+  authDomain: "jujudosa.firebaseapp.com",
+  projectId: "jujudosa",
+  storageBucket: "jujudosa.firebasestorage.app",
+  messagingSenderId: "986803631175",
+  appId: "1:986803631175:web:7e3c84c735ac16db29ed62"
+};
+firebase.initializeApp(FIREBASE_CONFIG);
+const auth = firebase.auth();
+const db = firebase.firestore();
+let currentUser = null;
+
+/* ===== 만세력 코어 (검증 완료 엔진 v0.1 + 대운) ===== */
+const SH=['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'],SK=['갑','을','병','정','무','기','경','신','임','계'];
+const BH=['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'],BK=['자','축','인','묘','진','사','오','미','신','유','술','해'];
+const SE=[0,0,1,1,2,2,3,3,4,4],BE=[4,2,0,0,2,1,1,2,3,3,2,4],EK=['목','화','토','금','수'];
+const DST=[['1948-06-01T00:00','1948-09-13T00:00'],['1949-04-03T00:00','1949-09-11T00:00'],
+['1950-04-01T00:00','1950-09-10T00:00'],['1951-05-06T00:00','1951-09-09T00:00'],
+['1955-05-05T00:00','1955-09-09T00:00'],['1956-05-20T00:00','1956-09-30T00:00'],
+['1957-05-05T00:00','1957-09-22T00:00'],['1958-05-04T00:00','1958-09-21T00:00'],
+['1959-05-03T00:00','1959-09-20T00:00'],['1960-05-01T00:00','1960-09-18T00:00'],
+['1987-05-10T02:00','1987-10-11T03:00'],['1988-05-08T02:00','1988-10-09T03:00']];
+const K830S='1954-03-21T00:00',K830E='1961-08-10T00:00';
+const pad=(n,w=2)=>String(n).padStart(w,'0');
+const tk=(y,mo,d,h,mi)=>`${pad(y,4)}-${pad(mo)}-${pad(d)}T${pad(h)}:${pad(mi)}`;
+function jdn(y,mo,d){const a=Math.floor((14-mo)/12),yy=y+4800-a,mm=mo+12*a-3;
+ return d+Math.floor((153*mm+2)/5)+365*yy+Math.floor(yy/4)-Math.floor(yy/100)+Math.floor(yy/400)-32045;}
+function fromJdn(j){let a=j+32044;const b=Math.floor((4*a+3)/146097),c=a-Math.floor(146097*b/4),
+ dd=Math.floor((4*c+3)/1461),e=c-Math.floor(1461*dd/4),m=Math.floor((5*e+2)/153);
+ return{d:e-Math.floor((153*m+2)/5)+1,mo:m+3-12*Math.floor(m/10),y:100*b+dd-4800+Math.floor(m/10)};}
+function addMin(y,mo,d,h,mi,del){let t=h*60+mi+del,ds=Math.floor(t/1440);t-=ds*1440;
+ const dt=fromJdn(jdn(y,mo,d)+ds);return{y:dt.y,mo:dt.mo,d:dt.d,h:Math.floor(t/60),mi:t%60};}
+function sunLon(jde){const T=(jde-2451545)/36525,r=Math.PI/180;
+ const L0=280.46646+36000.76983*T+.0003032*T*T,M=357.52911+35999.05029*T-.0001537*T*T;
+ const C=(1.914602-.004817*T-.000014*T*T)*Math.sin(M*r)+(.019993-.000101*T)*Math.sin(2*M*r)+.000289*Math.sin(3*M*r);
+ let L=L0+C-.00569-.00478*Math.sin((125.04-1934.136*T)*r);L%=360;return L<0?L+360:L;}
+const jdeUT=(y,mo,d,h,mi)=>jdn(y,mo,d)-0.5+(h+mi/60)/24;
+function ipchun(year){let lo=jdeUT(year,1,25,0,0),hi=jdeUT(year,2,15,0,0);
+ const f=j=>{let d=sunLon(j)-315;while(d>180)d-=360;while(d<-180)d+=360;return d;};
+ for(let i=0;i<60;i++){const m=(lo+hi)/2;if(f(m)<0)lo=m;else hi=m;}return(lo+hi)/2;}
+function computeSaju(inp){
+ const{y,mo,d,h=12,mi=0,timeUnknown=false,lonDeg=127,useLon=true,yajasi=false}=inp;
+ const key=tk(y,mo,d,h,mi);let dstMin=0;
+ for(const[s,e]of DST)if(key>=s&&key<e){dstMin=-60;break;}
+ const is830=key>=K830S&&key<K830E,mer=is830?127.5:135,lonMin=useLon?Math.round((lonDeg-mer)*4):0;
+ const std=addMin(y,mo,d,h,mi,dstMin),ut=addMin(std.y,std.mo,std.d,std.h,std.mi,-(is830?510:540));
+ const jde=jdeUT(ut.y,ut.mo,ut.d,ut.h,ut.mi),lon=sunLon(jde);
+ let sy=std.y;if(jde<ipchun(std.y))sy=std.y-1;
+ const ys=((sy-4)%10+10)%10,yb=((sy-4)%12+12)%12;
+ const mIdx=Math.floor((((lon-315)%360)+360)%360/30),mb=(mIdx+2)%12,ms=((ys%5)*2+2+mIdx)%10;
+ const app=addMin(std.y,std.mo,std.d,std.h,std.mi,lonMin);
+ let dj=jdn(app.y,app.mo,app.d);if(!timeUnknown&&app.h===23&&!yajasi)dj+=1;
+ const dgz=((dj+49)%60+60)%60,ds=dgz%10,db=dgz%12;
+ let hs=null,hb=null;
+ if(!timeUnknown){hb=Math.floor(((app.h*60+app.mi+60)%1440)/120);hs=((ds%5)*2+hb)%10;}
+ const P=[{label:'년주',stem:ys,branch:yb},{label:'월주',stem:ms,branch:mb},{label:'일주',stem:ds,branch:db}];
+ if(hs!==null)P.push({label:'시주',stem:hs,branch:hb});
+ const ec=[0,0,0,0,0];for(const p of P){ec[SE[p.stem]]++;ec[BE[p.branch]]++;}
+ return{pillars:P,elemCount:ec,sajuYear:sy,jde,corrections:{lonMin,dst:dstMin!==0,is830,appliedTime:app},timeUnknown};}
+function adjTerm(jde,fw){const lon=sunLon(jde),mod=((lon-15)%30+30)%30;
+ const tg=fw?(((lon-mod+30)%360)+360)%360:(((lon-mod)%360)+360)%360;
+ const f=t=>{let d=sunLon(t)-tg;while(d>180)d-=360;while(d<-180)d+=360;return d;};
+ let lo,hi;if(fw){lo=jde;hi=jde+(30-mod)/0.95+2;}else{hi=jde;lo=jde-mod/0.95-2;}
+ for(let i=0;i<60;i++){const m=(lo+hi)/2;if(f(m)<0)lo=m;else hi=m;}return(lo+hi)/2;}
+// 십성: 일간 대비 관계. 지지는 지장간 본기 기준
+const BMAIN=[9,5,0,1,4,2,3,5,6,7,4,8]; // 子癸 丑己 寅甲 卯乙 辰戊 巳丙 午丁 未己 申庚 酉辛 戌戊 亥壬
+function sipseong(dayS,otherS){
+ const de=SE[dayS],oe=SE[otherS],same=(dayS%2)===(otherS%2);
+ if(oe===de)return same?'비견':'겁재';
+ if((de+1)%5===oe)return same?'식신':'상관';
+ if((de+2)%5===oe)return same?'편재':'정재';
+ if((oe+2)%5===de)return same?'편관':'정관';
+ return same?'편인':'정인';}
+function computeDaeun(jde,ys,ms,mb,gender,count=8){
+ const fw=(ys%2===0)===(gender==='M');
+ const days=Math.abs(adjTerm(jde,fw)-jde);
+ let sa=Math.round(days/3);if(sa<1)sa=1;if(sa>10)sa=10;
+ let mg=-1;for(let k=0;k<60;k++)if(k%10===ms&&k%12===mb){mg=k;break;}
+ const ps=[];for(let i=1;i<=count;i++){const g=((mg+(fw?i:-i))%60+60)%60;
+  ps.push({ageStart:sa+(i-1)*10,ageEnd:sa+i*10-1,stem:g%10,branch:g%12});}
+ return{forward:fw,startAge:sa,pillars:ps};}
+
+/* ===== 궁합 합충 계산 ===== */
+const SAMHAP=[[8,0,4],[2,6,10],[5,9,1],[11,3,7]]; // 신자진 인오술 사유축 해묘미
+function stemRel(a,b){
+ if(a===b)return '같은 글자';
+ if(Math.abs(a-b)===5)return '천간합';
+ const de=SE[a],oe=SE[b];
+ if(de===oe)return '같은 오행';
+ if((de+1)%5===oe)return '나가 상대를 생함';
+ if((oe+1)%5===de)return '상대가 나를 생함';
+ if((de+2)%5===oe)return '나가 상대를 극함';
+ return '상대가 나를 극함';}
+function branchRel(a,b){
+ if(a===b)return '같은 글자';
+ if(a+b===13||(a===0&&b===1)||(a===1&&b===0))return '육합';
+ if(Math.abs(a-b)===6)return '충';
+ for(const g of SAMHAP)if(g.includes(a)&&g.includes(b))return '삼합(반합)';
+ return '합충 없음';}
+
+/* ===== 앱 로직 ===== */
+let gender=null,gender2=null,mode='S',history=[],persona='';
+
+/* ===== 카카오 로그인 & 사주 프로필 저장 ===== */
+function loginKakao(){
+ const provider=new firebase.auth.OAuthProvider('oidc.kakao');
+ auth.signInWithPopup(provider).catch(e=>{alert('로그인에 실패했습니다: '+e.message);});
+}
+function logout(){auth.signOut();}
+auth.onAuthStateChanged(u=>{
+ currentUser=u;
+ const bar=document.getElementById('authBar');
+ if(u){
+  bar.innerHTML=`<div class="uname">${u.displayName||'회원'}님</div><button class="logoutbtn" onclick="logout()">로그아웃</button>`;
+  loadProfiles();
+ }else{
+  bar.innerHTML=`<button class="kakaobtn" onclick="loginKakao()">카카오로 시작하기</button>`;
+  document.getElementById('profileChips').style.display='none';
+ }
+});
+async function saveProfile(label,bd,bt,g,region){
+ if(!currentUser)return;
+ try{
+  await db.collection('users').doc(currentUser.uid).collection('profiles').add({
+   label,bdate:bd,btime:bt,gender:g,region,
+   savedAt:firebase.firestore.FieldValue.serverTimestamp()});
+  loadProfiles();
+ }catch(e){console.error('프로필 저장 실패',e);}
+}
+async function loadProfiles(){
+ if(!currentUser)return;
+ const box=document.getElementById('profileChips');
+ try{
+  const snap=await db.collection('users').doc(currentUser.uid).collection('profiles')
+   .orderBy('savedAt','desc').limit(10).get();
+  if(snap.empty){box.style.display='none';return;}
+  box.innerHTML='';
+  snap.forEach(doc=>{
+   const p=doc.data();const b=document.createElement('button');
+   b.className='chip';b.type='button';b.textContent=p.label||p.bdate;
+   b.onclick=()=>fillFromProfile(p);box.appendChild(b);});
+  box.style.display='flex';
+ }catch(e){console.error('프로필 불러오기 실패',e);box.style.display='none';}
+}
+function fillFromProfile(p){
+ document.getElementById('bdate').value=p.bdate;
+ document.getElementById('btime').value=p.btime;
+ document.getElementById('region').value=p.region;
+ setG(p.gender);
+}
+function setMode(m){mode=m;
+ document.getElementById('tabS').classList.toggle('on',m==='S');
+ document.getElementById('tabG').classList.toggle('on',m==='G');
+ document.getElementById('pB').style.display=m==='G'?'block':'none';
+ document.getElementById('setupTitle').textContent=m==='G'?'두 분의 정보를 알려주세요':'생년월일시를 알려주세요';
+ document.getElementById('goBtn').textContent=m==='G'?'궁합 보기':'내 사주 보기';}
+function setG2(g){gender2=g;document.getElementById('g2M').classList.toggle('on',g==='M');
+ document.getElementById('g2F').classList.toggle('on',g==='F');}
+const bdateEl=document.getElementById('bdate');
+function autoFmt(el){el.addEventListener('input',()=>{const dg=el.value.replace(/\D/g,'').slice(0,8);
+ let o=dg;if(dg.length>6)o=dg.slice(0,4)+'-'+dg.slice(4,6)+'-'+dg.slice(6);
+ else if(dg.length>4)o=dg.slice(0,4)+'-'+dg.slice(4);el.value=o;});}
+autoFmt(bdateEl);autoFmt(document.getElementById('bdate2'));
+
+function parsePerson(dateId,timeId,tuId,regionId,g,who){
+ const dg=document.getElementById(dateId).value.replace(/\D/g,'');
+ if(dg.length!==8)return{err:who+' 생년월일을 8자리로 입력해 주세요.'};
+ const y=+dg.slice(0,4),mo=+dg.slice(4,6),d=+dg.slice(6,8);
+ if(y<1900||y>2030)return{err:who+' 연도는 1900~2030년 사이여야 합니다.'};
+ const c=new Date(y,mo-1,d);
+ if(c.getFullYear()!==y||c.getMonth()!==mo-1||c.getDate()!==d)return{err:who+' 날짜가 존재하지 않습니다.'};
+ if(!g)return{err:who+' 성별을 선택해 주세요.'};
+ const tu=document.getElementById(tuId).checked;
+ const[h,mi]=(document.getElementById(timeId).value||'12:00').split(':').map(Number);
+ const lon=parseFloat(document.getElementById(regionId).value);
+ const r=computeSaju({y,mo,d,h,mi,timeUnknown:tu,lonDeg:lon,useLon:true});
+ const mp=r.pillars[1],yp=r.pillars[0];
+ const daeun=tu?null:computeDaeun(r.jde,yp.stem,mp.stem,mp.branch,g);
+ const nowY=new Date().getFullYear(),age=nowY-y+1;
+ let cur=null;if(daeun)for(const p of daeun.pillars)if(age>=p.ageStart&&age<=p.ageEnd)cur=p;
+ return{r,daeun,cur,age,gender:g,nowY};}
+
+function personBlock(P,title){
+ const r=P.r,ds=r.pillars[2].stem;
+ return `${title}
+사주: ${r.pillars.map(p=>{const ss=p.label==='일주'?'일간(나)':sipseong(ds,p.stem);
+  const bs=sipseong(ds,BMAIN[p.branch]);
+  return `${p.label} ${gz(p)}(${gzk(p)}) [천간:${ss}/지지:${bs}]`;}).join(', ')}${r.timeUnknown?' — 시주 미상':''}
+오행 분포: ${r.elemCount.map((c,i)=>`${EK[i]}${c}`).join(' ')}
+성별: ${P.gender==='M'?'남':'여'} · 세는나이 ${P.age}세
+${P.daeun?`대운(${P.daeun.forward?'순행':'역행'}, ${P.daeun.startAge}세 시작): ${P.daeun.pillars.map(p=>`${p.ageStart}세 ${gz(p)}`).join(' → ')}
+현재 대운: ${P.cur?`${P.cur.ageStart}~${P.cur.ageEnd}세 ${gz(P.cur)}`:'범위 밖'}`:'대운: 시주 미상으로 생략'}`;}
+function setG(g){gender=g;document.getElementById('gM').classList.toggle('on',g==='M');
+ document.getElementById('gF').classList.toggle('on',g==='F');}
+function gz(p){return SH[p.stem]+BH[p.branch];}
+function gzk(p){return SK[p.stem]+BK[p.branch];}
+
+function start(){
+ const err=document.getElementById('err');err.style.display='none';
+ const A=parsePerson('bdate','btime','timeUnknown','region',gender,mode==='G'?'[나]':'');
+ if(A.err){err.textContent=A.err;err.style.display='block';return;}
+ let B=null;
+ if(mode==='G'){
+  B=parsePerson('bdate2','btime2','timeUnknown2','region2',gender2,'[상대]');
+  if(B.err){err.textContent=B.err;err.style.display='block';return;}
+ }
+ const nowY=A.nowY;
+ const seun=[];for(let yy=nowY-1;yy<=nowY+2;yy++){const s=((yy-4)%10+10)%10,b=((yy-4)%12+12)%12;
+  seun.push(`${yy}년 ${SH[s]}${BH[b]}(${SK[s]}${BK[b]})`);}
+
+ const sum=document.getElementById('summary');
+ const baseRules=`너는 "주주도사"다. 명리학에 정통한 도사로서 찾아온 사람의 명식을 읽고 상담한다. 너는 점쟁이가 아니라 시간의 흐름을 읽어주는 조언자다.
+
+[말투] 존댓말. 도사의 품위는 지키되 말은 쉽고 일상적이어야 한다. 짧은 문장으로 끊는다. 감탄사·웃음 금지.
+[구체성 — 최상위 규칙] 듣고 나서 "그래서 뭐?"가 남으면 실패다. 뜬구름 표현 금지: "기운이 흐른다", "그릇", "계절", "흐름이 감돈다" 같은 추상어를 쓰지 않는다. 비유는 답변 전체에 최대 1개, 없어도 된다. 대신 이렇게 말한다 — 성격은 행동으로("결정은 빠른데 돌아서서 후회가 많으신 편입니다"), 재능은 상황으로("여러 사람 앞에서 설명할 때 힘이 사는 사주입니다"), 시기는 할 일로("올해는 벌이는 해가 아니라 거래처를 다지는 해입니다"). 일·돈·사람·습관처럼 손에 잡히는 영역으로 말한다. 상대가 "맞네" 하고 확인할 수 있는 문장이 좋은 문장이다. 근거 글자는 문장 끝 괄호로 짧게. 예: (월지 정인)
+[상담] 한 답변에 되묻는 질문은 최대 하나. 성격 묘사에 머물지 말고 시기와 행동의 조언으로 연결한다. 큰 결정은 시기 판단 전에 "왜 하려 하는지"를 한 번 묻는다.
+[금지선] 단정적 불운 예언 금지 — 나쁜 흐름은 "운은 정해진 결말이 아니라 날씨" 프레임과 대처법을 함께. 건강 진단·예언 금지(병원 상담 권유). 특정 종목·코인·도박·로또 등 투자 지시 금지. 사망·수명 질문은 정중히 거절. 상담자가 심리적 위기를 보이면 풀이를 멈추고 전문 기관 상담을 권한다.
+[데이터] 아래 JSON은 검증된 엔진이 계산한 것이다. 절대 재계산하거나 데이터에 없는 글자를 지어내지 않는다. 연도별 흐름은 제공된 세운 범위 안에서만 말한다.
+[형식] 채팅이다. 짧은 문단들로. 마크다운 기호(#, *, - 등) 금지. 첫 풀이의 섹션 라벨은 「타고난 성격」 형태로 줄 맨 앞에 쓴다.`;
+
+ if(mode==='S'){
+  const r=A.r;
+  sum.innerHTML=`<div class="gz">${r.pillars.map(p=>gz(p)).reverse().join(' · ')}</div>
+   <div class="meta">${gzk(r.pillars[2])}일주 · ${A.gender==='M'?'남':'여'} · 오행 ${r.elemCount.map((c,i)=>EK[i]+c).join(' ')}${A.daeun?` · 대운 ${A.daeun.startAge}세 ${A.daeun.forward?'순행':'역행'}`:''}</div>`;
+  if(currentUser){
+   const bdVal=document.getElementById('bdate').value;
+   saveProfile(bdVal,bdVal,document.getElementById('btime').value,gender,document.getElementById('region').value);
+  }
+  persona=`${baseRules}
+
+## 상담자 명식 데이터
+${personBlock(A,'')}
+세운: ${seun.join(', ')}
+
+[첫 풀이 — 매우 중요] 첫 응답은 인사가 아니라 종합 풀이다. 이것은 상담의 기초 공사이므로 충분히 길고 자세해야 한다. 아래 일곱 섹션을 라벨과 함께 차례로, 각 섹션 4~6문장씩 풀어라.
+「한 줄 요약」 이 사주를 일상 언어 한 문장으로. 예: "혼자 여러 가지를 벌이고, 사람을 통해 돈이 들어오는 사주입니다."
+「타고난 성격」 행동으로 확인되는 성격 4~5가지. 결정하는 방식, 말하는 방식, 스트레스 받을 때 나오는 습관까지. 본인이 "맞네" 할 수 있게.
+「강점과 조심할 점」 강점 3가지를 실제 상황으로, 조심할 패턴 2~3가지를 실제로 겪었을 법한 장면으로.
+「일과 돈」 어떤 방식으로 일할 때 성과가 나는지(혼자/팀, 벌이기/관리, 사람 상대/기술), 돈이 들어오는 경로의 특징과 새는 습관까지.
+「사람과 관계」 사람을 대하는 방식, 가까운 사람(배우자·동료·친구)과의 관계에서 반복되는 패턴.
+「지난 흐름 돌아보기」 지나온 대운 2~3개를 나이대로 짚으며 그 시기에 있었을 법한 변화를 말한다. 예: "23세부터의 십 년은 배움보다 부딪히며 큰 시기였을 겁니다. 33세 무렵 일의 방향이 한 번 크게 바뀌었을 것이고요." 본인이 과거를 대조해볼 수 있는 검증형 문장으로.
+「지금과 앞으로」 현재 대운의 성격, 올해와 내년이 무엇을 하기 좋은 시기인지 할 일 단위로. 다음 대운이 언제 바뀌고 무엇이 달라지는지까지.
+마지막에 "무엇이 궁금하십니까" 하나로 마무리하고, 이후 대화는 이 풀이를 기초로 한다. 이후의 일반 답변은 3~6문단이면 충분하다.`;
+  history=[{role:'user',content:'(상담자가 방에 들어와 절을 올리고 명식을 내민다. 종합 풀이를 시작하라.)'}];
+ } else {
+  const ra=A.r,rb=B.r,rel=document.getElementById('relType').value;
+  const dA=ra.pillars[2],dB=rb.pillars[2],yA=ra.pillars[0],yB=rb.pillars[0];
+  const facts=[
+   `일간 관계: 나 ${SH[dA.stem]} ↔ 상대 ${SH[dB.stem]} → ${stemRel(dA.stem,dB.stem)}`,
+   `일지 관계: 나 ${BH[dA.branch]} ↔ 상대 ${BH[dB.branch]} → ${branchRel(dA.branch,dB.branch)}`,
+   `띠(년지) 관계: 나 ${BH[yA.branch]} ↔ 상대 ${BH[yB.branch]} → ${branchRel(yA.branch,yB.branch)}`,
+  ].join('\n');
+  sum.innerHTML=`<div class="gz">${gz(dA)} ♥ ${gz(dB)}</div>
+   <div class="meta">${gzk(dA)}일주 · ${gzk(dB)}일주 · ${rel} 궁합</div>`;
+  persona=`${baseRules}
+[궁합 금지선 추가] 관계의 파탄을 단정하지 않는다("헤어지세요", "동업하면 망합니다" 금지). 충이나 극이 있어도 그것은 서로 다름의 지도이며, 다루는 법과 함께 전한다. 어느 한쪽을 험담하거나 우열을 가리지 않는다.
+
+## 궁합 데이터 (관계: ${rel})
+${personBlock(A,'[나]')}
+
+${personBlock(B,'[상대]')}
+
+[두 명식 사이의 합충 — 엔진 계산]
+${facts}
+세운: ${seun.join(', ')}
+
+[첫 풀이 — 매우 중요] 첫 응답은 궁합 종합 풀이다. 아래 섹션을 라벨과 함께 차례로. 각 섹션 3~6문장, 손에 잡히는 상황으로. 첫 풀이는 기초 공사이므로 충분히 자세하게.
+${(rel==='사업 파트너'||rel==='직장 동료·상사')?
+`관계는 "${rel}" — 사업형 궁합이다.
+「한 줄 요약」 이 조합을 한 문장으로. 예: "한 사람이 벌이고 한 사람이 지키는, 역할만 나누면 오래가는 조합입니다."
+「두 사람의 일하는 스타일」 각자 일할 때 어떤 사람인지 나란히. 회의 때, 결정할 때, 위기 때 어떻게 다른지.
+「역할 분담」 십성으로 본 각자의 자리 — 만들고 벌이는 쪽인지, 팔고 굴리는 쪽인지, 관리와 규율 쪽인지 — 를 실제 업무(영업/기획/재무/운영)로 짚어서 제안.
+「돈과 결정」 돈 문제와 의사결정에서 어긋나기 쉬운 지점과 원칙. 돈 관리는 누가, 최종 결정은 어떻게 할지 구체적으로.
+「함께할 타이밍」 각자의 현재 대운을 나란히 놓고, 같이 벌일 시기와 지킬 시기를 할 일 단위로.`
+:
+`관계는 "${rel}" — 인연형 궁합이다.
+「한 줄 요약」 이 인연을 한 문장으로.
+「두 사람의 성격」 각자 어떤 사람인지 나란히. 싸울 때, 서운할 때, 좋을 때 어떻게 다른지.
+「잘 맞는 부분」 합·상생·오행 보완이 실제 생활에서 어떻게 서로를 살리는지.
+「부딪히는 부분」 충·상극이 실제로 어떤 상황(돈, 말투, 속도, 가족)에서 갈등이 되는지와 다루는 법.
+「이 관계를 위한 조언」 ${rel} 관계에 맞는 구체적 행동 2~3가지.`}
+근거 글자는 괄호로 짧게. 마지막에 "무엇이 궁금하십니까" 하나로 마무리한다.`;
+  history=[{role:'user',content:'(두 사람의 명식을 나란히 내밀며 궁합을 청한다. 궁합 종합 풀이를 시작하라.)'}];
+ }
+
+ sum.style.display='block';
+ document.getElementById('setup').style.display='none';
+ document.getElementById('chatArea').style.display='flex';
+ callDosa(4000);
+}
+
+function addMsg(txt,cls){const log=document.getElementById('log');
+ const m=document.createElement('div');m.className='msg '+cls;m.textContent=txt;
+ log.appendChild(m);m.scrollIntoView({behavior:'smooth',block:'end'});return m;}
+
+async function callDosa(maxTok){
+ const th=addMsg('명식을 살피는 중…','thinking');
+ try{
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+   method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:maxTok||1500,system:persona,messages:history})});
+  const data=await res.json();
+  th.remove();
+  if(data.error){document.getElementById('cerr').textContent='도사님이 잠시 자리를 비웠습니다: '+(data.error.message||'오류');
+   document.getElementById('cerr').style.display='block';return;}
+  const txt=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
+  history.push({role:'assistant',content:txt});
+  addMsg(txt,'dosa');
+ }catch(e){th.remove();
+  document.getElementById('cerr').textContent='연결에 문제가 있습니다: '+e.message;
+  document.getElementById('cerr').style.display='block';}
+}
+
+function send(){
+ const q=document.getElementById('q');const t=q.value.trim();if(!t)return;
+ document.getElementById('cerr').style.display='none';
+ addMsg(t,'me');history.push({role:'user',content:t});q.value='';callDosa(1500);
+}
+
+function advToggle(id,btn){const el=document.getElementById(id);
+ const open=el.style.display==='block';el.style.display=open?'none':'block';
+ btn.textContent=open?'출생지 등 상세 설정 ⌄':'상세 설정 접기 ⌃';}
+</script>
+</body>
+</html>
