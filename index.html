@@ -512,7 +512,7 @@ function addMsg(txt,cls){const log=document.getElementById('log');
 async function callDosa(maxTok){
  const th=addMsg('명식을 살피는 중…','thinking');
  try{
-  const res=await fetch('https://api.anthropic.com/v1/messages',{
+  const res=await fetch('https://jujudosa-api.jinjjabg.workers.dev/',{
    method:'POST',headers:{'Content-Type':'application/json'},
    body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:maxTok||1500,system:persona,messages:history})});
   const data=await res.json();
