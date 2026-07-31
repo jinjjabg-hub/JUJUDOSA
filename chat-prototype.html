@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>주주도사 · 사주 상담</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <style>
 :root{
   --bg:#F7F8FA; --card:#FFF; --text:#191F28; --sub:#8B95A1; --line:#E5E8EB;
@@ -22,6 +25,17 @@ header{display:flex;align-items:center;gap:8px;margin-bottom:18px}
 .brand{font-size:18px;font-weight:800;letter-spacing:-.02em}
 .badge{margin-left:auto;font-size:11px;color:var(--sub);background:#fff;border:1px solid var(--line);
   border-radius:999px;padding:4px 10px}
+
+.authbar{display:flex;align-items:center;gap:8px;background:var(--card);border-radius:14px;
+  padding:10px 14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(25,31,40,.06)}
+.authbar .uname{font-size:13px;font-weight:600;flex:1}
+.authbar button{border:none;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:700;
+  cursor:pointer;font-family:inherit}
+.kakaobtn{background:#FEE500;color:#191600;width:100%}
+.logoutbtn{background:#F2F4F6;color:var(--sub)}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.chip{background:var(--primary-tint);color:var(--primary);border-radius:999px;padding:8px 14px;
+  font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:inherit}
 
 .panel{background:var(--card);border-radius:20px;padding:20px;margin-bottom:14px;
   box-shadow:0 1px 3px rgba(25,31,40,.06)}
@@ -84,11 +98,16 @@ footer{text-align:center;font-size:11px;color:#B0B8C1;margin-top:20px}
     <div class="badge">프로토타입</div>
   </header>
 
+  <div class="authbar" id="authBar">
+    <button class="kakaobtn" onclick="loginKakao()">카카오로 시작하기</button>
+  </div>
+
   <div class="panel" id="setup">
     <div class="tabs">
       <div class="tab on" id="tabS" onclick="setMode('S')">사주 상담</div>
       <div class="tab" id="tabG" onclick="setMode('G')">궁합</div>
     </div>
+    <div class="chips" id="profileChips" style="display:none"></div>
     <h2 id="setupTitle">생년월일시를 알려주세요</h2>
     <div class="row">
       <div><label class="f">생년월일</label><input type="text" id="bdate" inputmode="numeric" maxlength="10" placeholder="19711116" autocomplete="off"></div>
@@ -187,6 +206,26 @@ footer{text-align:center;font-size:11px;color:#B0B8C1;margin-top:20px}
 </div>
 
 <script>
+/* ===== Firebase 설정 =====
+   ↓↓↓ 아래 6개 값을 Firebase 콘솔에서 채워넣으세요 ↓↓↓
+   경로: Firebase 콘솔 > 프로젝트 개요 옆 ⚙️(설정) > 프로젝트 설정
+        > 아래로 스크롤 > "내 앱" > 웹 아이콘(</>) 눌러서 웹 앱 추가
+        > 앱 닉네임 아무거나 입력(예: jujudosa-web) > 앱 등록
+        > 화면에 뜨는 firebaseConfig 객체의 값을 그대로 복사해서 아래에 붙여넣기
+*/
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCL4LIbgD1EtzfA9YMzbfqb24hrm9WXXSA",
+  authDomain: "jujudosa.firebaseapp.com",
+  projectId: "jujudosa",
+  storageBucket: "jujudosa.firebasestorage.app",
+  messagingSenderId: "986803631175",
+  appId: "1:986803631175:web:7e3c84c735ac16db29ed62"
+};
+firebase.initializeApp(FIREBASE_CONFIG);
+const auth = firebase.auth();
+const db = firebase.firestore();
+let currentUser = null;
+
 /* ===== 만세력 코어 (검증 완료 엔진 v0.1 + 대운) ===== */
 const SH=['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'],SK=['갑','을','병','정','무','기','경','신','임','계'];
 const BH=['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'],BK=['자','축','인','묘','진','사','오','미','신','유','술','해'];
@@ -277,6 +316,54 @@ function branchRel(a,b){
 
 /* ===== 앱 로직 ===== */
 let gender=null,gender2=null,mode='S',history=[],persona='';
+
+/* ===== 카카오 로그인 & 사주 프로필 저장 ===== */
+function loginKakao(){
+ const provider=new firebase.auth.OAuthProvider('oidc.kakao');
+ auth.signInWithPopup(provider).catch(e=>{alert('로그인에 실패했습니다: '+e.message);});
+}
+function logout(){auth.signOut();}
+auth.onAuthStateChanged(u=>{
+ currentUser=u;
+ const bar=document.getElementById('authBar');
+ if(u){
+  bar.innerHTML=`<div class="uname">${u.displayName||'회원'}님</div><button class="logoutbtn" onclick="logout()">로그아웃</button>`;
+  loadProfiles();
+ }else{
+  bar.innerHTML=`<button class="kakaobtn" onclick="loginKakao()">카카오로 시작하기</button>`;
+  document.getElementById('profileChips').style.display='none';
+ }
+});
+async function saveProfile(label,bd,bt,g,region){
+ if(!currentUser)return;
+ try{
+  await db.collection('users').doc(currentUser.uid).collection('profiles').add({
+   label,bdate:bd,btime:bt,gender:g,region,
+   savedAt:firebase.firestore.FieldValue.serverTimestamp()});
+  loadProfiles();
+ }catch(e){console.error('프로필 저장 실패',e);}
+}
+async function loadProfiles(){
+ if(!currentUser)return;
+ const box=document.getElementById('profileChips');
+ try{
+  const snap=await db.collection('users').doc(currentUser.uid).collection('profiles')
+   .orderBy('savedAt','desc').limit(10).get();
+  if(snap.empty){box.style.display='none';return;}
+  box.innerHTML='';
+  snap.forEach(doc=>{
+   const p=doc.data();const b=document.createElement('button');
+   b.className='chip';b.type='button';b.textContent=p.label||p.bdate;
+   b.onclick=()=>fillFromProfile(p);box.appendChild(b);});
+  box.style.display='flex';
+ }catch(e){console.error('프로필 불러오기 실패',e);box.style.display='none';}
+}
+function fillFromProfile(p){
+ document.getElementById('bdate').value=p.bdate;
+ document.getElementById('btime').value=p.btime;
+ document.getElementById('region').value=p.region;
+ setG(p.gender);
+}
 function setMode(m){mode=m;
  document.getElementById('tabS').classList.toggle('on',m==='S');
  document.getElementById('tabG').classList.toggle('on',m==='G');
@@ -351,6 +438,10 @@ function start(){
   const r=A.r;
   sum.innerHTML=`<div class="gz">${r.pillars.map(p=>gz(p)).reverse().join(' · ')}</div>
    <div class="meta">${gzk(r.pillars[2])}일주 · ${A.gender==='M'?'남':'여'} · 오행 ${r.elemCount.map((c,i)=>EK[i]+c).join(' ')}${A.daeun?` · 대운 ${A.daeun.startAge}세 ${A.daeun.forward?'순행':'역행'}`:''}</div>`;
+  if(currentUser){
+   const bdVal=document.getElementById('bdate').value;
+   saveProfile(bdVal,bdVal,document.getElementById('btime').value,gender,document.getElementById('region').value);
+  }
   persona=`${baseRules}
 
 ## 상담자 명식 데이터
@@ -421,7 +512,7 @@ function addMsg(txt,cls){const log=document.getElementById('log');
 async function callDosa(maxTok){
  const th=addMsg('명식을 살피는 중…','thinking');
  try{
-  const res=await fetch('https://jujudosa-api.jinjjabg.workers.dev/',{
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
    method:'POST',headers:{'Content-Type':'application/json'},
    body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:maxTok||1500,system:persona,messages:history})});
   const data=await res.json();
