@@ -25,6 +25,8 @@ header{display:flex;align-items:center;gap:8px;margin-bottom:18px}
 .brand{font-size:18px;font-weight:800;letter-spacing:-.02em}
 .badge{margin-left:auto;font-size:11px;color:var(--sub);background:#fff;border:1px solid var(--line);
   border-radius:999px;padding:4px 10px}
+.backbtn{margin-left:auto;background:none;border:none;color:var(--primary);font-size:13px;
+  font-weight:600;cursor:pointer;font-family:inherit;padding:6px 4px}
 
 .authbar{display:flex;align-items:center;gap:8px;background:var(--card);border-radius:14px;
   padding:10px 14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(25,31,40,.06)}
@@ -68,6 +70,7 @@ button.go:active{transform:scale(.98);opacity:.9}
   box-shadow:0 1px 3px rgba(25,31,40,.06);text-align:center}
 #summary .gz{font-size:22px;font-weight:800;letter-spacing:.06em}
 #summary .meta{font-size:12px;color:var(--sub);margin-top:5px}
+#summary .disclaimer{font-size:11px;color:var(--sub);margin-top:8px;opacity:.75;line-height:1.5}
 
 #chatArea{display:none;flex-direction:column;flex:1}
 #log{flex:1;display:flex;flex-direction:column;gap:10px;margin-bottom:14px;min-height:300px}
@@ -95,6 +98,7 @@ footer{text-align:center;font-size:11px;color:#B0B8C1;margin-top:20px}
   <header>
     <div class="dot"></div>
     <div class="brand">주주도사</div>
+    <button class="backbtn" id="backBtn" style="display:none" onclick="goHome()">← 새로 보기</button>
     <div class="badge">프로토타입</div>
   </header>
 
@@ -425,8 +429,11 @@ function start(){
   seun.push(`${yy}년 ${SH[s]}${BH[b]}(${SK[s]}${BK[b]})`);}
 
  const sum=document.getElementById('summary');
+ const today=new Date();
+ const todayStr=`${today.getFullYear()}년 ${today.getMonth()+1}월 ${today.getDate()}일`;
  const baseRules=`너는 "주주도사"다. 명리학에 정통한 도사로서 찾아온 사람의 명식을 읽고 상담한다. 너는 점쟁이가 아니라 시간의 흐름을 읽어주는 조언자다.
 
+[오늘 날짜] 오늘은 ${todayStr}이다. "올해", "내년", "요즘" 같은 표현은 반드시 이 날짜를 기준으로 계산해서 말한다. 절대 다른 연도를 올해로 착각하지 않는다.
 [말투] 존댓말. 도사의 품위는 지키되 말은 쉽고 일상적이어야 한다. 짧은 문장으로 끊는다. 감탄사·웃음 금지.
 [구체성 — 최상위 규칙] 듣고 나서 "그래서 뭐?"가 남으면 실패다. 뜬구름 표현 금지: "기운이 흐른다", "그릇", "계절", "흐름이 감돈다" 같은 추상어를 쓰지 않는다. 비유는 답변 전체에 최대 1개, 없어도 된다. 대신 이렇게 말한다 — 성격은 행동으로("결정은 빠른데 돌아서서 후회가 많으신 편입니다"), 재능은 상황으로("여러 사람 앞에서 설명할 때 힘이 사는 사주입니다"), 시기는 할 일로("올해는 벌이는 해가 아니라 거래처를 다지는 해입니다"). 일·돈·사람·습관처럼 손에 잡히는 영역으로 말한다. 상대가 "맞네" 하고 확인할 수 있는 문장이 좋은 문장이다. 근거 글자는 문장 끝 괄호로 짧게. 예: (월지 정인)
 [상담] 한 답변에 되묻는 질문은 최대 하나. 성격 묘사에 머물지 말고 시기와 행동의 조언으로 연결한다. 큰 결정은 시기 판단 전에 "왜 하려 하는지"를 한 번 묻는다.
@@ -437,7 +444,8 @@ function start(){
  if(mode==='S'){
   const r=A.r;
   sum.innerHTML=`<div class="gz">${r.pillars.map(p=>gz(p)).reverse().join(' · ')}</div>
-   <div class="meta">${gzk(r.pillars[2])}일주 · ${A.gender==='M'?'남':'여'} · 오행 ${r.elemCount.map((c,i)=>EK[i]+c).join(' ')}${A.daeun?` · 대운 ${A.daeun.startAge}세 ${A.daeun.forward?'순행':'역행'}`:''}</div>`;
+   <div class="meta">${gzk(r.pillars[2])}일주 · ${A.gender==='M'?'남':'여'} · 오행 ${r.elemCount.map((c,i)=>EK[i]+c).join(' ')}${A.daeun?` · 대운 ${A.daeun.startAge}세 ${A.daeun.forward?'순행':'역행'}`:''}</div>
+   <div class="disclaimer">사주(팔자·오행)는 항상 동일하게 계산됩니다. 아래 해석 문구는 매번 표현이 조금씩 달라질 수 있습니다.</div>`;
   if(currentUser){
    const bdVal=document.getElementById('bdate').value;
    saveProfile(bdVal,bdVal,document.getElementById('btime').value,gender,document.getElementById('region').value);
@@ -502,7 +510,18 @@ ${(rel==='사업 파트너'||rel==='직장 동료·상사')?
  sum.style.display='block';
  document.getElementById('setup').style.display='none';
  document.getElementById('chatArea').style.display='flex';
+ document.getElementById('backBtn').style.display='block';
  callDosa(4000);
+}
+
+function goHome(){
+ document.getElementById('setup').style.display='block';
+ document.getElementById('summary').style.display='none';
+ document.getElementById('chatArea').style.display='none';
+ document.getElementById('backBtn').style.display='none';
+ document.getElementById('log').innerHTML='';
+ document.getElementById('cerr').style.display='none';
+ history=[];persona='';
 }
 
 function addMsg(txt,cls){const log=document.getElementById('log');
