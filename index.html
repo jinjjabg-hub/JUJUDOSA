@@ -29,6 +29,15 @@ header{display:flex;align-items:center;gap:8px;margin-bottom:18px}
   font-weight:600;cursor:pointer;font-family:inherit;padding:6px 4px}
 
 .mbtilink{font-size:12px;color:var(--primary);margin-top:6px;cursor:pointer;font-weight:600}
+
+.todaycard{background:linear-gradient(135deg,var(--primary-tint),#fff);border:1px solid var(--line);
+  border-radius:16px;padding:16px 18px;margin-bottom:12px}
+.tf-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.tf-head>span{font-size:13px;font-weight:800;color:var(--primary)}
+.tf-head select{font-size:12px;border:1px solid var(--line);border-radius:8px;padding:4px 8px;
+  font-family:inherit;background:#fff;max-width:55%}
+#tfBody{font-size:14px;line-height:1.6;color:var(--text);white-space:pre-line}
+.tf-setself{margin-top:10px;font-size:11px;color:var(--primary);cursor:pointer;font-weight:600}
 .modalbg{position:fixed;inset:0;background:rgba(25,31,40,.5);z-index:100;display:flex;
   align-items:center;justify-content:center;padding:20px}
 .modalcard{background:#fff;border-radius:20px;padding:22px;max-width:420px;width:100%;
@@ -120,6 +129,15 @@ footer a{color:#8B95A1;text-decoration:underline}
 
   <div class="authbar" id="authBar">
     <button class="kakaobtn" onclick="loginKakao()">카카오로 시작하기</button>
+  </div>
+
+  <div class="todaycard" id="todayCard" style="display:none">
+    <div class="tf-head">
+      <span>오늘의 운세</span>
+      <select id="tfSelect" onchange="onTfSelect()"></select>
+    </div>
+    <div id="tfBody">불러오는 중…</div>
+    <div class="tf-setself" id="tfSetSelf" style="display:none" onclick="setAsSelf()">★ 이 프로필을 본인으로 설정</div>
   </div>
 
   <div class="modalbg" id="mbtiModal" style="display:none">
@@ -385,13 +403,17 @@ auth.onAuthStateChanged(u=>{
  }else{
   bar.innerHTML=`<button class="kakaobtn" onclick="loginKakao()">카카오로 시작하기</button>`;
   document.getElementById('profileChips').style.display='none';
+  document.getElementById('todayCard').style.display='none';
  }
 });
+let savedProfiles=[];
 async function saveProfile(label,bd,bt,g,region,mbti){
  if(!currentUser)return;
  try{
-  await db.collection('users').doc(currentUser.uid).collection('profiles').add({
-   label,bdate:bd,btime:bt,gender:g,region,mbti:mbti||'',
+  const col=db.collection('users').doc(currentUser.uid).collection('profiles');
+  const existing=await col.limit(1).get();
+  const isFirst=existing.empty; // 처음 저장하는 프로필이면 자동으로 "본인"
+  await col.add({label,bdate:bd,btime:bt,gender:g,region,mbti:mbti||'',isSelf:isFirst,
    savedAt:firebase.firestore.FieldValue.serverTimestamp()});
   loadProfiles();
  }catch(e){console.error('프로필 저장 실패',e);}
@@ -402,13 +424,15 @@ async function loadProfiles(){
  try{
   const snap=await db.collection('users').doc(currentUser.uid).collection('profiles')
    .orderBy('savedAt','desc').limit(10).get();
-  if(snap.empty){box.style.display='none';return;}
+  savedProfiles=snap.docs.map(doc=>({id:doc.id,...doc.data()}));
+  if(snap.empty){box.style.display='none';document.getElementById('todayCard').style.display='none';return;}
   box.innerHTML='';
   snap.forEach(doc=>{
    const p=doc.data();const b=document.createElement('button');
    b.className='chip';b.type='button';b.textContent=p.label||p.bdate;
    b.onclick=()=>fillFromProfile(p);box.appendChild(b);});
   box.style.display='flex';
+  renderTodayCard();
  }catch(e){console.error('프로필 불러오기 실패',e);box.style.display='none';}
 }
 function fillFromProfile(p){
@@ -417,6 +441,85 @@ function fillFromProfile(p){
  document.getElementById('region').value=p.region;
  document.getElementById('mbti').value=p.mbti||'';
  setG(p.gender);
+}
+
+/* ===== 오늘의 운세 (저장된 "본인" 프로필 기준, 선택 변경 가능) ===== */
+function renderTodayCard(){
+ const card=document.getElementById('todayCard');
+ if(!savedProfiles.length){card.style.display='none';return;}
+ card.style.display='block';
+ const selfP=savedProfiles.find(p=>p.isSelf)||savedProfiles[0];
+ const sel=document.getElementById('tfSelect');
+ sel.innerHTML=savedProfiles.map(p=>
+  `<option value="${p.id}"${p.id===selfP.id?' selected':''}>${(p.label||p.bdate)}${p.isSelf?' (본인)':''}</option>`).join('');
+ loadFortuneFor(selfP.id);
+}
+function onTfSelect(){loadFortuneFor(document.getElementById('tfSelect').value);}
+async function loadFortuneFor(id){
+ const p=savedProfiles.find(x=>x.id===id);if(!p)return;
+ document.getElementById('tfBody').textContent='불러오는 중…';
+ const setSelfBtn=document.getElementById('tfSetSelf');
+ setSelfBtn.style.display=p.isSelf?'none':'block';
+ setSelfBtn.dataset.pid=id;
+ const text=await getOrGenerateFortune(p,id);
+ document.getElementById('tfBody').textContent=text;
+}
+async function setAsSelf(){
+ const id=document.getElementById('tfSetSelf').dataset.pid;
+ if(!currentUser||!id)return;
+ try{
+  const col=db.collection('users').doc(currentUser.uid).collection('profiles');
+  const batch=db.batch();
+  savedProfiles.forEach(p=>{if(p.isSelf&&p.id!==id)batch.update(col.doc(p.id),{isSelf:false});});
+  batch.update(col.doc(id),{isSelf:true});
+  await batch.commit();
+  loadProfiles();
+ }catch(e){console.error('본인 설정 실패',e);}
+}
+function parseSajuFromData(bdate,btime,gender,lonDeg){
+ const dg=(bdate||'').replace(/\D/g,'');
+ if(dg.length!==8)return null;
+ const y=+dg.slice(0,4),mo=+dg.slice(4,6),d=+dg.slice(6,8);
+ const[h,mi]=(btime||'12:00').split(':').map(Number);
+ const r=computeSaju({y,mo,d,h,mi,timeUnknown:false,lonDeg:lonDeg||126.98,useLon:true});
+ const mp=r.pillars[1],yp=r.pillars[0];
+ const daeun=computeDaeun(r.jde,yp.stem,mp.stem,mp.branch,gender);
+ const nowY=new Date().getFullYear(),age=nowY-y+1;
+ let cur=null;if(daeun)for(const pp of daeun.pillars)if(age>=pp.ageStart&&age<=pp.ageEnd)cur=pp;
+ return{r,daeun,cur,age,gender,nowY};
+}
+async function getOrGenerateFortune(p,docId){
+ const today=new Date().toISOString().slice(0,10);
+ let tier='free';
+ try{const uDoc=await db.collection('users').doc(currentUser.uid).get();
+  if(uDoc.exists&&uDoc.data().tier)tier=uDoc.data().tier;}catch(e){}
+ const intervalDays=tier==='free'?7:1; // 무료=주 1회, 유료=매일
+ if(p.fortuneDate&&p.fortuneText){
+  const diffDays=Math.floor((new Date(today)-new Date(p.fortuneDate))/86400000);
+  if(diffDays<intervalDays)return p.fortuneText;
+ }
+ const P=parseSajuFromData(p.bdate,p.btime,p.gender,parseFloat(p.region)||126.98);
+ if(!P)return '생년월일 정보가 정확하지 않아 운세를 계산할 수 없습니다.';
+ const t=new Date();
+ const todayStr=`${t.getFullYear()}년 ${t.getMonth()+1}월 ${t.getDate()}일`;
+ const sys=`너는 "주주도사"다. 아래 사주 정보를 참고해 오늘 하루의 조언을 짧게 준다.
+${personBlock(P,'')}
+오늘은 ${todayStr}이다.
+[형식] 존댓말. 3줄 이내. 마크다운 기호 금지. 단정적 불운 예언 금지. 구체적인 행동 조언 위주로 짧게.`;
+ try{
+  const res=await fetch('https://jujudosa-api.jinjjabg.workers.dev/',{
+   method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:200,system:sys,
+    messages:[{role:'user',content:'오늘의 운세를 알려주세요.'}]})});
+  const data=await res.json();
+  const txt=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim()
+    ||'오늘의 운세를 불러오지 못했습니다.';
+  await db.collection('users').doc(currentUser.uid).collection('profiles').doc(docId)
+   .set({fortuneText:txt,fortuneDate:today},{merge:true});
+  const idx=savedProfiles.findIndex(x=>x.id===docId);
+  if(idx>-1){savedProfiles[idx].fortuneText=txt;savedProfiles[idx].fortuneDate=today;}
+  return txt;
+ }catch(e){console.error('운세 생성 실패',e);return '오늘의 운세를 불러오는 중 문제가 발생했습니다.';}
 }
 function setMode(m){mode=m;
  document.getElementById('tabS').classList.toggle('on',m==='S');
