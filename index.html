@@ -8,6 +8,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="./korean-lunar-calendar.min.js"></script>
 <style>
 :root{
   --bg:#F7F8FA; --card:#FFF; --text:#191F28; --sub:#8B95A1; --line:#E5E8EB;
@@ -23,6 +24,13 @@ body{background:var(--bg);color:var(--text);
 header{display:flex;align-items:center;gap:8px;margin-bottom:18px}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--primary)}
 .brand{font-size:18px;font-weight:800;letter-spacing:-.02em}
+.opt .hint{font-size:11px;color:var(--sub);display:block;margin-top:2px;margin-left:22px}
+
+.caltoggle{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.calbtn{border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:7px 16px;
+  font-size:13px;font-weight:700;color:var(--sub);cursor:pointer;font-family:inherit}
+.calbtn.on{border-color:var(--primary);color:var(--primary);background:var(--primary-tint)}
+.leapopt{margin-left:4px;font-size:12px}
 .badge{margin-left:auto;font-size:11px;color:var(--sub);background:#fff;border:1px solid var(--line);
   border-radius:999px;padding:4px 10px}
 .backbtn{margin-left:auto;background:none;border:none;color:var(--primary);font-size:13px;
@@ -159,6 +167,11 @@ footer a{color:#8B95A1;text-decoration:underline}
     </div>
     <div class="chips" id="profileChips" style="display:none"></div>
     <h2 id="setupTitle">생년월일시를 알려주세요</h2>
+    <div class="caltoggle">
+      <button type="button" class="calbtn on" id="calSolar" onclick="setCal('solar')">양력</button>
+      <button type="button" class="calbtn" id="calLunar" onclick="setCal('lunar')">음력</button>
+      <label class="opt leapopt" id="leapWrap" style="display:none"><input type="checkbox" id="isLeap"> 윤달</label>
+    </div>
     <div class="row">
       <div><label class="f">생년월일</label><input type="text" id="bdate" inputmode="numeric" maxlength="10" placeholder="19711116" autocomplete="off"></div>
       <div><label class="f">태어난 시각</label><input type="time" id="btime" value="12:00"></div>
@@ -206,10 +219,17 @@ footer a{color:#8B95A1;text-decoration:underline}
         </div>
       </div>
       <label class="opt"><input type="checkbox" id="timeUnknown"> 태어난 시간을 몰라요</label>
+      <label class="opt"><input type="checkbox" id="useLon" checked> 경도(진태양시) 보정 적용
+        <span class="hint">(대조 사이트와 다르면 꺼보세요)</span></label>
     </div>
 
     <div class="pb" id="pB">
       <h2>상대방 정보</h2>
+      <div class="caltoggle">
+        <button type="button" class="calbtn on" id="calSolar2" onclick="setCal2('solar')">양력</button>
+        <button type="button" class="calbtn" id="calLunar2" onclick="setCal2('lunar')">음력</button>
+        <label class="opt leapopt" id="leapWrap2" style="display:none"><input type="checkbox" id="isLeap2"> 윤달</label>
+      </div>
       <div class="row">
         <div><label class="f">상대 생년월일</label><input type="text" id="bdate2" inputmode="numeric" maxlength="10" placeholder="19750305" autocomplete="off"></div>
         <div><label class="f">태어난 시각</label><input type="time" id="btime2" value="12:00"></div>
@@ -338,12 +358,17 @@ function computeSaju(inp){
  const app=addMin(std.y,std.mo,std.d,std.h,std.mi,lonMin);
  let dj=jdn(app.y,app.mo,app.d);if(!timeUnknown&&app.h===23&&!yajasi)dj+=1;
  const dgz=((dj+49)%60+60)%60,ds=dgz%10,db=dgz%12;
- let hs=null,hb=null;
- if(!timeUnknown){hb=Math.floor(((app.h*60+app.mi+60)%1440)/120);hs=((ds%5)*2+hb)%10;}
+ let hs=null,hb=null,hourNear=false,hourGapMin=null;
+ if(!timeUnknown){
+  const tot=((app.h*60+app.mi+60)%1440);
+  const gap=tot%120,near=Math.min(gap,120-gap);
+  hourNear=near<=30;hourGapMin=near;
+  hb=Math.floor(tot/120);hs=((ds%5)*2+hb)%10;}
  const P=[{label:'년주',stem:ys,branch:yb},{label:'월주',stem:ms,branch:mb},{label:'일주',stem:ds,branch:db}];
  if(hs!==null)P.push({label:'시주',stem:hs,branch:hb});
  const ec=[0,0,0,0,0];for(const p of P){ec[SE[p.stem]]++;ec[BE[p.branch]]++;}
- return{pillars:P,elemCount:ec,sajuYear:sy,jde,corrections:{lonMin,dst:dstMin!==0,is830,appliedTime:app},timeUnknown};}
+ return{pillars:P,elemCount:ec,sajuYear:sy,jde,
+  corrections:{lonMin,dst:dstMin!==0,is830,appliedTime:app,hourNear,hourGapMin},timeUnknown};}
 function adjTerm(jde,fw){const lon=sunLon(jde),mod=((lon-15)%30+30)%30;
  const tg=fw?(((lon-mod+30)%360)+360)%360:(((lon-mod)%360)+360)%360;
  const f=t=>{let d=sunLon(t)-tg;while(d>180)d-=360;while(d<-180)d+=360;return d;};
@@ -387,6 +412,25 @@ function branchRel(a,b){
 
 /* ===== 앱 로직 ===== */
 let gender=null,gender2=null,mode='S',history=[],persona='';
+let calType='solar',calType2='solar';
+function setCal(t){calType=t;
+ document.getElementById('calSolar').classList.toggle('on',t==='solar');
+ document.getElementById('calLunar').classList.toggle('on',t==='lunar');
+ document.getElementById('leapWrap').style.display=t==='lunar'?'inline-flex':'none';}
+function setCal2(t){calType2=t;
+ document.getElementById('calSolar2').classList.toggle('on',t==='solar');
+ document.getElementById('calLunar2').classList.toggle('on',t==='lunar');
+ document.getElementById('leapWrap2').style.display=t==='lunar'?'inline-flex':'none';}
+/* 음력 y/mo/d(+윤달 여부) → 양력 y/mo/d. 실패 시 null */
+function lunarToSolar(y,mo,d,isLeap){
+ try{
+  const c=new KoreanLunarCalendar();
+  const ok=c.setLunarDate(y,mo,d,!!isLeap);
+  if(ok===false)return null;
+  const s=c.getSolarCalendar();
+  return{y:s.year,mo:s.month,d:s.day};
+ }catch(e){console.error('음양력 변환 실패',e);return null;}
+}
 
 /* ===== 카카오 로그인 & 사주 프로필 저장 ===== */
 function loginKakao(){
@@ -407,13 +451,14 @@ auth.onAuthStateChanged(u=>{
  }
 });
 let savedProfiles=[];
-async function saveProfile(label,bd,bt,g,region,mbti){
+async function saveProfile(label,bd,bt,g,region,mbti,cal,leap){
  if(!currentUser)return;
  try{
   const col=db.collection('users').doc(currentUser.uid).collection('profiles');
   const existing=await col.limit(1).get();
   const isFirst=existing.empty; // 처음 저장하는 프로필이면 자동으로 "본인"
-  await col.add({label,bdate:bd,btime:bt,gender:g,region,mbti:mbti||'',isSelf:isFirst,
+  await col.add({label,bdate:bd,btime:bt,gender:g,region,mbti:mbti||'',
+   calType:cal||'solar',isLeap:!!leap,isSelf:isFirst,
    savedAt:firebase.firestore.FieldValue.serverTimestamp()});
   loadProfiles();
  }catch(e){console.error('프로필 저장 실패',e);}
@@ -440,6 +485,8 @@ function fillFromProfile(p){
  document.getElementById('btime').value=p.btime;
  document.getElementById('region').value=p.region;
  document.getElementById('mbti').value=p.mbti||'';
+ setCal(p.calType==='lunar'?'lunar':'solar');
+ document.getElementById('isLeap').checked=!!p.isLeap;
  setG(p.gender);
 }
 
@@ -476,10 +523,15 @@ async function setAsSelf(){
   loadProfiles();
  }catch(e){console.error('본인 설정 실패',e);}
 }
-function parseSajuFromData(bdate,btime,gender,lonDeg){
+function parseSajuFromData(bdate,btime,gender,lonDeg,cal,isLeap){
  const dg=(bdate||'').replace(/\D/g,'');
  if(dg.length!==8)return null;
- const y=+dg.slice(0,4),mo=+dg.slice(4,6),d=+dg.slice(6,8);
+ let y=+dg.slice(0,4),mo=+dg.slice(4,6),d=+dg.slice(6,8);
+ if(cal==='lunar'){
+  const s=lunarToSolar(y,mo,d,!!isLeap);
+  if(!s)return null;
+  y=s.y;mo=s.mo;d=s.d;
+ }
  const[h,mi]=(btime||'12:00').split(':').map(Number);
  const r=computeSaju({y,mo,d,h,mi,timeUnknown:false,lonDeg:lonDeg||126.98,useLon:true});
  const mp=r.pillars[1],yp=r.pillars[0];
@@ -498,7 +550,7 @@ async function getOrGenerateFortune(p,docId){
   const diffDays=Math.floor((new Date(today)-new Date(p.fortuneDate))/86400000);
   if(diffDays<intervalDays)return p.fortuneText;
  }
- const P=parseSajuFromData(p.bdate,p.btime,p.gender,parseFloat(p.region)||126.98);
+ const P=parseSajuFromData(p.bdate,p.btime,p.gender,parseFloat(p.region)||126.98,p.calType,p.isLeap);
  if(!P)return '생년월일 정보가 정확하지 않아 운세를 계산할 수 없습니다.';
  const t=new Date();
  const todayStr=`${t.getFullYear()}년 ${t.getMonth()+1}월 ${t.getDate()}일`;
@@ -535,18 +587,25 @@ function autoFmt(el){el.addEventListener('input',()=>{const dg=el.value.replace(
  else if(dg.length>4)o=dg.slice(0,4)+'-'+dg.slice(4);el.value=o;});}
 autoFmt(bdateEl);autoFmt(document.getElementById('bdate2'));
 
-function parsePerson(dateId,timeId,tuId,regionId,g,who){
+function parsePerson(dateId,timeId,tuId,regionId,g,who,cal,leapId){
  const dg=document.getElementById(dateId).value.replace(/\D/g,'');
  if(dg.length!==8)return{err:who+' 생년월일을 8자리로 입력해 주세요.'};
- const y=+dg.slice(0,4),mo=+dg.slice(4,6),d=+dg.slice(6,8);
+ let y=+dg.slice(0,4),mo=+dg.slice(4,6),d=+dg.slice(6,8);
  if(y<1900||y>2030)return{err:who+' 연도는 1900~2030년 사이여야 합니다.'};
+ if(cal==='lunar'){
+  if(mo<1||mo>12||d<1||d>30)return{err:who+' 음력 날짜가 올바르지 않습니다.'};
+  const isLeap=leapId?document.getElementById(leapId).checked:false;
+  const s=lunarToSolar(y,mo,d,isLeap);
+  if(!s)return{err:who+' 음력 날짜를 양력으로 변환할 수 없습니다. 날짜를 다시 확인해 주세요.'};
+  y=s.y;mo=s.mo;d=s.d;
+ }
  const c=new Date(y,mo-1,d);
  if(c.getFullYear()!==y||c.getMonth()!==mo-1||c.getDate()!==d)return{err:who+' 날짜가 존재하지 않습니다.'};
  if(!g)return{err:who+' 성별을 선택해 주세요.'};
  const tu=document.getElementById(tuId).checked;
  const[h,mi]=(document.getElementById(timeId).value||'12:00').split(':').map(Number);
  const lon=parseFloat(document.getElementById(regionId).value);
- const r=computeSaju({y,mo,d,h,mi,timeUnknown:tu,lonDeg:lon,useLon:true});
+ const r=computeSaju({y,mo,d,h,mi,timeUnknown:tu,lonDeg:lon,useLon:document.getElementById('useLon').checked});
  const mp=r.pillars[1],yp=r.pillars[0];
  const daeun=tu?null:computeDaeun(r.jde,yp.stem,mp.stem,mp.branch,g);
  const nowY=new Date().getFullYear(),age=nowY-y+1;
@@ -621,11 +680,11 @@ function gzk(p){return SK[p.stem]+BK[p.branch];}
 
 function start(){
  const err=document.getElementById('err');err.style.display='none';
- const A=parsePerson('bdate','btime','timeUnknown','region',gender,mode==='G'?'[나]':'');
+ const A=parsePerson('bdate','btime','timeUnknown','region',gender,mode==='G'?'[나]':'',calType,'isLeap');
  if(A.err){err.textContent=A.err;err.style.display='block';return;}
  let B=null;
  if(mode==='G'){
-  B=parsePerson('bdate2','btime2','timeUnknown2','region2',gender2,'[상대]');
+  B=parsePerson('bdate2','btime2','timeUnknown2','region2',gender2,'[상대]',calType2,'isLeap2');
   if(B.err){err.textContent=B.err;err.style.display='block';return;}
  }
  const nowY=A.nowY;
@@ -648,12 +707,16 @@ function start(){
  if(mode==='S'){
   const r=A.r;
   const mbtiVal=document.getElementById('mbti').value;
+  const hourWarn=(r.corrections&&r.corrections.hourNear)?
+   `<div class="disclaimer" style="color:#B54708">⚠ 태어난 시각이 시진(時辰) 경계와 가까워, 경도보정 적용 여부에 따라 시주가 다르게 나올 수 있습니다. 다른 사이트와 비교 시 "경도보정" 설정을 맞춰보세요.</div>`:'';
   sum.innerHTML=`<div class="gz">${r.pillars.map(p=>gz(p)).reverse().join(' · ')}</div>
    <div class="meta">${gzk(r.pillars[2])}일주 · ${A.gender==='M'?'남':'여'} · 오행 ${r.elemCount.map((c,i)=>EK[i]+c).join(' ')}${A.daeun?` · 대운 ${A.daeun.startAge}세 ${A.daeun.forward?'순행':'역행'}`:''}${mbtiVal?` · ${mbtiVal}`:''}</div>
-   <div class="disclaimer">사주(팔자·오행)는 항상 동일하게 계산됩니다. 아래 해석 문구는 매번 표현이 조금씩 달라질 수 있습니다.</div>`;
+   <div class="disclaimer">사주(팔자·오행)는 항상 동일하게 계산됩니다. 아래 해석 문구는 매번 표현이 조금씩 달라질 수 있습니다.</div>
+   ${hourWarn}`;
   if(currentUser){
    const bdVal=document.getElementById('bdate').value;
-   saveProfile(bdVal,bdVal,document.getElementById('btime').value,gender,document.getElementById('region').value,mbtiVal);
+   const labelVal=bdVal+(calType==='lunar'?' (음)':'');
+   saveProfile(labelVal,bdVal,document.getElementById('btime').value,gender,document.getElementById('region').value,mbtiVal,calType,document.getElementById('isLeap').checked);
   }
   const mbtiSection=mbtiVal?`「MBTI로 보면」 이 사람의 MBTI는 ${mbtiVal}이다. 사주에서 읽히는 기질과 ${mbtiVal}가 겹치는 지점을 먼저 짚는다. 두 도구가 다르게 말하는 지점이 있다면 숨기지 말고 정직하게 짚고, 그 차이를 흥미로운 관찰로 다룬다. MBTI는 검사 시점의 스냅샷이고 사주는 태어난 순간 고정된 원본이라는 차이를 짧게 언급해도 좋다.
 `:'';
