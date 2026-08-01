@@ -651,9 +651,45 @@ async function callDosa(maxTok){
   document.getElementById('cerr').style.display='block';}
 }
 
-function send(){
+/* ===== 요금제별 채팅 횟수 제한 =====
+   free: 평생 3회 / lite: 하루 3회 / standard: 하루 15회(안전장치, 표기는 '무제한') */
+async function checkChatLimit(){
+ if(!currentUser) return true; // 비로그인은 횟수 추적 불가 — 통과(로그인 유도는 별도 UI에서)
+ const ref=db.collection('users').doc(currentUser.uid);
+ try{
+  const snap=await ref.get();
+  const d=snap.exists?snap.data():{};
+  const tier=d.tier||'free';
+  const today=new Date().toISOString().slice(0,10);
+
+  if(tier==='free'){
+   const used=d.chatUsed||0;
+   if(used>=3){
+    addMsg('무료 체험 채팅 3회를 모두 사용하셨습니다. 라이트 요금제(4,900원/월)로 업그레이드하시면 매일 채팅을 이어가실 수 있어요.','dosa');
+    return false;
+   }
+   await ref.set({chatUsed:used+1},{merge:true});
+   return true;
+  }
+
+  const cap=tier==='lite'?3:15;
+  const dailyCount=(d.dailyDate===today)?(d.dailyCount||0):0;
+  if(dailyCount>=cap){
+   addMsg(tier==='lite'
+     ?'오늘의 채팅 3회를 모두 사용하셨어요. 내일 다시 이어가실 수 있습니다.'
+     :'오늘 대화가 많으셨네요. 내일 다시 이어가실 수 있습니다.','dosa');
+   return false;
+  }
+  await ref.set({dailyDate:today,dailyCount:dailyCount+1},{merge:true});
+  return true;
+ }catch(e){console.error('사용량 확인 실패',e);return true;} // 오류 시엔 막지 않음
+}
+
+async function send(){
  const q=document.getElementById('q');const t=q.value.trim();if(!t)return;
  document.getElementById('cerr').style.display='none';
+ const ok=await checkChatLimit();
+ if(!ok){q.value='';return;}
  addMsg(t,'me');history.push({role:'user',content:t});q.value='';callDosa(1500);
 }
 
