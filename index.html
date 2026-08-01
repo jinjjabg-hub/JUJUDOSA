@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>주주도사 · 사주 상담</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
@@ -12,298 +12,550 @@
 <style>
 :root{
   --bg:#F7F8FA; --card:#FFF; --text:#191F28; --sub:#8B95A1; --line:#E5E8EB;
-  --primary:#5D5FEF; --primary-tint:#EFF0FE;
+  --primary:#5D5FEF; --primary-dark:#4a4dd8; --primary-tint:#EFF0FE;
   --wood:#12B76A; --fire:#F04438; --earth:#F79009; --metal:#667085; --water:#2E90FA;
+  --header-h:56px; --nav-h:64px;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%}
+html,body{height:100%;width:100%;overflow-x:hidden}
 body{background:var(--bg);color:var(--text);
   font-family:'Pretendard Variable',Pretendard,-apple-system,'Noto Sans KR',sans-serif;
-  -webkit-font-smoothing:antialiased}
-.wrap{max-width:480px;margin:0 auto;padding:20px 16px 32px;display:flex;flex-direction:column;min-height:100%}
-header{display:flex;align-items:center;gap:8px;margin-bottom:18px}
-.dot{width:10px;height:10px;border-radius:50%;background:var(--primary)}
-.brand{font-size:18px;font-weight:800;letter-spacing:-.02em}
-.opt .hint{font-size:11px;color:var(--sub);display:block;margin-top:2px;margin-left:22px}
+  -webkit-font-smoothing:antialiased;overscroll-behavior:none}
+::-webkit-scrollbar{display:none}
+button,input,select{font-family:inherit}
+a{color:inherit}
 
+/* ===== App shell ===== */
+.topbar{position:fixed;top:0;left:0;right:0;height:var(--header-h);background:rgba(247,248,250,.9);
+  backdrop-filter:blur(14px);z-index:50;border-bottom:1px solid rgba(0,0,0,.02)}
+.topbar-inner{max-width:480px;margin:0 auto;height:100%;display:flex;align-items:center;
+  justify-content:space-between;padding:0 16px}
+.brand{display:flex;align-items:center;gap:7px;font-size:18px;font-weight:800;letter-spacing:-.02em;color:var(--primary)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--primary);flex-shrink:0}
+.top-actions{display:flex;align-items:center;gap:8px}
+.iconbtn{width:36px;height:36px;border-radius:50%;border:none;background:transparent;font-size:17px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer}
+.avatarbtn{width:32px;height:32px;border-radius:50%;border:none;background:var(--primary-tint);
+  color:var(--primary);font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer}
+
+.app-main{max-width:480px;margin:0 auto;padding:calc(var(--header-h) + 16px) 16px calc(var(--nav-h) + 24px)}
+.view{display:none}
+.view.active{display:block}
+
+.bottomnav{position:fixed;bottom:0;left:0;right:0;height:var(--nav-h);background:rgba(255,255,255,.92);
+  backdrop-filter:blur(18px);border-top:1px solid rgba(0,0,0,.04);z-index:50;
+  padding-bottom:env(safe-area-inset-bottom,0)}
+.bottomnav-inner{max-width:480px;margin:0 auto;height:64px;display:flex}
+.navitem{flex:1;border:none;background:none;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:2px;color:var(--sub);font-size:11px;font-weight:600;cursor:pointer;
+  transition:transform .15s}
+.navitem .ni-ico{font-size:20px;line-height:1}
+.navitem.on{color:var(--primary)}
+.navitem:active{transform:scale(.9)}
+
+/* ===== 공통 카드류 ===== */
+.card{background:var(--card);border-radius:20px;padding:18px;margin-bottom:14px;
+  box-shadow:0 2px 14px rgba(25,31,40,.05)}
+h1.hl{font-size:21px;font-weight:800;line-height:1.4;letter-spacing:-.02em;margin-bottom:16px}
+h1.hl .accent{color:var(--primary)}
+h2.sec{font-size:13px;font-weight:700;color:var(--sub);margin:22px 0 8px;padding:0 2px}
+
+/* ===== 홈 ===== */
+.profilepill{display:inline-flex;align-items:center;gap:6px;background:var(--card);
+  border-radius:999px;padding:8px 14px;font-size:14px;font-weight:700;margin-bottom:12px;border:1px solid var(--line)}
+.profilepill select{border:none;background:none;font-weight:700;font-size:14px;color:var(--text);appearance:none}
+.loginbanner{background:#FEE500;border-radius:16px;padding:16px;margin-bottom:16px;display:flex;
+  align-items:center;justify-content:space-between;gap:10px}
+.loginbanner .lb-text{font-size:13px;font-weight:700;color:#191600;line-height:1.5}
+.loginbanner button{background:#191600;color:#FEE500;border:none;border-radius:10px;padding:10px 14px;
+  font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap}
+.tf-title{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:800;margin-bottom:10px}
+#tfBodyHome{font-size:14px;line-height:1.7;color:var(--text);white-space:pre-line}
+.tf-more{margin-top:10px;font-size:12px;color:var(--primary);font-weight:700;cursor:pointer}
+
+.gridmenu{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.gridmenu .g-full{grid-column:span 2}
+.hero-btn{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;border:none;
+  border-radius:20px;padding:18px;text-align:left;cursor:pointer;display:flex;align-items:center;
+  justify-content:space-between;box-shadow:0 8px 20px rgba(93,95,239,.25)}
+.hero-btn .hb-title{font-size:15px;font-weight:800}
+.hero-btn .hb-badge{background:#fff;color:var(--primary);font-size:9px;font-weight:800;border-radius:999px;
+  padding:2px 6px;margin-left:6px}
+.hero-btn .hb-sub{font-size:12px;opacity:.85;margin-top:3px}
+.hero-btn .hb-ico{font-size:26px;opacity:.9}
+.gitem{background:var(--card);border:none;border-radius:20px;padding:14px;text-align:left;cursor:pointer;
+  box-shadow:0 2px 10px rgba(25,31,40,.04);display:flex;flex-direction:column;gap:6px}
+.gitem:active{transform:scale(.97)}
+.gitem .gi-ico{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px}
+.gitem .gi-title{font-size:14px;font-weight:700}
+.gitem .gi-sub{font-size:11px;color:var(--sub)}
+.matchrow{width:100%;background:var(--primary-tint);border:none;border-radius:20px;padding:16px;
+  display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left}
+.matchrow .mr-ico{width:44px;height:44px;border-radius:14px;background:#fff;display:flex;align-items:center;
+  justify-content:center;font-size:20px}
+.matchrow .mr-title{font-size:14px;font-weight:700}
+.matchrow .mr-sub{font-size:12px;color:var(--sub)}
+.newbtn{width:100%;height:52px;background:var(--card);border:1.5px dashed var(--line);border-radius:16px;
+  color:var(--text);font-weight:700;font-size:14px;cursor:pointer;margin-top:6px}
+
+/* ===== 설정 ===== */
+.setgroup{background:var(--card);border-radius:16px;overflow:hidden;margin-bottom:18px}
+.setrow{width:100%;display:flex;align-items:center;justify-content:space-between;padding:15px 16px;
+  border:none;background:none;text-align:left;cursor:pointer;border-bottom:1px solid var(--bg)}
+.setrow:last-child{border-bottom:none}
+.setrow .sr-left{display:flex;align-items:center;gap:12px}
+.setrow .sr-ico{width:34px;height:34px;border-radius:50%;background:var(--bg);display:flex;
+  align-items:center;justify-content:center;font-size:15px}
+.setrow .sr-label{font-size:14px;font-weight:600}
+.setrow .sr-chev{color:var(--sub);font-size:13px}
+.setfoot{text-align:center;font-size:11px;color:#B0B8C1;line-height:1.9;margin-top:20px}
+
+/* ===== 등록 폼 ===== */
+.reglogo{width:64px;height:64px;border-radius:50%;background:var(--primary-tint);color:var(--primary);
+  display:flex;align-items:center;justify-content:center;font-size:26px;margin:6px auto 14px}
+.regtitle{text-align:center;font-size:19px;font-weight:800;margin-bottom:4px}
+.regsub{text-align:center;font-size:12.5px;color:var(--sub);margin-bottom:20px;line-height:1.6}
 .caltoggle{display:flex;align-items:center;gap:8px;margin-bottom:10px}
 .calbtn{border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:7px 16px;
-  font-size:13px;font-weight:700;color:var(--sub);cursor:pointer;font-family:inherit}
+  font-size:13px;font-weight:700;color:var(--sub);cursor:pointer}
 .calbtn.on{border-color:var(--primary);color:var(--primary);background:var(--primary-tint)}
 .leapopt{margin-left:4px;font-size:12px}
-.badge{margin-left:auto;font-size:11px;color:var(--sub);background:#fff;border:1px solid var(--line);
-  border-radius:999px;padding:4px 10px}
-.backbtn{margin-left:auto;background:none;border:none;color:var(--primary);font-size:13px;
-  font-weight:600;cursor:pointer;font-family:inherit;padding:6px 4px}
+.row{display:flex;gap:10px;margin-bottom:12px}.row>*{flex:1}
+label.f{display:block;font-size:12px;color:var(--sub);margin-bottom:6px;font-weight:600}
+input,select.field{width:100%;background:#fff;border:1.5px solid var(--line);color:var(--text);
+  border-radius:12px;padding:13px 14px;font-size:15px;transition:.15s}
+input:focus,select.field:focus{outline:none;border-color:var(--primary)}
+input::placeholder{color:#B0B8C1}
+.gender{display:flex;gap:8px}
+.gbtn{flex:1;padding:12px;border-radius:12px;border:1.5px solid var(--line);background:#fff;
+  color:var(--sub);font-size:14px;font-weight:600;cursor:pointer;text-align:center}
+.gbtn.on{border-color:var(--primary);color:var(--primary);background:var(--primary-tint)}
+.opt{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--sub);margin-top:2px}
+.opt input{width:16px;height:16px;accent-color:var(--primary)}
+.advbtn{background:none;border:none;color:var(--sub);font-size:13px;font-weight:600;
+  cursor:pointer;padding:8px 0;text-align:left;width:100%}
+.adv{display:none;padding-top:4px}
+.mbtilink{font-size:12px;color:var(--primary);margin-top:6px;cursor:pointer;font-weight:700}
+button.go{width:100%;margin-top:14px;background:var(--primary);color:#fff;border:none;border-radius:16px;
+  padding:16px;font-size:16px;font-weight:800;cursor:pointer;letter-spacing:-.02em}
+button.go:active{transform:scale(.98);opacity:.9}
+.err{color:#F04438;font-size:13px;margin-top:10px;display:none;font-weight:600}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.chip{background:var(--primary-tint);color:var(--primary);border-radius:999px;padding:8px 14px;
+  font-size:13px;font-weight:700;cursor:pointer;border:none}
+.chip.on{background:var(--primary);color:#fff}
 
-.mbtilink{font-size:12px;color:var(--primary);margin-top:6px;cursor:pointer;font-weight:600}
+/* ===== 궁합 인테이크 ===== */
+.matchhead{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;color:var(--primary);
+  letter-spacing:.04em;margin-bottom:8px}
+.matchtitle{font-size:20px;font-weight:800;line-height:1.4;margin-bottom:8px}
+.matchsub{font-size:13px;color:var(--sub);margin-bottom:16px;line-height:1.6}
+.matchpair{display:flex;gap:10px;margin-bottom:18px}
+.mpcard{flex:1;background:var(--card);border-radius:18px;padding:16px;text-align:center}
+.mpcard.dash{border:1.5px dashed var(--line);background:transparent}
+.mp-badge{display:inline-block;font-size:11px;font-weight:800;border-radius:999px;padding:4px 10px;margin-bottom:8px}
+.mp-badge.me{background:var(--primary-tint);color:var(--primary)}
+.mp-badge.other{background:#F2F4F6;color:var(--sub)}
+.mp-name{font-size:14px;font-weight:700;margin:6px 0 2px}
+.mp-date{font-size:12px;color:var(--sub)}
+.mp-link{font-size:12px;color:var(--primary);font-weight:700;margin-top:8px;cursor:pointer}
 
-.todaycard{background:linear-gradient(135deg,var(--primary-tint),#fff);border:1px solid var(--line);
-  border-radius:16px;padding:16px 18px;margin-bottom:12px}
-.tf-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-.tf-head>span{font-size:13px;font-weight:800;color:var(--primary)}
-.tf-head select{font-size:12px;border:1px solid var(--line);border-radius:8px;padding:4px 8px;
-  font-family:inherit;background:#fff;max-width:55%}
-#tfBody{font-size:14px;line-height:1.6;color:var(--text);white-space:pre-line}
-.tf-setself{margin-top:10px;font-size:11px;color:var(--primary);cursor:pointer;font-weight:600}
+/* ===== 결과 / 사주판 ===== */
+.backlink{font-size:13px;color:var(--primary);font-weight:700;cursor:pointer;display:inline-flex;
+  align-items:center;gap:4px;margin-bottom:12px}
+.pillars-card{background:var(--card);border-radius:20px;padding:20px 18px;margin-bottom:12px;
+  box-shadow:0 2px 14px rgba(25,31,40,.05)}
+.pillars-title{font-size:15px;font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:6px}
+.pillars-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.pillar{text-align:center}
+.pillar-label{font-size:11px;color:var(--sub);font-weight:700;margin-bottom:6px}
+.pillar-circle{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:19px;font-weight:800;margin:0 auto 4px}
+.pillar-sub{font-size:11px;color:var(--sub)}
+.elem-wood{background:#ECFDF3;color:#12B76A}
+.elem-fire{background:#FEF3F2;color:#F04438}
+.elem-earth{background:#FFFAEB;color:#F79009}
+.elem-metal{background:#F2F4F7;color:#667085}
+.elem-water{background:#EFF8FF;color:#2E90FA}
+.pillars-meta{font-size:12px;color:var(--sub);border-top:1px solid var(--bg);padding-top:10px}
+.disclaimer{font-size:11px;color:var(--sub);margin-bottom:12px;opacity:.8;line-height:1.5}
+
+.accordion .acc-item{background:var(--card);border-radius:16px;margin-bottom:10px;
+  box-shadow:0 2px 10px rgba(25,31,40,.04);overflow:hidden}
+.acc-head{display:flex;align-items:center;gap:10px;width:100%;padding:15px 16px;background:none;
+  border:none;text-align:left;cursor:pointer}
+.acc-num{width:22px;height:22px;border-radius:50%;background:var(--primary-tint);color:var(--primary);
+  font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.acc-title{flex:1;font-size:14px;font-weight:800}
+.acc-chev{color:var(--sub);font-size:12px;transition:transform .2s}
+.acc-item.open .acc-chev{transform:rotate(180deg)}
+.acc-body{display:none;padding:0 16px 16px;font-size:13.5px;line-height:1.75;color:var(--text)}
+.acc-item.open .acc-body{display:block}
+
+#chatArea{display:none;flex-direction:column}
+#log{display:flex;flex-direction:column;gap:10px;margin:14px 0}
+.msg{max-width:86%;padding:12px 15px;border-radius:18px;font-size:14.5px;line-height:1.7;
+  white-space:pre-wrap;letter-spacing:-.01em}
+.msg.dosa{background:var(--card);color:var(--text);border-bottom-left-radius:6px;align-self:flex-start;
+  box-shadow:0 1px 3px rgba(25,31,40,.06)}
+.msg.dosa::before{content:'주주도사';display:block;font-size:11px;color:var(--primary);
+  font-weight:800;margin-bottom:5px}
+.msg.me{background:var(--primary);color:#fff;border-bottom-right-radius:6px;align-self:flex-end}
+.msg.thinking{background:var(--card);align-self:flex-start;color:var(--sub);
+  box-shadow:0 1px 3px rgba(25,31,40,.06)}
+.quickchips{display:flex;gap:8px;overflow-x:auto;margin-bottom:10px;padding-bottom:2px}
+.qchip{flex-shrink:0;background:var(--card);border:1px solid var(--line);border-radius:999px;
+  padding:8px 13px;font-size:12.5px;font-weight:700;color:var(--text);cursor:pointer;white-space:nowrap}
+.inputbar{display:flex;gap:8px;background:var(--card);border:1.5px solid var(--line);border-radius:16px;
+  padding:6px 6px 6px 16px;align-items:center;position:sticky;bottom:8px}
+.inputbar input{flex:1;border:none;padding:10px 0;font-size:15px;background:none}
+.inputbar input:focus{border:none;outline:none}
+.inputbar button{background:var(--primary);color:#fff;border:none;border-radius:11px;
+  padding:11px 16px;font-size:14px;font-weight:800;cursor:pointer;flex-shrink:0}
+
 .modalbg{position:fixed;inset:0;background:rgba(25,31,40,.5);z-index:100;display:flex;
   align-items:center;justify-content:center;padding:20px}
 .modalcard{background:#fff;border-radius:20px;padding:22px;max-width:420px;width:100%;
   max-height:85vh;overflow-y:auto}
 .modalhead{display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:16px}
-.modalclose{cursor:pointer;color:var(--sub);font-size:16px}
+.modalclose{cursor:pointer;color:var(--sub);font-size:16px;background:none;border:none}
 .modalsub{font-size:12px;color:var(--sub);margin:6px 0 14px}
 .mq{margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--line)}
 .mq .qn{font-size:12px;color:var(--sub);margin-bottom:8px}
 .mq .qopt{display:block;width:100%;text-align:left;padding:11px 14px;margin-bottom:6px;
   border:1.5px solid var(--line);border-radius:12px;background:#fff;font-size:13px;
-  font-family:inherit;cursor:pointer;color:var(--text)}
-.mq .qopt.picked{border-color:var(--primary);background:var(--primary-tint);color:var(--primary);font-weight:600}
-
-.authbar{display:flex;align-items:center;gap:8px;background:var(--card);border-radius:14px;
-  padding:10px 14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(25,31,40,.06)}
-.authbar .uname{font-size:13px;font-weight:600;flex:1}
-.authbar button{border:none;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:700;
-  cursor:pointer;font-family:inherit}
-.kakaobtn{background:#FEE500;color:#191600;width:100%}
-.logoutbtn{background:#F2F4F6;color:var(--sub)}
-.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
-.chip{background:var(--primary-tint);color:var(--primary);border-radius:999px;padding:8px 14px;
-  font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:inherit}
-
-.panel{background:var(--card);border-radius:20px;padding:20px;margin-bottom:14px;
-  box-shadow:0 1px 3px rgba(25,31,40,.06)}
-.tabs{display:flex;background:#F2F4F6;border-radius:12px;padding:4px;margin-bottom:18px}
-.tab{flex:1;text-align:center;padding:9px;border-radius:9px;font-size:14px;font-weight:600;
-  color:var(--sub);cursor:pointer;transition:.15s}
-.tab.on{background:#fff;color:var(--text);box-shadow:0 1px 4px rgba(25,31,40,.1)}
-h2{font-size:15px;font-weight:700;margin-bottom:14px;letter-spacing:-.02em}
-.row{display:flex;gap:10px;margin-bottom:12px}.row>*{flex:1}
-label.f{display:block;font-size:12px;color:var(--sub);margin-bottom:6px;font-weight:500}
-input,select{width:100%;background:#fff;border:1.5px solid var(--line);color:var(--text);
-  border-radius:12px;padding:13px 14px;font-size:15px;font-family:inherit;transition:.15s}
-input:focus,select:focus{outline:none;border-color:var(--primary)}
-input::placeholder{color:#B0B8C1}
-.gender{display:flex;gap:8px}
-.gbtn{flex:1;padding:12px;border-radius:12px;border:1.5px solid var(--line);background:#fff;
-  color:var(--sub);font-size:14px;font-weight:600;cursor:pointer;text-align:center;transition:.15s}
-.gbtn.on{border-color:var(--primary);color:var(--primary);background:var(--primary-tint)}
-.opt{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--sub);margin-top:2px}
-.opt input{width:16px;height:16px;accent-color:var(--primary)}
-.advbtn{background:none;border:none;color:var(--sub);font-size:13px;font-weight:500;
-  cursor:pointer;padding:8px 0;font-family:inherit}
-.adv{display:none;padding-top:4px}
-button.go{width:100%;margin-top:14px;background:var(--primary);color:#fff;border:none;border-radius:14px;
-  padding:16px;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:-.02em;transition:.15s}
-button.go:active{transform:scale(.98);opacity:.9}
-.pb{display:none;border-top:1px solid var(--line);margin-top:16px;padding-top:16px}
-
-#summary{display:none;background:var(--card);border-radius:20px;padding:16px 18px;margin-bottom:12px;
-  box-shadow:0 1px 3px rgba(25,31,40,.06);text-align:center}
-#summary .gz{font-size:22px;font-weight:800;letter-spacing:.06em}
-#summary .meta{font-size:12px;color:var(--sub);margin-top:5px}
-#summary .disclaimer{font-size:11px;color:var(--sub);margin-top:8px;opacity:.75;line-height:1.5}
-
-#chatArea{display:none;flex-direction:column;flex:1}
-#log{flex:1;display:flex;flex-direction:column;gap:10px;margin-bottom:14px;min-height:300px}
-.msg{max-width:86%;padding:12px 15px;border-radius:18px;font-size:15px;line-height:1.7;
-  white-space:pre-wrap;letter-spacing:-.01em}
-.msg.dosa{background:#fff;color:var(--text);border-bottom-left-radius:6px;align-self:flex-start;
-  box-shadow:0 1px 3px rgba(25,31,40,.06)}
-.msg.dosa::before{content:'주주도사';display:block;font-size:11px;color:var(--primary);
-  font-weight:700;margin-bottom:5px}
-.msg.me{background:var(--primary);color:#fff;border-bottom-right-radius:6px;align-self:flex-end}
-.msg.thinking{background:#fff;align-self:flex-start;color:var(--sub);font-style:normal;
-  box-shadow:0 1px 3px rgba(25,31,40,.06)}
-.inputbar{display:flex;gap:8px;background:#fff;border:1.5px solid var(--line);border-radius:16px;
-  padding:6px 6px 6px 16px;align-items:center}
-.inputbar input{flex:1;border:none;padding:10px 0;font-size:15px}
-.inputbar input:focus{border:none}
-.inputbar button{background:var(--primary);color:#fff;border:none;border-radius:11px;
-  padding:11px 16px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0}
-.err{color:#F04438;font-size:13px;margin-top:10px;display:none;font-weight:500}
-footer{text-align:center;font-size:11px;color:#B0B8C1;margin-top:20px;line-height:1.9}
-footer a{color:#8B95A1;text-decoration:underline}
+  cursor:pointer;color:var(--text)}
+.mq .qopt.picked{border-color:var(--primary);background:var(--primary-tint);color:var(--primary);font-weight:700}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div class="dot"></div>
-    <div class="brand">주주도사</div>
-    <button class="backbtn" id="backBtn" style="display:none" onclick="goHome()">← 새로 보기</button>
-    <div class="badge">프로토타입</div>
-  </header>
 
-  <div class="authbar" id="authBar">
-    <button class="kakaobtn" onclick="loginKakao()">카카오로 시작하기</button>
-  </div>
-
-  <div class="todaycard" id="todayCard" style="display:none">
-    <div class="tf-head">
-      <span>오늘의 운세</span>
-      <select id="tfSelect" onchange="onTfSelect()"></select>
-    </div>
-    <div id="tfBody">불러오는 중…</div>
-    <div class="tf-setself" id="tfSetSelf" style="display:none" onclick="setAsSelf()">★ 이 프로필을 본인으로 설정</div>
-  </div>
-
-  <div class="modalbg" id="mbtiModal" style="display:none">
-    <div class="modalcard">
-      <div class="modalhead">
-        <span>간단 성향 검사</span>
-        <span class="modalclose" onclick="closeMbtiQuiz()">✕</span>
-      </div>
-      <div class="modalsub">둘 중 더 나에게 가까운 쪽을 골라주세요 (16문항)</div>
-      <div id="mbtiQBox"></div>
-      <button class="go" id="mbtiSubmit" onclick="submitMbtiQuiz()" disabled>결과 보기</button>
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand"><span class="dot"></span>주주도사</div>
+    <div class="top-actions">
+      <button class="iconbtn" title="알림">🔔</button>
+      <button class="avatarbtn" id="avatarBtn" onclick="switchTab('settings')">주</button>
     </div>
   </div>
+</header>
 
-  <div class="panel" id="setup">
-    <div class="tabs">
-      <div class="tab on" id="tabS" onclick="setMode('S')">사주 상담</div>
-      <div class="tab" id="tabG" onclick="setMode('G')">궁합</div>
+<main class="app-main">
+
+  <!-- ===================== 홈 ===================== -->
+  <section class="view" id="view-home">
+    <div id="loginBannerHome" class="loginbanner" style="display:none">
+      <div class="lb-text">카카오로 로그인하면<br>사주를 저장하고 매일 확인할 수 있어요.</div>
+      <button onclick="loginKakao()">카카오 로그인</button>
     </div>
-    <div class="chips" id="profileChips" style="display:none"></div>
-    <h2 id="setupTitle">생년월일시를 알려주세요</h2>
-    <div class="caltoggle">
-      <button type="button" class="calbtn on" id="calSolar" onclick="setCal('solar')">양력</button>
-      <button type="button" class="calbtn" id="calLunar" onclick="setCal('lunar')">음력</button>
-      <label class="opt leapopt" id="leapWrap" style="display:none"><input type="checkbox" id="isLeap"> 윤달</label>
-    </div>
-    <div class="row">
-      <div><label class="f">생년월일</label><input type="text" id="bdate" inputmode="numeric" maxlength="10" placeholder="19711116" autocomplete="off"></div>
-      <div><label class="f">태어난 시각</label><input type="time" id="btime" value="12:00"></div>
-    </div>
-    <div class="row">
-      <div>
-        <label class="f">성별</label>
-        <div class="gender">
-          <div class="gbtn" id="gM" onclick="setG('M')">남</div>
-          <div class="gbtn" id="gF" onclick="setG('F')">여</div>
-        </div>
+
+    <div id="profilePillWrap" style="display:none">
+      <div class="profilepill">
+        <span>👤</span>
+        <select id="tfSelect" class="field" style="border:none;padding:0" onchange="onTfSelect()"></select>
       </div>
     </div>
-    <div class="row">
-      <div>
-        <label class="f">MBTI (선택)</label>
-        <select id="mbti">
-          <option value="">입력 안 함</option>
-          <option value="INTJ">INTJ</option><option value="INTP">INTP</option>
-          <option value="ENTJ">ENTJ</option><option value="ENTP">ENTP</option>
-          <option value="INFJ">INFJ</option><option value="INFP">INFP</option>
-          <option value="ENFJ">ENFJ</option><option value="ENFP">ENFP</option>
-          <option value="ISTJ">ISTJ</option><option value="ISFJ">ISFJ</option>
-          <option value="ESTJ">ESTJ</option><option value="ESFJ">ESFJ</option>
-          <option value="ISTP">ISTP</option><option value="ISFP">ISFP</option>
-          <option value="ESTP">ESTP</option><option value="ESFP">ESFP</option>
-        </select>
-        <div class="mbtilink" onclick="openMbtiQuiz()">MBTI를 모르시나요? 1분 간단검사 →</div>
-      </div>
+
+    <h1 class="hl" id="homeGreeting">오늘은<br>어떤 에너지가 흐를까요?</h1>
+
+    <div class="card" id="todayCardHome" style="display:none">
+      <div class="tf-title"><span>⭐</span><span>오늘의 운세</span></div>
+      <div id="tfBodyHome">불러오는 중…</div>
+      <div class="tf-more" id="tfSetSelfHome" style="display:none" onclick="setAsSelf()">★ 이 프로필을 본인으로 설정</div>
     </div>
-    <button class="advbtn" onclick="advToggle('advA',this)">출생지 등 상세 설정 ⌄</button>
-    <div class="adv" id="advA">
-      <div class="row">
+
+    <div class="gridmenu">
+      <button class="hero-btn g-full" onclick="openFortuneTab()">
         <div>
-          <label class="f">출생 지역 (시각 보정)</label>
-          <select id="region">
-            <option value="126.98">서울·수도권</option>
-            <option value="129.08">부산</option>
-            <option value="128.60">대구</option>
-            <option value="126.85">광주</option>
-            <option value="127.38">대전</option>
-            <option value="128.90">강릉</option>
-            <option value="126.53">제주</option>
-          </select>
+          <div class="hb-title">종합 사주 풀이<span class="hb-badge">NEW</span></div>
+          <div class="hb-sub">인생의 큰 흐름을 한눈에 확인하세요</div>
         </div>
-      </div>
-      <label class="opt"><input type="checkbox" id="timeUnknown"> 태어난 시간을 몰라요</label>
-      <label class="opt"><input type="checkbox" id="useLon" checked> 경도(진태양시) 보정 적용
-        <span class="hint">(대조 사이트와 다르면 꺼보세요)</span></label>
+        <span class="hb-ico">✨</span>
+      </button>
+
+      <button class="gitem" onclick="goCategory('재물운에 대해 더 자세히 알려주세요','재물운')">
+        <span class="gi-ico elem-earth">💰</span>
+        <span class="gi-title">재물운</span><span class="gi-sub">금전의 흐름</span>
+      </button>
+      <button class="gitem" onclick="goCategory('직업운과 이직 시기에 대해 알려주세요','직업운')">
+        <span class="gi-ico elem-metal">💼</span>
+        <span class="gi-title">직업운</span><span class="gi-sub">성공과 승진</span>
+      </button>
+      <button class="gitem" onclick="goCategory('연애운에 대해 더 자세히 알려주세요','연애운')">
+        <span class="gi-ico elem-fire">💕</span>
+        <span class="gi-title">연애운</span><span class="gi-sub">인연의 시작</span>
+      </button>
+      <button class="gitem" onclick="goCategory('자녀운, 자녀와의 관계에 대해 알려주세요','자녀운')">
+        <span class="gi-ico elem-wood">👶</span>
+        <span class="gi-title">자녀운</span><span class="gi-sub">가족의 평화</span>
+      </button>
+      <button class="gitem" onclick="goCategory('요즘 마음이 힘든데 사주로 보면 어떻게 다뤄야 할까요','힘들 때는')">
+        <span class="gi-ico elem-water">🌧️</span>
+        <span class="gi-title">힘들 때는</span><span class="gi-sub">위로와 조언</span>
+      </button>
+      <button class="gitem" onclick="goCategory('대운 흐름을 나이대별로 자세히 짚어주세요','대운 흐름')">
+        <span class="gi-ico" style="background:var(--primary-tint);color:var(--primary)">📜</span>
+        <span class="gi-title">대운 흐름</span><span class="gi-sub">10년 주기의 운</span>
+      </button>
+
+      <button class="matchrow g-full" onclick="switchTab('match')">
+        <span class="mr-ico">💑</span>
+        <div>
+          <div class="mr-title">궁합 보기</div>
+          <div class="mr-sub">상대방과의 에너지를 맞춰보세요</div>
+        </div>
+      </button>
     </div>
 
-    <div class="pb" id="pB">
-      <h2>상대방 정보</h2>
+    <button class="newbtn" onclick="openRegisterFresh()">＋ 새 사주 등록하기</button>
+  </section>
+
+  <!-- ===================== 종합풀이 (등록폼 + 결과) ===================== -->
+  <section class="view" id="view-fortune">
+
+    <!-- 등록 폼 (mode S) -->
+    <div class="card" id="setup">
+      <div class="reglogo">🔮</div>
+      <div class="regtitle">사주 정보 입력</div>
+      <div class="regsub">정확한 사주 풀이를 위해<br>태어난 정보를 입력해 주세요.</div>
+
+      <label class="f">성별</label>
+      <div class="gender" style="margin-bottom:14px">
+        <div class="gbtn" id="gM" onclick="setG('M')">남</div>
+        <div class="gbtn" id="gF" onclick="setG('F')">여</div>
+      </div>
+
+      <label class="f">생년월일</label>
+      <div class="caltoggle">
+        <button type="button" class="calbtn on" id="calSolar" onclick="setCal('solar')">양력</button>
+        <button type="button" class="calbtn" id="calLunar" onclick="setCal('lunar')">음력</button>
+        <label class="opt leapopt" id="leapWrap" style="display:none"><input type="checkbox" id="isLeap"> 윤달</label>
+      </div>
+      <div class="row">
+        <div><input type="text" id="bdate" inputmode="numeric" maxlength="10" placeholder="19711116" autocomplete="off"></div>
+        <div><input type="time" id="btime" value="12:00"></div>
+      </div>
+
+      <label class="f">MBTI (선택)</label>
+      <select id="mbti" class="field">
+        <option value="">입력 안 함</option>
+        <option value="INTJ">INTJ</option><option value="INTP">INTP</option>
+        <option value="ENTJ">ENTJ</option><option value="ENTP">ENTP</option>
+        <option value="INFJ">INFJ</option><option value="INFP">INFP</option>
+        <option value="ENFJ">ENFJ</option><option value="ENFP">ENFP</option>
+        <option value="ISTJ">ISTJ</option><option value="ISFJ">ISFJ</option>
+        <option value="ESTJ">ESTJ</option><option value="ESFJ">ESFJ</option>
+        <option value="ISTP">ISTP</option><option value="ISFP">ISFP</option>
+        <option value="ESTP">ESTP</option><option value="ESFP">ESFP</option>
+      </select>
+      <div class="mbtilink" onclick="openMbtiQuiz()">MBTI를 모르시나요? 1분 간단검사 →</div>
+
+      <button class="advbtn" onclick="advToggle('advA',this)">출생지 등 상세 설정 ⌄</button>
+      <div class="adv" id="advA">
+        <label class="f">출생 지역 (시각 보정)</label>
+        <select id="region" class="field" style="margin-bottom:10px">
+          <option value="126.98">서울·수도권</option>
+          <option value="129.08">부산</option>
+          <option value="128.60">대구</option>
+          <option value="126.85">광주</option>
+          <option value="127.38">대전</option>
+          <option value="128.90">강릉</option>
+          <option value="126.53">제주</option>
+        </select>
+        <label class="opt"><input type="checkbox" id="timeUnknown"> 태어난 시간을 몰라요</label>
+        <label class="opt"><input type="checkbox" id="useLon" checked> 경도(진태양시) 보정 적용</label>
+      </div>
+
+      <button class="go" id="goBtn" onclick="submitSolo()">내 사주 보기</button>
+      <div class="err" id="err"></div>
+    </div>
+
+    <!-- 결과 -->
+    <div id="resultPanel" style="display:none">
+      <div class="backlink" onclick="goHome()">← 홈으로</div>
+      <div id="summary"></div>
+      <div id="chatArea">
+        <div id="log"></div>
+        <div class="quickchips">
+          <button class="qchip" onclick="quickAsk('재물운 집중')">💰 재물운 집중</button>
+          <button class="qchip" onclick="quickAsk('이직 시기가 궁금해요')">💼 이직 시기</button>
+          <button class="qchip" onclick="quickAsk('올해 인연운이 궁금해요')">❤️ 인연운</button>
+        </div>
+        <div class="inputbar">
+          <input type="text" id="q" placeholder="도사님께 물어보세요" onkeydown="if(event.key==='Enter')send()">
+          <button onclick="send()">전송</button>
+        </div>
+        <div class="err" id="cerr"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 궁합 ===================== -->
+  <section class="view" id="view-match">
+    <div class="matchhead">♥ COMPATIBILITY SERVICE</div>
+    <div class="matchtitle">두 분의 운명적인<br>흐름을 읽어드립니다</div>
+    <div class="matchsub">서로의 사주 명식을 대조하여 깊은 인연의 조화를 분석합니다.</div>
+
+    <div class="matchpair">
+      <div class="mpcard">
+        <span class="mp-badge me">본인</span>
+        <div class="mp-name" id="matchSelfName">등록 필요</div>
+        <div class="mp-date" id="matchSelfDate">-</div>
+        <div class="mp-link" onclick="switchTab('home')">변경하기 ↔</div>
+      </div>
+      <div class="mpcard dash">
+        <span class="mp-badge other">상대방</span>
+        <div class="mp-name">누구인가요?</div>
+        <div class="mp-date" style="margin-bottom:8px">정보를 입력하세요</div>
+        <div class="mp-link" onclick="togglePartnerForm()">입력하기</div>
+      </div>
+    </div>
+
+    <div class="card" id="partnerForm" style="display:none">
+      <label class="f">상대 성별</label>
+      <div class="gender" style="margin-bottom:12px">
+        <div class="gbtn" id="g2M" onclick="setG2('M')">남</div>
+        <div class="gbtn" id="g2F" onclick="setG2('F')">여</div>
+      </div>
+      <label class="f">두 분의 관계</label>
+      <select id="relType" class="field" style="margin-bottom:12px">
+        <option value="연인">연인</option>
+        <option value="부부">부부·배우자</option>
+        <option value="결혼을 생각하는 상대">결혼을 생각하는 상대</option>
+        <option value="사업 파트너">사업 파트너</option>
+        <option value="직장 동료·상사">직장 동료·상사</option>
+        <option value="친구·지인">친구·지인</option>
+      </select>
+      <label class="f">상대 생년월일</label>
       <div class="caltoggle">
         <button type="button" class="calbtn on" id="calSolar2" onclick="setCal2('solar')">양력</button>
         <button type="button" class="calbtn" id="calLunar2" onclick="setCal2('lunar')">음력</button>
         <label class="opt leapopt" id="leapWrap2" style="display:none"><input type="checkbox" id="isLeap2"> 윤달</label>
       </div>
       <div class="row">
-        <div><label class="f">상대 생년월일</label><input type="text" id="bdate2" inputmode="numeric" maxlength="10" placeholder="19750305" autocomplete="off"></div>
-        <div><label class="f">태어난 시각</label><input type="time" id="btime2" value="12:00"></div>
-      </div>
-      <div class="row">
-        <div>
-          <label class="f">상대 성별</label>
-          <div class="gender">
-            <div class="gbtn" id="g2M" onclick="setG2('M')">남</div>
-            <div class="gbtn" id="g2F" onclick="setG2('F')">여</div>
-          </div>
-        </div>
-        <div>
-          <label class="f">두 분의 관계</label>
-          <select id="relType">
-            <option value="연인">연인</option>
-            <option value="부부">부부·배우자</option>
-            <option value="결혼을 생각하는 상대">결혼을 생각하는 상대</option>
-            <option value="사업 파트너">사업 파트너</option>
-            <option value="직장 동료·상사">직장 동료·상사</option>
-            <option value="친구·지인">친구·지인</option>
-          </select>
-        </div>
+        <div><input type="text" id="bdate2" inputmode="numeric" maxlength="10" placeholder="19750305" autocomplete="off"></div>
+        <div><input type="time" id="btime2" value="12:00"></div>
       </div>
       <button class="advbtn" onclick="advToggle('advB',this)">상대 출생지 등 상세 설정 ⌄</button>
       <div class="adv" id="advB">
-        <div class="row">
-          <div>
-            <label class="f">상대 출생 지역</label>
-            <select id="region2">
-              <option value="126.98">서울·수도권</option>
-              <option value="129.08">부산</option>
-              <option value="128.60">대구</option>
-              <option value="126.85">광주</option>
-              <option value="127.38">대전</option>
-              <option value="128.90">강릉</option>
-              <option value="126.53">제주</option>
-            </select>
-          </div>
-        </div>
+        <label class="f">상대 출생 지역</label>
+        <select id="region2" class="field" style="margin-bottom:10px">
+          <option value="126.98">서울·수도권</option>
+          <option value="129.08">부산</option>
+          <option value="128.60">대구</option>
+          <option value="126.85">광주</option>
+          <option value="127.38">대전</option>
+          <option value="128.90">강릉</option>
+          <option value="126.53">제주</option>
+        </select>
         <label class="opt"><input type="checkbox" id="timeUnknown2"> 상대 태어난 시간을 몰라요</label>
       </div>
     </div>
 
-    <button class="go" id="goBtn" onclick="start()">내 사주 보기</button>
-    <div class="err" id="err"></div>
-  </div>
-
-  <div id="summary"></div>
-
-  <div id="chatArea">
-    <div id="log"></div>
-    <div class="inputbar">
-      <input type="text" id="q" placeholder="도사님께 물어보세요" onkeydown="if(event.key==='Enter')send()">
-      <button onclick="send()">전송</button>
+    <h2 class="sec">관심 분야 선택</h2>
+    <div class="chips" id="matchFocusChips">
+      <button class="chip on" data-v="연애운">연애운</button>
+      <button class="chip" data-v="성격 합">성격 합</button>
+      <button class="chip" data-v="결혼 시기">결혼 시기</button>
+      <button class="chip" data-v="경제적 조화">경제적 조화</button>
+      <button class="chip" data-v="속궁합">속궁합</button>
     </div>
-    <div class="err" id="cerr"></div>
-  </div>
 
-  <footer>주주도사 · 상담 내용은 참고용입니다<br>
-   <a href="./pricing.html">요금제</a> · <a href="./terms.html">이용약관</a> · <a href="./privacy.html">개인정보처리방침</a> · <a href="./refund.html">환불정책</a><br>
-   티엠링크(T.M Link) · 대표 송승훈 · 사업자등록번호 253-63-00948<br>
-   부산광역시 사상구 가야대로378번길 1, 1704호 · 010-5334-2544 · jinjjabg@gmail.com
-  </footer>
+    <button class="go" onclick="submitMatch()">궁합 풀이 보기 ✨</button>
+    <div class="err" id="matchErr"></div>
+  </section>
+
+  <!-- ===================== 설정 ===================== -->
+  <section class="view" id="view-settings">
+    <div id="settingsLoggedOut" style="display:none" class="card">
+      <div style="font-weight:800;margin-bottom:8px">로그인이 필요해요</div>
+      <div style="font-size:13px;color:var(--sub);margin-bottom:14px">카카오로 로그인하면 사주를 저장하고 매일 운세를 받아볼 수 있어요.</div>
+      <button class="go" style="background:#FEE500;color:#191600" onclick="loginKakao()">카카오로 시작하기</button>
+    </div>
+
+    <div id="settingsLoggedIn" style="display:none">
+      <div class="card" style="display:flex;align-items:center;gap:12px">
+        <div class="avatarbtn" style="width:48px;height:48px;font-size:18px">주</div>
+        <div>
+          <div style="font-weight:800;font-size:15px" id="settingsUserName">회원님</div>
+          <div style="font-size:12px;color:var(--sub)">주주도사와 함께한 지 얼마 안 됐어요</div>
+        </div>
+      </div>
+
+      <h2 class="sec">프로필 및 운세 정보</h2>
+      <div class="setgroup">
+        <button class="setrow" onclick="openRegisterFresh()">
+          <span class="sr-left"><span class="sr-ico">✏️</span><span class="sr-label">본인 사주 정보 수정</span></span>
+          <span class="sr-chev">›</span>
+        </button>
+        <button class="setrow" onclick="switchTab('home')">
+          <span class="sr-left"><span class="sr-ico">👥</span><span class="sr-label">저장된 프로필 보기</span></span>
+          <span class="sr-chev">›</span>
+        </button>
+      </div>
+
+      <h2 class="sec">요금제</h2>
+      <div class="setgroup">
+        <a class="setrow" href="./pricing.html" style="text-decoration:none;color:inherit">
+          <span class="sr-left"><span class="sr-ico">✨</span><span class="sr-label">요금제 안내</span></span>
+          <span class="sr-chev">›</span>
+        </a>
+      </div>
+
+      <h2 class="sec">고객 지원</h2>
+      <div class="setgroup">
+        <a class="setrow" href="./terms.html" style="text-decoration:none;color:inherit">
+          <span class="sr-left"><span class="sr-ico">📄</span><span class="sr-label">서비스 이용약관</span></span>
+          <span class="sr-chev">↗</span>
+        </a>
+        <a class="setrow" href="./privacy.html" style="text-decoration:none;color:inherit">
+          <span class="sr-left"><span class="sr-ico">🔒</span><span class="sr-label">개인정보 처리방침</span></span>
+          <span class="sr-chev">↗</span>
+        </a>
+        <a class="setrow" href="./refund.html" style="text-decoration:none;color:inherit">
+          <span class="sr-left"><span class="sr-ico">💳</span><span class="sr-label">환불 및 결제 정책</span></span>
+          <span class="sr-chev">↗</span>
+        </a>
+      </div>
+
+      <button class="setrow" style="background:var(--card);border-radius:16px;justify-content:center" onclick="logout()">
+        <span class="sr-left" style="color:var(--sub)"><span class="sr-ico">🚪</span><span class="sr-label">로그아웃</span></span>
+      </button>
+    </div>
+
+    <div class="setfoot">
+      주주도사 · 상담 내용은 참고용입니다<br>
+      티엠링크(T.M Link) · 대표 송승훈 · 사업자등록번호 253-63-00948<br>
+      부산광역시 사상구 가야대로378번길 1, 1704호 · 010-5334-2544 · jinjjabg@gmail.com
+    </div>
+  </section>
+
+</main>
+
+<nav class="bottomnav">
+  <div class="bottomnav-inner">
+    <button class="navitem on" data-tab="home" onclick="switchTab('home')"><span class="ni-ico">🏠</span><span>홈</span></button>
+    <button class="navitem" data-tab="fortune" onclick="switchTab('fortune')"><span class="ni-ico">✨</span><span>종합풀이</span></button>
+    <button class="navitem" data-tab="match" onclick="switchTab('match')"><span class="ni-ico">💗</span><span>궁합</span></button>
+    <button class="navitem" data-tab="settings" onclick="switchTab('settings')"><span class="ni-ico">⚙️</span><span>설정</span></button>
+  </div>
+</nav>
+
+<div class="modalbg" id="mbtiModal" style="display:none">
+  <div class="modalcard">
+    <div class="modalhead">
+      <span>간단 성향 검사</span>
+      <button class="modalclose" onclick="closeMbtiQuiz()">✕</button>
+    </div>
+    <div class="modalsub">둘 중 더 나에게 가까운 쪽을 골라주세요 (16문항)</div>
+    <div id="mbtiQBox"></div>
+    <button class="go" id="mbtiSubmit" onclick="submitMbtiQuiz()" disabled>결과 보기</button>
+  </div>
 </div>
 
 <script>
-/* ===== Firebase 설정 =====
-   ↓↓↓ 아래 6개 값을 Firebase 콘솔에서 채워넣으세요 ↓↓↓
-   경로: Firebase 콘솔 > 프로젝트 개요 옆 ⚙️(설정) > 프로젝트 설정
-        > 아래로 스크롤 > "내 앱" > 웹 아이콘(</>) 눌러서 웹 앱 추가
-        > 앱 닉네임 아무거나 입력(예: jujudosa-web) > 앱 등록
-        > 화면에 뜨는 firebaseConfig 객체의 값을 그대로 복사해서 아래에 붙여넣기
-*/
+/* ===== Firebase 설정 ===== */
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyCL4lIbgD1EtzfA9YMzbfqb24hrm9WXXSA",
   authDomain: "jujudosa.firebaseapp.com",
@@ -317,10 +569,11 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 let currentUser = null;
 
-/* ===== 만세력 코어 (검증 완료 엔진 v0.1 + 대운) ===== */
+/* ===== 만세력 코어 (검증 완료 엔진 v0.1 + 대운) — 기존 로직 그대로 ===== */
 const SH=['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'],SK=['갑','을','병','정','무','기','경','신','임','계'];
 const BH=['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'],BK=['자','축','인','묘','진','사','오','미','신','유','술','해'];
 const SE=[0,0,1,1,2,2,3,3,4,4],BE=[4,2,0,0,2,1,1,2,3,3,2,4],EK=['목','화','토','금','수'];
+const ELCLASS=['elem-wood','elem-fire','elem-earth','elem-metal','elem-water'];
 const DST=[['1948-06-01T00:00','1948-09-13T00:00'],['1949-04-03T00:00','1949-09-11T00:00'],
 ['1950-04-01T00:00','1950-09-10T00:00'],['1951-05-06T00:00','1951-09-09T00:00'],
 ['1955-05-05T00:00','1955-09-09T00:00'],['1956-05-20T00:00','1956-09-30T00:00'],
@@ -374,8 +627,7 @@ function adjTerm(jde,fw){const lon=sunLon(jde),mod=((lon-15)%30+30)%30;
  const f=t=>{let d=sunLon(t)-tg;while(d>180)d-=360;while(d<-180)d+=360;return d;};
  let lo,hi;if(fw){lo=jde;hi=jde+(30-mod)/0.95+2;}else{hi=jde;lo=jde-mod/0.95-2;}
  for(let i=0;i<60;i++){const m=(lo+hi)/2;if(f(m)<0)lo=m;else hi=m;}return(lo+hi)/2;}
-// 십성: 일간 대비 관계. 지지는 지장간 본기 기준
-const BMAIN=[9,5,0,1,4,2,3,5,6,7,4,8]; // 子癸 丑己 寅甲 卯乙 辰戊 巳丙 午丁 未己 申庚 酉辛 戌戊 亥壬
+const BMAIN=[9,5,0,1,4,2,3,5,6,7,4,8];
 function sipseong(dayS,otherS){
  const de=SE[dayS],oe=SE[otherS],same=(dayS%2)===(otherS%2);
  if(oe===de)return same?'비견':'겁재';
@@ -393,7 +645,7 @@ function computeDaeun(jde,ys,ms,mb,gender,count=8){
  return{forward:fw,startAge:sa,pillars:ps};}
 
 /* ===== 궁합 합충 계산 ===== */
-const SAMHAP=[[8,0,4],[2,6,10],[5,9,1],[11,3,7]]; // 신자진 인오술 사유축 해묘미
+const SAMHAP=[[8,0,4],[2,6,10],[5,9,1],[11,3,7]];
 function stemRel(a,b){
  if(a===b)return '같은 글자';
  if(Math.abs(a-b)===5)return '천간합';
@@ -410,26 +662,53 @@ function branchRel(a,b){
  for(const g of SAMHAP)if(g.includes(a)&&g.includes(b))return '삼합(반합)';
  return '합충 없음';}
 
-/* ===== 앱 로직 ===== */
-let gender=null,gender2=null,mode='S',history=[],persona='';
-let calType='solar',calType2='solar';
-function setCal(t){calType=t;
- document.getElementById('calSolar').classList.toggle('on',t==='solar');
- document.getElementById('calLunar').classList.toggle('on',t==='lunar');
- document.getElementById('leapWrap').style.display=t==='lunar'?'inline-flex':'none';}
-function setCal2(t){calType2=t;
- document.getElementById('calSolar2').classList.toggle('on',t==='solar');
- document.getElementById('calLunar2').classList.toggle('on',t==='lunar');
- document.getElementById('leapWrap2').style.display=t==='lunar'?'inline-flex':'none';}
-/* 음력 y/mo/d(+윤달 여부) → 양력 y/mo/d. 실패 시 null */
-function lunarToSolar(y,mo,d,isLeap){
- try{
-  const c=new KoreanLunarCalendar();
-  const ok=c.setLunarDate(y,mo,d,!!isLeap);
-  if(ok===false)return null;
-  const s=c.getSolarCalendar();
-  return{y:s.year,mo:s.month,d:s.day};
- }catch(e){console.error('음양력 변환 실패',e);return null;}
+/* ===================== 탭 전환 ===================== */
+function switchTab(name){
+ document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+ document.getElementById('view-'+name).classList.add('active');
+ document.querySelectorAll('.navitem').forEach(n=>n.classList.toggle('on',n.dataset.tab===name));
+ window.scrollTo(0,0);
+}
+function openFortuneTab(){
+ switchTab('fortune');
+ if(document.getElementById('resultPanel').style.display!=='block' && savedProfiles.length){
+  const selfP=savedProfiles.find(p=>p.isSelf)||savedProfiles[0];
+  startFromProfile(selfP);
+ }
+}
+function openRegisterFresh(){
+ goHome();
+ switchTab('fortune');
+}
+function togglePartnerForm(){
+ const el=document.getElementById('partnerForm');
+ el.style.display=el.style.display==='block'?'none':'block';
+}
+document.querySelectorAll('#matchFocusChips .chip').forEach(b=>{
+ b.addEventListener('click',()=>{
+  document.querySelectorAll('#matchFocusChips .chip').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');matchFocus=b.dataset.v;
+ });
+});
+let matchFocus='연애운';
+
+/* ===== 홈 카테고리 버튼 → 종합풀이로 이동 + 자동 후속 질문 ===== */
+let pendingCategoryPrompt=null;
+function goCategory(promptText){
+ if(!currentUser){switchTab('settings');return;}
+ if(!savedProfiles.length){switchTab('fortune');return;}
+ const selfP=savedProfiles.find(p=>p.isSelf)||savedProfiles[0];
+ switchTab('fortune');
+ if(document.getElementById('resultPanel').style.display==='block'){
+  quickAsk(promptText);
+ }else{
+  pendingCategoryPrompt=promptText;
+  startFromProfile(selfP);
+ }
+}
+function quickAsk(text){
+ document.getElementById('q').value=text;
+ send();
 }
 
 /* ===== 카카오 로그인 & 사주 프로필 저장 ===== */
@@ -440,14 +719,23 @@ function loginKakao(){
 function logout(){auth.signOut();}
 auth.onAuthStateChanged(u=>{
  currentUser=u;
- const bar=document.getElementById('authBar');
+ const homeBanner=document.getElementById('loginBannerHome');
+ const pillWrap=document.getElementById('profilePillWrap');
+ const setOut=document.getElementById('settingsLoggedOut'),setIn=document.getElementById('settingsLoggedIn');
  if(u){
-  bar.innerHTML=`<div class="uname">${u.displayName||'회원'}님</div><button class="logoutbtn" onclick="logout()">로그아웃</button>`;
+  homeBanner.style.display='none';
+  setOut.style.display='none';setIn.style.display='block';
+  document.getElementById('settingsUserName').textContent=(u.displayName||'회원')+'님';
+  document.getElementById('avatarBtn').textContent=(u.displayName||'주').slice(0,1);
   loadProfiles();
  }else{
-  bar.innerHTML=`<button class="kakaobtn" onclick="loginKakao()">카카오로 시작하기</button>`;
-  document.getElementById('profileChips').style.display='none';
-  document.getElementById('todayCard').style.display='none';
+  homeBanner.style.display='flex';
+  pillWrap.style.display='none';
+  document.getElementById('todayCardHome').style.display='none';
+  setOut.style.display='block';setIn.style.display='none';
+  document.getElementById('avatarBtn').textContent='주';
+  document.getElementById('matchSelfName').textContent='로그인 필요';
+  document.getElementById('matchSelfDate').textContent='-';
  }
 });
 let savedProfiles=[];
@@ -456,7 +744,7 @@ async function saveProfile(label,bd,bt,g,region,mbti,cal,leap){
  try{
   const col=db.collection('users').doc(currentUser.uid).collection('profiles');
   const existing=await col.limit(1).get();
-  const isFirst=existing.empty; // 처음 저장하는 프로필이면 자동으로 "본인"
+  const isFirst=existing.empty;
   await col.add({label,bdate:bd,btime:bt,gender:g,region,mbti:mbti||'',
    calType:cal||'solar',isLeap:!!leap,isSelf:isFirst,
    savedAt:firebase.firestore.FieldValue.serverTimestamp()});
@@ -465,20 +753,59 @@ async function saveProfile(label,bd,bt,g,region,mbti,cal,leap){
 }
 async function loadProfiles(){
  if(!currentUser)return;
- const box=document.getElementById('profileChips');
  try{
   const snap=await db.collection('users').doc(currentUser.uid).collection('profiles')
    .orderBy('savedAt','desc').limit(10).get();
   savedProfiles=snap.docs.map(doc=>({id:doc.id,...doc.data()}));
-  if(snap.empty){box.style.display='none';document.getElementById('todayCard').style.display='none';return;}
-  box.innerHTML='';
-  snap.forEach(doc=>{
-   const p=doc.data();const b=document.createElement('button');
-   b.className='chip';b.type='button';b.textContent=p.label||p.bdate;
-   b.onclick=()=>fillFromProfile(p);box.appendChild(b);});
-  box.style.display='flex';
+  const pillWrap=document.getElementById('profilePillWrap');
+  const todayCard=document.getElementById('todayCardHome');
+  if(snap.empty){
+   pillWrap.style.display='none';todayCard.style.display='none';
+   document.getElementById('homeGreeting').innerHTML='아직 등록된 사주가 없어요<br>먼저 사주를 등록해 보세요';
+   document.getElementById('matchSelfName').textContent='등록 필요';
+   document.getElementById('matchSelfDate').textContent='-';
+   return;
+  }
+  const sel=document.getElementById('tfSelect');
+  sel.innerHTML=savedProfiles.map(p=>
+   `<option value="${p.id}">${(p.label||p.bdate)}${p.isSelf?' (본인)':''}</option>`).join('');
+  pillWrap.style.display='block';
+  const selfP=savedProfiles.find(p=>p.isSelf)||savedProfiles[0];
+  sel.value=selfP.id;
+  document.getElementById('homeGreeting').innerHTML=`오늘은<br><span class="accent">어떤 에너지</span>가 흐를까요?`;
+  document.getElementById('matchSelfName').textContent=selfP.label||selfP.bdate;
+  document.getElementById('matchSelfDate').textContent=selfP.bdate;
   renderTodayCard();
- }catch(e){console.error('프로필 불러오기 실패',e);box.style.display='none';}
+ }catch(e){console.error('프로필 불러오기 실패',e);}
+}
+function onTfSelect(){loadFortuneFor(document.getElementById('tfSelect').value);}
+function renderTodayCard(){
+ const card=document.getElementById('todayCardHome');
+ if(!savedProfiles.length){card.style.display='none';return;}
+ card.style.display='block';
+ const selfP=savedProfiles.find(p=>p.isSelf)||savedProfiles[0];
+ loadFortuneFor(selfP.id);
+}
+async function loadFortuneFor(id){
+ const p=savedProfiles.find(x=>x.id===id);if(!p)return;
+ document.getElementById('tfBodyHome').textContent='불러오는 중…';
+ const setSelfBtn=document.getElementById('tfSetSelfHome');
+ setSelfBtn.style.display=p.isSelf?'none':'block';
+ setSelfBtn.dataset.pid=id;
+ const text=await getOrGenerateFortune(p,id);
+ document.getElementById('tfBodyHome').textContent=text;
+}
+async function setAsSelf(){
+ const id=document.getElementById('tfSetSelfHome').dataset.pid;
+ if(!currentUser||!id)return;
+ try{
+  const col=db.collection('users').doc(currentUser.uid).collection('profiles');
+  const batch=db.batch();
+  savedProfiles.forEach(p=>{if(p.isSelf&&p.id!==id)batch.update(col.doc(p.id),{isSelf:false});});
+  batch.update(col.doc(id),{isSelf:true});
+  await batch.commit();
+  loadProfiles();
+ }catch(e){console.error('본인 설정 실패',e);}
 }
 function fillFromProfile(p){
  document.getElementById('bdate').value=p.bdate;
@@ -490,39 +817,7 @@ function fillFromProfile(p){
  setG(p.gender);
 }
 
-/* ===== 오늘의 운세 (저장된 "본인" 프로필 기준, 선택 변경 가능) ===== */
-function renderTodayCard(){
- const card=document.getElementById('todayCard');
- if(!savedProfiles.length){card.style.display='none';return;}
- card.style.display='block';
- const selfP=savedProfiles.find(p=>p.isSelf)||savedProfiles[0];
- const sel=document.getElementById('tfSelect');
- sel.innerHTML=savedProfiles.map(p=>
-  `<option value="${p.id}"${p.id===selfP.id?' selected':''}>${(p.label||p.bdate)}${p.isSelf?' (본인)':''}</option>`).join('');
- loadFortuneFor(selfP.id);
-}
-function onTfSelect(){loadFortuneFor(document.getElementById('tfSelect').value);}
-async function loadFortuneFor(id){
- const p=savedProfiles.find(x=>x.id===id);if(!p)return;
- document.getElementById('tfBody').textContent='불러오는 중…';
- const setSelfBtn=document.getElementById('tfSetSelf');
- setSelfBtn.style.display=p.isSelf?'none':'block';
- setSelfBtn.dataset.pid=id;
- const text=await getOrGenerateFortune(p,id);
- document.getElementById('tfBody').textContent=text;
-}
-async function setAsSelf(){
- const id=document.getElementById('tfSetSelf').dataset.pid;
- if(!currentUser||!id)return;
- try{
-  const col=db.collection('users').doc(currentUser.uid).collection('profiles');
-  const batch=db.batch();
-  savedProfiles.forEach(p=>{if(p.isSelf&&p.id!==id)batch.update(col.doc(p.id),{isSelf:false});});
-  batch.update(col.doc(id),{isSelf:true});
-  await batch.commit();
-  loadProfiles();
- }catch(e){console.error('본인 설정 실패',e);}
-}
+/* ===== 오늘의 운세 ===== */
 function parseSajuFromData(bdate,btime,gender,lonDeg,cal,isLeap){
  const dg=(bdate||'').replace(/\D/g,'');
  if(dg.length!==8)return null;
@@ -545,7 +840,7 @@ async function getOrGenerateFortune(p,docId){
  let tier='free';
  try{const uDoc=await db.collection('users').doc(currentUser.uid).get();
   if(uDoc.exists&&uDoc.data().tier)tier=uDoc.data().tier;}catch(e){}
- const intervalDays=tier==='free'?7:1; // 무료=주 1회, 유료=매일
+ const intervalDays=tier==='free'?7:1;
  if(p.fortuneDate&&p.fortuneText){
   const diffDays=Math.floor((new Date(today)-new Date(p.fortuneDate))/86400000);
   if(diffDays<intervalDays)return p.fortuneText;
@@ -573,19 +868,38 @@ ${personBlock(P,'')}
   return txt;
  }catch(e){console.error('운세 생성 실패',e);return '오늘의 운세를 불러오는 중 문제가 발생했습니다.';}
 }
-function setMode(m){mode=m;
- document.getElementById('tabS').classList.toggle('on',m==='S');
- document.getElementById('tabG').classList.toggle('on',m==='G');
- document.getElementById('pB').style.display=m==='G'?'block':'none';
- document.getElementById('setupTitle').textContent=m==='G'?'두 분의 정보를 알려주세요':'생년월일시를 알려주세요';
- document.getElementById('goBtn').textContent=m==='G'?'궁합 보기':'내 사주 보기';}
+
+/* ===== 폼 상태 ===== */
+let gender=null,gender2=null,history=[],persona='';
+let calType='solar',calType2='solar';
+function setCal(t){calType=t;
+ document.getElementById('calSolar').classList.toggle('on',t==='solar');
+ document.getElementById('calLunar').classList.toggle('on',t==='lunar');
+ document.getElementById('leapWrap').style.display=t==='lunar'?'inline-flex':'none';}
+function setCal2(t){calType2=t;
+ document.getElementById('calSolar2').classList.toggle('on',t==='solar');
+ document.getElementById('calLunar2').classList.toggle('on',t==='lunar');
+ document.getElementById('leapWrap2').style.display=t==='lunar'?'inline-flex':'none';}
+function lunarToSolar(y,mo,d,isLeap){
+ try{
+  const c=new KoreanLunarCalendar();
+  const ok=c.setLunarDate(y,mo,d,!!isLeap);
+  if(ok===false)return null;
+  const s=c.getSolarCalendar();
+  return{y:s.year,mo:s.month,d:s.day};
+ }catch(e){console.error('음양력 변환 실패',e);return null;}
+}
+function setG(g){gender=g;document.getElementById('gM').classList.toggle('on',g==='M');
+ document.getElementById('gF').classList.toggle('on',g==='F');}
 function setG2(g){gender2=g;document.getElementById('g2M').classList.toggle('on',g==='M');
  document.getElementById('g2F').classList.toggle('on',g==='F');}
-const bdateEl=document.getElementById('bdate');
 function autoFmt(el){el.addEventListener('input',()=>{const dg=el.value.replace(/\D/g,'').slice(0,8);
  let o=dg;if(dg.length>6)o=dg.slice(0,4)+'-'+dg.slice(4,6)+'-'+dg.slice(6);
  else if(dg.length>4)o=dg.slice(0,4)+'-'+dg.slice(4);el.value=o;});}
-autoFmt(bdateEl);autoFmt(document.getElementById('bdate2'));
+autoFmt(document.getElementById('bdate'));autoFmt(document.getElementById('bdate2'));
+function advToggle(id,btn){const el=document.getElementById(id);
+ const open=el.style.display==='block';el.style.display=open?'none':'block';
+ btn.textContent=open?(id==='advA'?'출생지 등 상세 설정 ⌄':'상대 출생지 등 상세 설정 ⌄'):'상세 설정 접기 ⌃';}
 
 function parsePerson(dateId,timeId,tuId,regionId,g,who,cal,leapId){
  const dg=document.getElementById(dateId).value.replace(/\D/g,'');
@@ -605,7 +919,8 @@ function parsePerson(dateId,timeId,tuId,regionId,g,who,cal,leapId){
  const tu=document.getElementById(tuId).checked;
  const[h,mi]=(document.getElementById(timeId).value||'12:00').split(':').map(Number);
  const lon=parseFloat(document.getElementById(regionId).value);
- const r=computeSaju({y,mo,d,h,mi,timeUnknown:tu,lonDeg:lon,useLon:document.getElementById('useLon').checked});
+ const useLonEl=document.getElementById('useLon');
+ const r=computeSaju({y,mo,d,h,mi,timeUnknown:tu,lonDeg:lon,useLon:useLonEl?useLonEl.checked:true});
  const mp=r.pillars[1],yp=r.pillars[0];
  const daeun=tu?null:computeDaeun(r.jde,yp.stem,mp.stem,mp.branch,g);
  const nowY=new Date().getFullYear(),age=nowY-y+1;
@@ -622,10 +937,11 @@ function personBlock(P,title){
 성별: ${P.gender==='M'?'남':'여'} · 세는나이 ${P.age}세
 ${P.daeun?`대운(${P.daeun.forward?'순행':'역행'}, ${P.daeun.startAge}세 시작): ${P.daeun.pillars.map(p=>`${p.ageStart}세 ${gz(p)}`).join(' → ')}
 현재 대운: ${P.cur?`${P.cur.ageStart}~${P.cur.ageEnd}세 ${gz(P.cur)}`:'범위 밖'}`:'대운: 시주 미상으로 생략'}`;}
-function setG(g){gender=g;document.getElementById('gM').classList.toggle('on',g==='M');
- document.getElementById('gF').classList.toggle('on',g==='F');}
 
-/* ===== MBTI 간단 자가진단 (자체 제작 문항, 정식 검사와 무관) ===== */
+function gz(p){return SH[p.stem]+BH[p.branch];}
+function gzk(p){return SK[p.stem]+BK[p.branch];}
+
+/* ===== MBTI 간단 자가진단 ===== */
 const MBTI_Q=[
  {dim:'EI',a:['사람 많은 모임에 있으면','에너지가 올라간다'],b:['사람 많은 모임에 있으면','에너지가 소모된다']},
  {dim:'EI',a:['생각이 정리되기 전에','일단 말로 꺼내며 정리한다'],b:['말하기 전에','머릿속으로 먼저 정리한다']},
@@ -675,52 +991,57 @@ function submitMbtiQuiz(){
  alert('검사 결과: '+result+'\n선택 목록에 자동으로 반영했습니다.');
 }
 
-function gz(p){return SH[p.stem]+BH[p.branch];}
-function gzk(p){return SK[p.stem]+BK[p.branch];}
-
-function start(){
+/* ===================== 사주 상담 시작 (mode S) ===================== */
+function submitSolo(){
  const err=document.getElementById('err');err.style.display='none';
- const A=parsePerson('bdate','btime','timeUnknown','region',gender,mode==='G'?'[나]':'',calType,'isLeap');
+ const A=parsePerson('bdate','btime','timeUnknown','region',gender,'',calType,'isLeap');
  if(A.err){err.textContent=A.err;err.style.display='block';return;}
- let B=null;
- if(mode==='G'){
-  B=parsePerson('bdate2','btime2','timeUnknown2','region2',gender2,'[상대]',calType2,'isLeap2');
-  if(B.err){err.textContent=B.err;err.style.display='block';return;}
+ const mbtiVal=document.getElementById('mbti').value;
+ if(currentUser){
+  const bdVal=document.getElementById('bdate').value;
+  const labelVal=bdVal+(calType==='lunar'?' (음)':'');
+  saveProfile(labelVal,bdVal,document.getElementById('btime').value,gender,document.getElementById('region').value,mbtiVal,calType,document.getElementById('isLeap').checked);
  }
+ renderSoloResult(A,mbtiVal,gender==='M'?'남':'여','고객');
+}
+function startFromProfile(p){
+ fillFromProfile(p);
+ const A=parsePerson('bdate','btime','timeUnknown','region',p.gender,'',p.calType||'solar','isLeap');
+ if(A.err){switchTab('fortune');return;}
+ renderSoloResult(A,p.mbti,p.gender==='M'?'남':'여',p.label||p.bdate);
+}
+function renderSoloResult(A,mbtiVal,genderLabel,ownerLabel){
+ const r=A.r;
  const nowY=A.nowY;
  const seun=[];for(let yy=nowY-1;yy<=nowY+2;yy++){const s=((yy-4)%10+10)%10,b=((yy-4)%12+12)%12;
   seun.push(`${yy}년 ${SH[s]}${BH[b]}(${SK[s]}${BK[b]})`);}
-
- const sum=document.getElementById('summary');
  const today=new Date();
  const todayStr=`${today.getFullYear()}년 ${today.getMonth()+1}월 ${today.getDate()}일`;
- const baseRules=`너는 "주주도사"다. 명리학에 정통한 도사로서 찾아온 사람의 명식을 읽고 상담한다. 너는 점쟁이가 아니라 시간의 흐름을 읽어주는 조언자다.
+ const hourWarn=(r.corrections&&r.corrections.hourNear)?
+  `<div class="disclaimer" style="color:#B54708">⚠ 태어난 시각이 시진(時辰) 경계와 가까워, 경도보정 적용 여부에 따라 시주가 다르게 나올 수 있습니다.</div>`:'';
 
-[오늘 날짜] 오늘은 ${todayStr}이다. "올해", "내년", "요즘" 같은 표현은 반드시 이 날짜를 기준으로 계산해서 말한다. 절대 다른 연도를 올해로 착각하지 않는다.
-[말투] 존댓말. 도사의 품위는 지키되 말은 쉽고 일상적이어야 한다. 짧은 문장으로 끊는다. 감탄사·웃음 금지.
-[구체성 — 최상위 규칙] 듣고 나서 "그래서 뭐?"가 남으면 실패다. 뜬구름 표현 금지: "기운이 흐른다", "그릇", "계절", "흐름이 감돈다" 같은 추상어를 쓰지 않는다. 비유는 답변 전체에 최대 1개, 없어도 된다. 대신 이렇게 말한다 — 성격은 행동으로("결정은 빠른데 돌아서서 후회가 많으신 편입니다"), 재능은 상황으로("여러 사람 앞에서 설명할 때 힘이 사는 사주입니다"), 시기는 할 일로("올해는 벌이는 해가 아니라 거래처를 다지는 해입니다"). 일·돈·사람·습관처럼 손에 잡히는 영역으로 말한다. 상대가 "맞네" 하고 확인할 수 있는 문장이 좋은 문장이다. 근거 글자는 문장 끝 괄호로 짧게. 예: (월지 정인)
-[상담] 한 답변에 되묻는 질문은 최대 하나. 성격 묘사에 머물지 말고 시기와 행동의 조언으로 연결한다. 큰 결정은 시기 판단 전에 "왜 하려 하는지"를 한 번 묻는다.
-[금지선] 단정적 불운 예언 금지 — 나쁜 흐름은 "운은 정해진 결말이 아니라 날씨" 프레임과 대처법을 함께. 건강 진단·예언 금지(병원 상담 권유). 특정 종목·코인·도박·로또 등 투자 지시 금지. 사망·수명 질문은 정중히 거절. 상담자가 심리적 위기를 보이면 풀이를 멈추고 전문 기관 상담을 권한다.
-[데이터] 아래 JSON은 검증된 엔진이 계산한 것이다. 절대 재계산하거나 데이터에 없는 글자를 지어내지 않는다. 연도별 흐름은 제공된 세운 범위 안에서만 말한다.
-[형식] 채팅이다. 짧은 문단들로. 마크다운 기호(#, *, - 등) 금지. 첫 풀이의 섹션 라벨은 「타고난 성격」 형태로 줄 맨 앞에 쓴다.`;
+ const pillarsHtml=r.pillars.slice().reverse().map(p=>{
+  const cls=ELCLASS[SE[p.stem]];
+  return `<div class="pillar">
+    <div class="pillar-label">${p.label}</div>
+    <div class="pillar-circle ${cls}">${SH[p.stem]}</div>
+    <div class="pillar-sub">${BH[p.branch]}</div>
+   </div>`;
+ }).join('');
 
- if(mode==='S'){
-  const r=A.r;
-  const mbtiVal=document.getElementById('mbti').value;
-  const hourWarn=(r.corrections&&r.corrections.hourNear)?
-   `<div class="disclaimer" style="color:#B54708">⚠ 태어난 시각이 시진(時辰) 경계와 가까워, 경도보정 적용 여부에 따라 시주가 다르게 나올 수 있습니다. 다른 사이트와 비교 시 "경도보정" 설정을 맞춰보세요.</div>`:'';
-  sum.innerHTML=`<div class="gz">${r.pillars.map(p=>gz(p)).reverse().join(' · ')}</div>
-   <div class="meta">${gzk(r.pillars[2])}일주 · ${A.gender==='M'?'남':'여'} · 오행 ${r.elemCount.map((c,i)=>EK[i]+c).join(' ')}${A.daeun?` · 대운 ${A.daeun.startAge}세 ${A.daeun.forward?'순행':'역행'}`:''}${mbtiVal?` · ${mbtiVal}`:''}</div>
-   <div class="disclaimer">사주(팔자·오행)는 항상 동일하게 계산됩니다. 아래 해석 문구는 매번 표현이 조금씩 달라질 수 있습니다.</div>
-   ${hourWarn}`;
-  if(currentUser){
-   const bdVal=document.getElementById('bdate').value;
-   const labelVal=bdVal+(calType==='lunar'?' (음)':'');
-   saveProfile(labelVal,bdVal,document.getElementById('btime').value,gender,document.getElementById('region').value,mbtiVal,calType,document.getElementById('isLeap').checked);
-  }
-  const mbtiSection=mbtiVal?`「MBTI로 보면」 이 사람의 MBTI는 ${mbtiVal}이다. 사주에서 읽히는 기질과 ${mbtiVal}가 겹치는 지점을 먼저 짚는다. 두 도구가 다르게 말하는 지점이 있다면 숨기지 말고 정직하게 짚고, 그 차이를 흥미로운 관찰로 다룬다. MBTI는 검사 시점의 스냅샷이고 사주는 태어난 순간 고정된 원본이라는 차이를 짧게 언급해도 좋다.
+ document.getElementById('summary').innerHTML=`
+  <div class="pillars-card">
+   <div class="pillars-title">👤 ${ownerLabel}님의 사주 팔자</div>
+   <div class="pillars-grid">${pillarsHtml}</div>
+   <div class="pillars-meta">${gzk(r.pillars[2])}일주 · ${genderLabel} · 오행 ${r.elemCount.map((c,i)=>EK[i]+c).join(' ')}${A.daeun?` · 대운 ${A.daeun.startAge}세 ${A.daeun.forward?'순행':'역행'}`:''}${mbtiVal?` · ${mbtiVal}`:''}</div>
+  </div>
+  <div class="disclaimer">사주(팔자·오행)는 항상 동일하게 계산됩니다. 아래 해석 문구는 매번 표현이 조금씩 달라질 수 있습니다.</div>
+  ${hourWarn}`;
+
+ const baseRules=BASE_RULES(todayStr);
+ const mbtiSection=mbtiVal?`「MBTI로 보면」 이 사람의 MBTI는 ${mbtiVal}이다. 사주에서 읽히는 기질과 ${mbtiVal}가 겹치는 지점을 먼저 짚는다. 두 도구가 다르게 말하는 지점이 있다면 숨기지 말고 정직하게 짚고, 그 차이를 흥미로운 관찰로 다룬다. MBTI는 검사 시점의 스냅샷이고 사주는 태어난 순간 고정된 원본이라는 차이를 짧게 언급해도 좋다.
 `:'';
-  persona=`${baseRules}
+ persona=`${baseRules}
 
 ## 상담자 명식 데이터
 ${personBlock(A,'')}
@@ -733,21 +1054,74 @@ ${mbtiVal?`MBTI: ${mbtiVal}`:''}
 「강점과 조심할 점」 강점 3가지를 실제 상황으로, 조심할 패턴 2~3가지를 실제로 겪었을 법한 장면으로.
 ${mbtiSection}「일과 돈」 어떤 방식으로 일할 때 성과가 나는지(혼자/팀, 벌이기/관리, 사람 상대/기술), 돈이 들어오는 경로의 특징과 새는 습관까지.
 「사람과 관계」 사람을 대하는 방식, 가까운 사람(배우자·동료·친구)과의 관계에서 반복되는 패턴.
-「지난 흐름 돌아보기」 지나온 대운 2~3개를 나이대로 짚으며 그 시기에 있었을 법한 변화를 말한다. 예: "23세부터의 십 년은 배움보다 부딪히며 큰 시기였을 겁니다. 33세 무렵 일의 방향이 한 번 크게 바뀌었을 것이고요." 본인이 과거를 대조해볼 수 있는 검증형 문장으로.
+「지난 흐름 돌아보기」 지나온 대운 2~3개를 나이대로 짚으며 그 시기에 있었을 법한 변화를 말한다.
 「지금과 앞으로」 현재 대운의 성격, 올해와 내년이 무엇을 하기 좋은 시기인지 할 일 단위로. 다음 대운이 언제 바뀌고 무엇이 달라지는지까지.
 마지막에 "무엇이 궁금하십니까" 하나로 마무리하고, 이후 대화는 이 풀이를 기초로 한다. 이후의 일반 답변은 3~6문단이면 충분하다.`;
-  history=[{role:'user',content:'(상담자가 방에 들어와 절을 올리고 명식을 내민다. 종합 풀이를 시작하라.)'}];
- } else {
-  const ra=A.r,rb=B.r,rel=document.getElementById('relType').value;
-  const dA=ra.pillars[2],dB=rb.pillars[2],yA=ra.pillars[0],yB=rb.pillars[0];
-  const facts=[
-   `일간 관계: 나 ${SH[dA.stem]} ↔ 상대 ${SH[dB.stem]} → ${stemRel(dA.stem,dB.stem)}`,
-   `일지 관계: 나 ${BH[dA.branch]} ↔ 상대 ${BH[dB.branch]} → ${branchRel(dA.branch,dB.branch)}`,
-   `띠(년지) 관계: 나 ${BH[yA.branch]} ↔ 상대 ${BH[yB.branch]} → ${branchRel(yA.branch,yB.branch)}`,
-  ].join('\n');
-  sum.innerHTML=`<div class="gz">${gz(dA)} ♥ ${gz(dB)}</div>
-   <div class="meta">${gzk(dA)}일주 · ${gzk(dB)}일주 · ${rel} 궁합</div>`;
-  persona=`${baseRules}
+ history=[{role:'user',content:'(상담자가 방에 들어와 절을 올리고 명식을 내민다. 종합 풀이를 시작하라.)'}];
+
+ document.getElementById('setup').style.display='none';
+ document.getElementById('resultPanel').style.display='block';
+ document.getElementById('chatArea').style.display='flex';
+ document.getElementById('log').innerHTML='';
+ callDosa(4000,true);
+}
+
+function BASE_RULES(todayStr){
+ return `너는 "주주도사"다. 명리학에 정통한 도사로서 찾아온 사람의 명식을 읽고 상담한다. 너는 점쟁이가 아니라 시간의 흐름을 읽어주는 조언자다.
+
+[오늘 날짜] 오늘은 ${todayStr}이다. "올해", "내년", "요즘" 같은 표현은 반드시 이 날짜를 기준으로 계산해서 말한다. 절대 다른 연도를 올해로 착각하지 않는다.
+[말투] 존댓말. 도사의 품위는 지키되 말은 쉽고 일상적이어야 한다. 짧은 문장으로 끊는다. 감탄사·웃음 금지.
+[구체성 — 최상위 규칙] 듣고 나서 "그래서 뭐?"가 남으면 실패다. 뜬구름 표현 금지: "기운이 흐른다", "그릇", "계절", "흐름이 감돈다" 같은 추상어를 쓰지 않는다. 비유는 답변 전체에 최대 1개, 없어도 된다. 대신 이렇게 말한다 — 성격은 행동으로, 재능은 상황으로, 시기는 할 일로. 일·돈·사람·습관처럼 손에 잡히는 영역으로 말한다. 근거 글자는 문장 끝 괄호로 짧게. 예: (월지 정인)
+[상담] 한 답변에 되묻는 질문은 최대 하나. 성격 묘사에 머물지 말고 시기와 행동의 조언으로 연결한다. 큰 결정은 시기 판단 전에 "왜 하려 하는지"를 한 번 묻는다.
+[금지선] 단정적 불운 예언 금지 — 나쁜 흐름은 "운은 정해진 결말이 아니라 날씨" 프레임과 대처법을 함께. 건강 진단·예언 금지. 특정 종목·코인·도박·로또 등 투자 지시 금지. 사망·수명 질문은 정중히 거절. 상담자가 심리적 위기를 보이면 풀이를 멈추고 전문 기관 상담을 권한다.
+[데이터] 아래 JSON은 검증된 엔진이 계산한 것이다. 절대 재계산하거나 데이터에 없는 글자를 지어내지 않는다. 연도별 흐름은 제공된 세운 범위 안에서만 말한다.
+[형식] 채팅이다. 짧은 문단들로. 마크다운 기호(#, *, - 등) 금지. 첫 풀이의 섹션 라벨은 「타고난 성격」 형태로 줄 맨 앞에 쓴다.`;
+}
+
+/* ===================== 궁합 (mode G) ===================== */
+function submitMatch(){
+ const err=document.getElementById('matchErr');err.style.display='none';
+ if(!savedProfiles.length){err.textContent='먼저 홈에서 본인 사주를 등록해 주세요.';err.style.display='block';return;}
+ if(document.getElementById('partnerForm').style.display!=='block'||!gender2){
+  togglePartnerForm();
+  err.textContent='상대방 정보를 입력해 주세요.';err.style.display='block';return;
+ }
+ const selfP=savedProfiles.find(p=>p.isSelf)||savedProfiles[0];
+ fillFromProfile(selfP);
+ const A=parsePerson('bdate','btime','timeUnknown','region',selfP.gender,'[나]',selfP.calType||'solar','isLeap');
+ if(A.err){err.textContent=A.err;err.style.display='block';return;}
+ const B=parsePerson('bdate2','btime2','timeUnknown2','region2',gender2,'[상대]',calType2,'isLeap2');
+ if(B.err){err.textContent=B.err;err.style.display='block';return;}
+
+ const nowY=A.nowY;
+ const seun=[];for(let yy=nowY-1;yy<=nowY+2;yy++){const s=((yy-4)%10+10)%10,b=((yy-4)%12+12)%12;
+  seun.push(`${yy}년 ${SH[s]}${BH[b]}(${SK[s]}${BK[b]})`);}
+ const today=new Date();
+ const todayStr=`${today.getFullYear()}년 ${today.getMonth()+1}월 ${today.getDate()}일`;
+ const rel=document.getElementById('relType').value;
+ const ra=A.r,rb=B.r,dA=ra.pillars[2],dB=rb.pillars[2],yA=ra.pillars[0],yB=rb.pillars[0];
+ const facts=[
+  `일간 관계: 나 ${SH[dA.stem]} ↔ 상대 ${SH[dB.stem]} → ${stemRel(dA.stem,dB.stem)}`,
+  `일지 관계: 나 ${BH[dA.branch]} ↔ 상대 ${BH[dB.branch]} → ${branchRel(dA.branch,dB.branch)}`,
+  `띠(년지) 관계: 나 ${BH[yA.branch]} ↔ 상대 ${BH[yB.branch]} → ${branchRel(yA.branch,yB.branch)}`,
+ ].join('\n');
+
+ document.getElementById('summary').innerHTML=`
+  <div class="pillars-card">
+   <div class="pillars-title">💑 ${selfP.label||'나'} ♥ 상대방 궁합</div>
+   <div class="pillars-grid" style="grid-template-columns:1fr 1fr">
+    <div class="pillar"><div class="pillar-label">나 · 일주</div>
+     <div class="pillar-circle ${ELCLASS[SE[dA.stem]]}">${SH[dA.stem]}</div>
+     <div class="pillar-sub">${gzk(dA)}</div></div>
+    <div class="pillar"><div class="pillar-label">상대 · 일주</div>
+     <div class="pillar-circle ${ELCLASS[SE[dB.stem]]}">${SH[dB.stem]}</div>
+     <div class="pillar-sub">${gzk(dB)}</div></div>
+   </div>
+   <div class="pillars-meta">${rel} 궁합 · 관심분야: ${matchFocus}</div>
+  </div>`;
+
+ const baseRules=BASE_RULES(todayStr);
+ persona=`${baseRules}
 [궁합 금지선 추가] 관계의 파탄을 단정하지 않는다("헤어지세요", "동업하면 망합니다" 금지). 충이나 극이 있어도 그것은 서로 다름의 지도이며, 다루는 법과 함께 전한다. 어느 한쪽을 험담하거나 우열을 가리지 않는다.
 
 ## 궁합 데이터 (관계: ${rel})
@@ -759,47 +1133,68 @@ ${personBlock(B,'[상대]')}
 ${facts}
 세운: ${seun.join(', ')}
 
-[첫 풀이 — 매우 중요] 첫 응답은 궁합 종합 풀이다. 아래 섹션을 라벨과 함께 차례로. 각 섹션 3~6문장, 손에 잡히는 상황으로. 첫 풀이는 기초 공사이므로 충분히 자세하게.
+[첫 풀이 — 매우 중요] 첫 응답은 궁합 종합 풀이다. 관심 분야는 "${matchFocus}"이니 이 주제를 특히 비중있게 다뤄라. 아래 섹션을 라벨과 함께 차례로. 각 섹션 3~6문장, 손에 잡히는 상황으로.
 ${(rel==='사업 파트너'||rel==='직장 동료·상사')?
 `관계는 "${rel}" — 사업형 궁합이다.
-「한 줄 요약」 이 조합을 한 문장으로. 예: "한 사람이 벌이고 한 사람이 지키는, 역할만 나누면 오래가는 조합입니다."
-「두 사람의 일하는 스타일」 각자 일할 때 어떤 사람인지 나란히. 회의 때, 결정할 때, 위기 때 어떻게 다른지.
-「역할 분담」 십성으로 본 각자의 자리 — 만들고 벌이는 쪽인지, 팔고 굴리는 쪽인지, 관리와 규율 쪽인지 — 를 실제 업무(영업/기획/재무/운영)로 짚어서 제안.
-「돈과 결정」 돈 문제와 의사결정에서 어긋나기 쉬운 지점과 원칙. 돈 관리는 누가, 최종 결정은 어떻게 할지 구체적으로.
-「함께할 타이밍」 각자의 현재 대운을 나란히 놓고, 같이 벌일 시기와 지킬 시기를 할 일 단위로.`
+「한 줄 요약」 이 조합을 한 문장으로.
+「두 사람의 일하는 스타일」 각자 일할 때 어떤 사람인지 나란히.
+「역할 분담」 십성으로 본 각자의 자리를 실제 업무로 짚어서 제안.
+「돈과 결정」 돈 문제와 의사결정에서 어긋나기 쉬운 지점과 원칙.
+「함께할 타이밍」 각자의 현재 대운을 나란히 놓고, 같이 벌일 시기와 지킬 시기.`
 :
 `관계는 "${rel}" — 인연형 궁합이다.
 「한 줄 요약」 이 인연을 한 문장으로.
-「두 사람의 성격」 각자 어떤 사람인지 나란히. 싸울 때, 서운할 때, 좋을 때 어떻게 다른지.
+「두 사람의 성격」 각자 어떤 사람인지 나란히.
 「잘 맞는 부분」 합·상생·오행 보완이 실제 생활에서 어떻게 서로를 살리는지.
-「부딪히는 부분」 충·상극이 실제로 어떤 상황(돈, 말투, 속도, 가족)에서 갈등이 되는지와 다루는 법.
+「부딪히는 부분」 충·상극이 실제로 어떤 상황에서 갈등이 되는지와 다루는 법.
 「이 관계를 위한 조언」 ${rel} 관계에 맞는 구체적 행동 2~3가지.`}
 근거 글자는 괄호로 짧게. 마지막에 "무엇이 궁금하십니까" 하나로 마무리한다.`;
-  history=[{role:'user',content:'(두 사람의 명식을 나란히 내밀며 궁합을 청한다. 궁합 종합 풀이를 시작하라.)'}];
- }
+ history=[{role:'user',content:'(두 사람의 명식을 나란히 내밀며 궁합을 청한다. 궁합 종합 풀이를 시작하라.)'}];
 
- sum.style.display='block';
+ switchTab('fortune');
  document.getElementById('setup').style.display='none';
+ document.getElementById('resultPanel').style.display='block';
  document.getElementById('chatArea').style.display='flex';
- document.getElementById('backBtn').style.display='block';
- callDosa(4000);
+ document.getElementById('log').innerHTML='';
+ callDosa(4000,true);
 }
 
+/* ===================== 채팅 ===================== */
 function goHome(){
  document.getElementById('setup').style.display='block';
- document.getElementById('summary').style.display='none';
+ document.getElementById('resultPanel').style.display='none';
  document.getElementById('chatArea').style.display='none';
- document.getElementById('backBtn').style.display='none';
  document.getElementById('log').innerHTML='';
  document.getElementById('cerr').style.display='none';
  history=[];persona='';
 }
-
 function addMsg(txt,cls){const log=document.getElementById('log');
  const m=document.createElement('div');m.className='msg '+cls;m.textContent=txt;
  log.appendChild(m);m.scrollIntoView({behavior:'smooth',block:'end'});return m;}
-
-async function callDosa(maxTok){
+function renderAccordion(text){
+ const re=/「([^」]+)」/g;
+ const idxs=[];let m;
+ while((m=re.exec(text))!==null)idxs.push({title:m[1],start:m.index,contentStart:m.index+m[0].length});
+ if(!idxs.length){addMsg(text,'dosa');return;}
+ const log=document.getElementById('log');
+ const wrap=document.createElement('div');wrap.className='accordion';
+ idxs.forEach((it,i)=>{
+  const end=i+1<idxs.length?idxs[i+1].start:text.length;
+  const body=text.slice(it.contentStart,end).trim();
+  const item=document.createElement('div');
+  item.className='acc-item'+(i===0?' open':'');
+  const num=document.createElement('button');
+  num.className='acc-head';
+  num.innerHTML=`<span class="acc-num">${String(i+1).padStart(2,'0')}</span><span class="acc-title">${it.title}</span><span class="acc-chev">⌄</span>`;
+  num.onclick=()=>item.classList.toggle('open');
+  const bodyEl=document.createElement('div');bodyEl.className='acc-body';bodyEl.textContent=body;
+  item.appendChild(num);item.appendChild(bodyEl);
+  wrap.appendChild(item);
+ });
+ log.appendChild(wrap);
+ wrap.scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function callDosa(maxTok,isFirst){
  const th=addMsg('명식을 살피는 중…','thinking');
  try{
   const res=await fetch('https://jujudosa-api.jinjjabg.workers.dev/',{
@@ -811,23 +1206,23 @@ async function callDosa(maxTok){
    document.getElementById('cerr').style.display='block';return;}
   const txt=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
   history.push({role:'assistant',content:txt});
-  addMsg(txt,'dosa');
+  if(isFirst)renderAccordion(txt);else addMsg(txt,'dosa');
+  if(pendingCategoryPrompt){
+   const p=pendingCategoryPrompt;pendingCategoryPrompt=null;
+   setTimeout(()=>{addMsg(p,'me');history.push({role:'user',content:p});callDosa(1500);},300);
+  }
  }catch(e){th.remove();
   document.getElementById('cerr').textContent='연결에 문제가 있습니다: '+e.message;
   document.getElementById('cerr').style.display='block';}
 }
-
-/* ===== 요금제별 채팅 횟수 제한 =====
-   free: 평생 3회 / lite: 하루 3회 / standard: 하루 15회(안전장치, 표기는 '무제한') */
 async function checkChatLimit(){
- if(!currentUser) return true; // 비로그인은 횟수 추적 불가 — 통과(로그인 유도는 별도 UI에서)
+ if(!currentUser) return true;
  const ref=db.collection('users').doc(currentUser.uid);
  try{
   const snap=await ref.get();
   const d=snap.exists?snap.data():{};
   const tier=d.tier||'free';
   const today=new Date().toISOString().slice(0,10);
-
   if(tier==='free'){
    const used=d.chatUsed||0;
    if(used>=3){
@@ -837,7 +1232,6 @@ async function checkChatLimit(){
    await ref.set({chatUsed:used+1},{merge:true});
    return true;
   }
-
   const cap=tier==='lite'?3:15;
   const dailyCount=(d.dailyDate===today)?(d.dailyCount||0):0;
   if(dailyCount>=cap){
@@ -848,9 +1242,8 @@ async function checkChatLimit(){
   }
   await ref.set({dailyDate:today,dailyCount:dailyCount+1},{merge:true});
   return true;
- }catch(e){console.error('사용량 확인 실패',e);return true;} // 오류 시엔 막지 않음
+ }catch(e){console.error('사용량 확인 실패',e);return true;}
 }
-
 async function send(){
  const q=document.getElementById('q');const t=q.value.trim();if(!t)return;
  document.getElementById('cerr').style.display='none';
@@ -858,10 +1251,6 @@ async function send(){
  if(!ok){q.value='';return;}
  addMsg(t,'me');history.push({role:'user',content:t});q.value='';callDosa(1500);
 }
-
-function advToggle(id,btn){const el=document.getElementById(id);
- const open=el.style.display==='block';el.style.display=open?'none':'block';
- btn.textContent=open?'출생지 등 상세 설정 ⌄':'상세 설정 접기 ⌃';}
 </script>
 </body>
 </html>
