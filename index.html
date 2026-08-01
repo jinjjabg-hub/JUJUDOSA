@@ -28,6 +28,21 @@ header{display:flex;align-items:center;gap:8px;margin-bottom:18px}
 .backbtn{margin-left:auto;background:none;border:none;color:var(--primary);font-size:13px;
   font-weight:600;cursor:pointer;font-family:inherit;padding:6px 4px}
 
+.mbtilink{font-size:12px;color:var(--primary);margin-top:6px;cursor:pointer;font-weight:600}
+.modalbg{position:fixed;inset:0;background:rgba(25,31,40,.5);z-index:100;display:flex;
+  align-items:center;justify-content:center;padding:20px}
+.modalcard{background:#fff;border-radius:20px;padding:22px;max-width:420px;width:100%;
+  max-height:85vh;overflow-y:auto}
+.modalhead{display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:16px}
+.modalclose{cursor:pointer;color:var(--sub);font-size:16px}
+.modalsub{font-size:12px;color:var(--sub);margin:6px 0 14px}
+.mq{margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.mq .qn{font-size:12px;color:var(--sub);margin-bottom:8px}
+.mq .qopt{display:block;width:100%;text-align:left;padding:11px 14px;margin-bottom:6px;
+  border:1.5px solid var(--line);border-radius:12px;background:#fff;font-size:13px;
+  font-family:inherit;cursor:pointer;color:var(--text)}
+.mq .qopt.picked{border-color:var(--primary);background:var(--primary-tint);color:var(--primary);font-weight:600}
+
 .authbar{display:flex;align-items:center;gap:8px;background:var(--card);border-radius:14px;
   padding:10px 14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(25,31,40,.06)}
 .authbar .uname{font-size:13px;font-weight:600;flex:1}
@@ -107,6 +122,18 @@ footer a{color:#8B95A1;text-decoration:underline}
     <button class="kakaobtn" onclick="loginKakao()">카카오로 시작하기</button>
   </div>
 
+  <div class="modalbg" id="mbtiModal" style="display:none">
+    <div class="modalcard">
+      <div class="modalhead">
+        <span>간단 성향 검사</span>
+        <span class="modalclose" onclick="closeMbtiQuiz()">✕</span>
+      </div>
+      <div class="modalsub">둘 중 더 나에게 가까운 쪽을 골라주세요 (16문항)</div>
+      <div id="mbtiQBox"></div>
+      <button class="go" id="mbtiSubmit" onclick="submitMbtiQuiz()" disabled>결과 보기</button>
+    </div>
+  </div>
+
   <div class="panel" id="setup">
     <div class="tabs">
       <div class="tab on" id="tabS" onclick="setMode('S')">사주 상담</div>
@@ -125,6 +152,23 @@ footer a{color:#8B95A1;text-decoration:underline}
           <div class="gbtn" id="gM" onclick="setG('M')">남</div>
           <div class="gbtn" id="gF" onclick="setG('F')">여</div>
         </div>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label class="f">MBTI (선택)</label>
+        <select id="mbti">
+          <option value="">입력 안 함</option>
+          <option value="INTJ">INTJ</option><option value="INTP">INTP</option>
+          <option value="ENTJ">ENTJ</option><option value="ENTP">ENTP</option>
+          <option value="INFJ">INFJ</option><option value="INFP">INFP</option>
+          <option value="ENFJ">ENFJ</option><option value="ENFP">ENFP</option>
+          <option value="ISTJ">ISTJ</option><option value="ISFJ">ISFJ</option>
+          <option value="ESTJ">ESTJ</option><option value="ESFJ">ESFJ</option>
+          <option value="ISTP">ISTP</option><option value="ISFP">ISFP</option>
+          <option value="ESTP">ESTP</option><option value="ESFP">ESFP</option>
+        </select>
+        <div class="mbtilink" onclick="openMbtiQuiz()">MBTI를 모르시나요? 1분 간단검사 →</div>
       </div>
     </div>
     <button class="advbtn" onclick="advToggle('advA',this)">출생지 등 상세 설정 ⌄</button>
@@ -343,11 +387,11 @@ auth.onAuthStateChanged(u=>{
   document.getElementById('profileChips').style.display='none';
  }
 });
-async function saveProfile(label,bd,bt,g,region){
+async function saveProfile(label,bd,bt,g,region,mbti){
  if(!currentUser)return;
  try{
   await db.collection('users').doc(currentUser.uid).collection('profiles').add({
-   label,bdate:bd,btime:bt,gender:g,region,
+   label,bdate:bd,btime:bt,gender:g,region,mbti:mbti||'',
    savedAt:firebase.firestore.FieldValue.serverTimestamp()});
   loadProfiles();
  }catch(e){console.error('프로필 저장 실패',e);}
@@ -371,6 +415,7 @@ function fillFromProfile(p){
  document.getElementById('bdate').value=p.bdate;
  document.getElementById('btime').value=p.btime;
  document.getElementById('region').value=p.region;
+ document.getElementById('mbti').value=p.mbti||'';
  setG(p.gender);
 }
 function setMode(m){mode=m;
@@ -417,6 +462,57 @@ ${P.daeun?`대운(${P.daeun.forward?'순행':'역행'}, ${P.daeun.startAge}세 �
 현재 대운: ${P.cur?`${P.cur.ageStart}~${P.cur.ageEnd}세 ${gz(P.cur)}`:'범위 밖'}`:'대운: 시주 미상으로 생략'}`;}
 function setG(g){gender=g;document.getElementById('gM').classList.toggle('on',g==='M');
  document.getElementById('gF').classList.toggle('on',g==='F');}
+
+/* ===== MBTI 간단 자가진단 (자체 제작 문항, 정식 검사와 무관) ===== */
+const MBTI_Q=[
+ {dim:'EI',a:['사람 많은 모임에 있으면','에너지가 올라간다'],b:['사람 많은 모임에 있으면','에너지가 소모된다']},
+ {dim:'EI',a:['생각이 정리되기 전에','일단 말로 꺼내며 정리한다'],b:['말하기 전에','머릿속으로 먼저 정리한다']},
+ {dim:'EI',a:['주말엔 약속을 잡아야','충전되는 편이다'],b:['주말엔 혼자 있어야','충전되는 편이다']},
+ {dim:'EI',a:['낯선 자리에서도','먼저 말을 거는 편이다'],b:['낯선 자리에서는','상황을 지켜보는 편이다']},
+ {dim:'SN',a:['일할 때','구체적 사실과 순서를 중시한다'],b:['일할 때','전체 그림과 가능성을 먼저 본다']},
+ {dim:'SN',a:['설명을 들을 땐','실제 사례부터 듣는 게 편하다'],b:['설명을 들을 땐','핵심 개념부터 듣는 게 편하다']},
+ {dim:'SN',a:['익숙하고 검증된 방식이','더 믿음이 간다'],b:['새롭고 다른 방식에','더 끌린다']},
+ {dim:'SN',a:['지금 눈앞의 현실에','더 집중하는 편이다'],b:['앞으로의 가능성에','더 집중하는 편이다']},
+ {dim:'TF',a:['결정할 때','논리와 원칙을 우선한다'],b:['결정할 때','사람과 관계를 우선한다']},
+ {dim:'TF',a:['상대가 힘들어할 때','원인과 해결책부터 짚는다'],b:['상대가 힘들어할 때','마음부터 먼저 살핀다']},
+ {dim:'TF',a:['피드백은','직설적인 게 낫다고 생각한다'],b:['피드백은','부드럽게 전하는 게 낫다고 생각한다']},
+ {dim:'TF',a:['논쟁에서 옳고 그름이','더 중요하다'],b:['논쟁에서 관계가 상하지 않는 게','더 중요하다']},
+ {dim:'JP',a:['미리 계획을 세워야','마음이 편하다'],b:['상황 따라 유연하게','움직이는 게 편하다']},
+ {dim:'JP',a:['일정은','정해두고 지키는 편이다'],b:['일정은','바뀔 수 있다고 열어두는 편이다']},
+ {dim:'JP',a:['마감 훨씬 전에','미리 끝내두는 편이다'],b:['마감이 닥쳐야','몰입이 되는 편이다']},
+ {dim:'JP',a:['정리된 상태가','더 편하다'],b:['어느 정도 널브러진 상태가','더 자연스럽다']},
+];
+let mbtiAns={};
+function openMbtiQuiz(){
+ mbtiAns={};
+ const box=document.getElementById('mbtiQBox');
+ box.innerHTML=MBTI_Q.map((q,i)=>`
+  <div class="mq">
+   <div class="qn">Q${i+1}</div>
+   <button type="button" class="qopt" id="mq${i}a" onclick="pickMbti(${i},'a')">${q.a[0]}<br>${q.a[1]}</button>
+   <button type="button" class="qopt" id="mq${i}b" onclick="pickMbti(${i},'b')">${q.b[0]}<br>${q.b[1]}</button>
+  </div>`).join('');
+ document.getElementById('mbtiSubmit').disabled=true;
+ document.getElementById('mbtiModal').style.display='flex';
+}
+function closeMbtiQuiz(){document.getElementById('mbtiModal').style.display='none';}
+function pickMbti(i,side){
+ mbtiAns[i]=side;
+ document.getElementById('mq'+i+'a').classList.toggle('picked',side==='a');
+ document.getElementById('mq'+i+'b').classList.toggle('picked',side==='b');
+ document.getElementById('mbtiSubmit').disabled=Object.keys(mbtiAns).length<MBTI_Q.length;
+}
+function submitMbtiQuiz(){
+ const score={E:0,I:0,S:0,N:0,T:0,F:0,J:0,P:0};
+ const pairs={EI:['E','I'],SN:['S','N'],TF:['T','F'],JP:['J','P']};
+ MBTI_Q.forEach((q,i)=>{const [x,y]=pairs[q.dim];score[mbtiAns[i]==='a'?x:y]++;});
+ const result=(score.E>=score.I?'E':'I')+(score.S>=score.N?'S':'N')+
+   (score.T>=score.F?'T':'F')+(score.J>=score.P?'J':'P');
+ document.getElementById('mbti').value=result;
+ closeMbtiQuiz();
+ alert('검사 결과: '+result+'\n선택 목록에 자동으로 반영했습니다.');
+}
+
 function gz(p){return SH[p.stem]+BH[p.branch];}
 function gzk(p){return SK[p.stem]+BK[p.branch];}
 
@@ -448,24 +544,28 @@ function start(){
 
  if(mode==='S'){
   const r=A.r;
+  const mbtiVal=document.getElementById('mbti').value;
   sum.innerHTML=`<div class="gz">${r.pillars.map(p=>gz(p)).reverse().join(' · ')}</div>
-   <div class="meta">${gzk(r.pillars[2])}일주 · ${A.gender==='M'?'남':'여'} · 오행 ${r.elemCount.map((c,i)=>EK[i]+c).join(' ')}${A.daeun?` · 대운 ${A.daeun.startAge}세 ${A.daeun.forward?'순행':'역행'}`:''}</div>
+   <div class="meta">${gzk(r.pillars[2])}일주 · ${A.gender==='M'?'남':'여'} · 오행 ${r.elemCount.map((c,i)=>EK[i]+c).join(' ')}${A.daeun?` · 대운 ${A.daeun.startAge}세 ${A.daeun.forward?'순행':'역행'}`:''}${mbtiVal?` · ${mbtiVal}`:''}</div>
    <div class="disclaimer">사주(팔자·오행)는 항상 동일하게 계산됩니다. 아래 해석 문구는 매번 표현이 조금씩 달라질 수 있습니다.</div>`;
   if(currentUser){
    const bdVal=document.getElementById('bdate').value;
-   saveProfile(bdVal,bdVal,document.getElementById('btime').value,gender,document.getElementById('region').value);
+   saveProfile(bdVal,bdVal,document.getElementById('btime').value,gender,document.getElementById('region').value,mbtiVal);
   }
+  const mbtiSection=mbtiVal?`「MBTI로 보면」 이 사람의 MBTI는 ${mbtiVal}이다. 사주에서 읽히는 기질과 ${mbtiVal}가 겹치는 지점을 먼저 짚는다. 두 도구가 다르게 말하는 지점이 있다면 숨기지 말고 정직하게 짚고, 그 차이를 흥미로운 관찰로 다룬다. MBTI는 검사 시점의 스냅샷이고 사주는 태어난 순간 고정된 원본이라는 차이를 짧게 언급해도 좋다.
+`:'';
   persona=`${baseRules}
 
 ## 상담자 명식 데이터
 ${personBlock(A,'')}
 세운: ${seun.join(', ')}
+${mbtiVal?`MBTI: ${mbtiVal}`:''}
 
-[첫 풀이 — 매우 중요] 첫 응답은 인사가 아니라 종합 풀이다. 이것은 상담의 기초 공사이므로 충분히 길고 자세해야 한다. 아래 일곱 섹션을 라벨과 함께 차례로, 각 섹션 4~6문장씩 풀어라.
+[첫 풀이 — 매우 중요] 첫 응답은 인사가 아니라 종합 풀이다. 이것은 상담의 기초 공사이므로 충분히 길고 자세해야 한다. 아래 섹션을 라벨과 함께 차례로, 각 섹션 4~6문장씩 풀어라.
 「한 줄 요약」 이 사주를 일상 언어 한 문장으로. 예: "혼자 여러 가지를 벌이고, 사람을 통해 돈이 들어오는 사주입니다."
 「타고난 성격」 행동으로 확인되는 성격 4~5가지. 결정하는 방식, 말하는 방식, 스트레스 받을 때 나오는 습관까지. 본인이 "맞네" 할 수 있게.
 「강점과 조심할 점」 강점 3가지를 실제 상황으로, 조심할 패턴 2~3가지를 실제로 겪었을 법한 장면으로.
-「일과 돈」 어떤 방식으로 일할 때 성과가 나는지(혼자/팀, 벌이기/관리, 사람 상대/기술), 돈이 들어오는 경로의 특징과 새는 습관까지.
+${mbtiSection}「일과 돈」 어떤 방식으로 일할 때 성과가 나는지(혼자/팀, 벌이기/관리, 사람 상대/기술), 돈이 들어오는 경로의 특징과 새는 습관까지.
 「사람과 관계」 사람을 대하는 방식, 가까운 사람(배우자·동료·친구)과의 관계에서 반복되는 패턴.
 「지난 흐름 돌아보기」 지나온 대운 2~3개를 나이대로 짚으며 그 시기에 있었을 법한 변화를 말한다. 예: "23세부터의 십 년은 배움보다 부딪히며 큰 시기였을 겁니다. 33세 무렵 일의 방향이 한 번 크게 바뀌었을 것이고요." 본인이 과거를 대조해볼 수 있는 검증형 문장으로.
 「지금과 앞으로」 현재 대운의 성격, 올해와 내년이 무엇을 하기 좋은 시기인지 할 일 단위로. 다음 대운이 언제 바뀌고 무엇이 달라지는지까지.
