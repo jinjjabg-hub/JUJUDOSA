@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>요금제 안내 · 주주도사</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+:root{--bg:#F7F8FA;--card:#FFF;--text:#191F28;--sub:#8B95A1;--line:#E5E8EB;--primary:#5D5FEF;--primary-tint:#EFF0FE}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Pretendard Variable',sans-serif;
+  line-height:1.6;padding:24px 16px 60px}
+.wrap{max-width:640px;margin:0 auto}
+a.back{color:var(--primary);text-decoration:none;font-size:14px;font-weight:600}
+h1{font-size:24px;margin:16px 0 28px;text-align:center}
+.plans{display:flex;flex-direction:column;gap:14px}
+.plan{background:var(--card);border-radius:18px;padding:22px 20px;box-shadow:0 1px 3px rgba(25,31,40,.06);
+  border:1px solid var(--line)}
+.plan.hi{border:2px solid var(--primary)}
+.pname{font-size:15px;font-weight:700;color:var(--sub)}
+.plan.hi .pname{color:var(--primary)}
+.price{font-size:26px;font-weight:800;margin:6px 0 14px}
+.price small{font-size:14px;font-weight:500;color:var(--sub)}
+ul{padding-left:18px;margin:0;font-size:14px;color:#333}
+li{margin-bottom:6px}
+.note{font-size:12px;color:var(--sub);margin-top:28px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./">← 주주도사로 돌아가기</a>
+  <h1>요금제 안내</h1>
+  <div class="plans">
+    <div class="plan">
+      <div class="pname">무료</div>
+      <div class="price">0원</div>
+      <ul>
+        <li>주간 운세 제공</li>
+        <li>AI 사주 채팅 3회</li>
+      </ul>
+    </div>
+    <div class="plan">
+      <div class="pname">라이트</div>
+      <div class="price">4,900원 <small>/ 월</small></div>
+      <ul>
+        <li>매일 운세 제공</li>
+        <li>월간 총운 요약</li>
+        <li>AI 사주 채팅 1일 5회</li>
+        <li>궁합 풀이 월 1회</li>
+      </ul>
+    </div>
+    <div class="plan hi">
+      <div class="pname">스탠다드</div>
+      <div class="price">9,900원 <small>/ 월</small></div>
+      <ul>
+        <li>매일 운세 제공</li>
+        <li>월간 4개 섹션 정밀 리포트</li>
+        <li>AI 사주 채팅 무제한 (1회당 최대 30메시지)</li>
+        <li>궁합 풀이 무제한</li>
+      </ul>
+    </div>
+  </div>
+  <div class="note">
+    표시된 금액은 부가세(VAT) 포함 가격이며, 매월 결제일에 자동 결제됩니다.<br>
+    구독 해지 및 환불에 관한 사항은 <a href="./refund.html">환불정책</a>을 확인해 주세요.
+  </div>
+</div>
+</body>
+</html>
