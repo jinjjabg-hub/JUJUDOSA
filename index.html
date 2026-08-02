@@ -5,7 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>주주도사 · 사주 상담</title>
 <link rel="icon" href="./logo.png">
-<link rel="apple-touch-icon" href="./logo.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#5D5FEF">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="주주도사">
 <meta property="og:title" content="주주도사 · 사주 상담">
 <meta property="og:description" content="타고난 명식을 읽고, 지금 시기에 맞는 조언을 건네는 사주 상담. 주주도사와 이야기해보세요.">
 <meta property="og:image" content="https://jinjjabg-hub.github.io/JUJUDOSA/og-image.png">
@@ -1281,6 +1287,13 @@ async function send(){
  if(!ok){q.value='';return;}
  addMsg(t,'me');history.push({role:'user',content:t});q.value='';callDosa(1500);
 }
+
+if('serviceWorker' in navigator){
+ window.addEventListener('load',()=>{
+  navigator.serviceWorker.register('./sw.js').catch(e=>console.log('SW 등록 실패',e));
+ });
+}
+
 </script>
 </body>
 </html>
