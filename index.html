@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>주주도사 · 사주 상담</title>
+<link rel="icon" href="./logo.png">
+<link rel="apple-touch-icon" href="./logo.png">
+<meta property="og:title" content="주주도사 · 사주 상담">
+<meta property="og:description" content="타고난 명식을 읽고, 지금 시기에 맞는 조언을 건네는 사주 상담. 주주도사와 이야기해보세요.">
+<meta property="og:image" content="https://jinjjabg-hub.github.io/JUJUDOSA/og-image.png">
+<meta property="og:type" content="website">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
@@ -88,6 +94,14 @@ h2.sec{font-size:13px;font-weight:700;color:var(--sub);margin:22px 0 8px;padding
   box-shadow:0 2px 10px rgba(25,31,40,.04);display:flex;flex-direction:column;gap:6px}
 .gitem:active{transform:scale(.97)}
 .gitem .gi-ico{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px}
+.icon-img{border-radius:50%;object-fit:cover;display:block;flex-shrink:0}
+.ni-ico-img{width:22px;height:22px;margin:0 auto}
+.gi-ico-img{width:38px;height:38px}
+.hb-ico-img{width:34px;height:34px}
+.mr-ico-img{width:40px;height:40px}
+.sr-ico-img{width:34px;height:34px}
+.tf-ico-img{width:16px;height:16px;vertical-align:-3px;display:inline-block}
+.newbtn-ico{width:18px;height:18px;vertical-align:-4px;margin-right:2px}
 .gitem .gi-title{font-size:14px;font-weight:700}
 .gitem .gi-sub{font-size:11px;color:var(--sub)}
 .matchrow{width:100%;background:var(--primary-tint);border:none;border-radius:20px;padding:16px;
@@ -199,8 +213,10 @@ button.go:active{transform:scale(.98);opacity:.9}
   white-space:pre-wrap;letter-spacing:-.01em}
 .msg.dosa{background:var(--card);color:var(--text);border-bottom-left-radius:6px;align-self:flex-start;
   box-shadow:0 1px 3px rgba(25,31,40,.06)}
-.msg.dosa::before{content:'주주도사';display:block;font-size:11px;color:var(--primary);
-  font-weight:800;margin-bottom:5px}
+.dosa-avatar-row{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.dosa-avatar{width:22px;height:22px;border-radius:50%;object-fit:cover;flex-shrink:0;
+  box-shadow:0 0 0 1.5px #fff, 0 0 0 2.5px var(--primary-tint)}
+.dosa-avatar-name{font-size:11px;color:var(--primary);font-weight:800}
 .msg.me{background:var(--primary);color:#fff;border-bottom-right-radius:6px;align-self:flex-end}
 .msg.thinking{background:var(--card);align-self:flex-start;color:var(--sub);
   box-shadow:0 1px 3px rgba(25,31,40,.06)}
@@ -233,7 +249,7 @@ button.go:active{transform:scale(.98);opacity:.9}
 
 <header class="topbar">
   <div class="topbar-inner">
-    <div class="brand"><span class="dot"></span>주주도사</div>
+    <div class="brand"><img src="./logo.png" alt="주주도사" style="width:22px;height:22px;object-fit:contain">주주도사</div>
     <div class="top-actions">
       <button class="iconbtn" title="알림">🔔</button>
       <button class="avatarbtn" id="avatarBtn" onclick="switchTab('settings')">주</button>
@@ -260,7 +276,7 @@ button.go:active{transform:scale(.98);opacity:.9}
     <h1 class="hl" id="homeGreeting">오늘은<br>어떤 에너지가 흐를까요?</h1>
 
     <div class="card" id="todayCardHome" style="display:none">
-      <div class="tf-title"><span>⭐</span><span>오늘의 운세</span></div>
+      <div class="tf-title"><img class="icon-img tf-ico-img" src="./icon-star.png"><span>오늘의 운세</span></div>
       <div id="tfBodyHome">불러오는 중…</div>
       <div class="tf-more" id="tfSetSelfHome" style="display:none" onclick="setAsSelf()">★ 이 프로필을 본인으로 설정</div>
     </div>
@@ -271,36 +287,36 @@ button.go:active{transform:scale(.98);opacity:.9}
           <div class="hb-title">종합 사주 풀이<span class="hb-badge">NEW</span></div>
           <div class="hb-sub">인생의 큰 흐름을 한눈에 확인하세요</div>
         </div>
-        <span class="hb-ico">✨</span>
+        <span class="hb-ico"><img class="icon-img hb-ico-img" src="./icon-fortune.png"></span>
       </button>
 
       <button class="gitem" onclick="goCategory('재물운에 대해 더 자세히 알려주세요','재물운')">
-        <span class="gi-ico elem-earth">💰</span>
+        <span class="gi-ico"><img class="icon-img gi-ico-img" src="./icon-wealth.png"></span>
         <span class="gi-title">재물운</span><span class="gi-sub">금전의 흐름</span>
       </button>
       <button class="gitem" onclick="goCategory('직업운과 이직 시기에 대해 알려주세요','직업운')">
-        <span class="gi-ico elem-metal">💼</span>
+        <span class="gi-ico"><img class="icon-img gi-ico-img" src="./icon-career.png"></span>
         <span class="gi-title">직업운</span><span class="gi-sub">성공과 승진</span>
       </button>
       <button class="gitem" onclick="goCategory('연애운에 대해 더 자세히 알려주세요','연애운')">
-        <span class="gi-ico elem-fire">💕</span>
+        <span class="gi-ico"><img class="icon-img gi-ico-img" src="./icon-love.png"></span>
         <span class="gi-title">연애운</span><span class="gi-sub">인연의 시작</span>
       </button>
       <button class="gitem" onclick="goCategory('자녀운, 자녀와의 관계에 대해 알려주세요','자녀운')">
-        <span class="gi-ico elem-wood">👶</span>
+        <span class="gi-ico"><img class="icon-img gi-ico-img" src="./icon-child.png"></span>
         <span class="gi-title">자녀운</span><span class="gi-sub">가족의 평화</span>
       </button>
       <button class="gitem" onclick="goCategory('요즘 마음이 힘든데 사주로 보면 어떻게 다뤄야 할까요','힘들 때는')">
-        <span class="gi-ico elem-water">🌧️</span>
+        <span class="gi-ico"><img class="icon-img gi-ico-img" src="./icon-hardtimes.png"></span>
         <span class="gi-title">힘들 때는</span><span class="gi-sub">위로와 조언</span>
       </button>
       <button class="gitem" onclick="goCategory('대운 흐름을 나이대별로 자세히 짚어주세요','대운 흐름')">
-        <span class="gi-ico" style="background:var(--primary-tint);color:var(--primary)">📜</span>
+        <span class="gi-ico"><img class="icon-img gi-ico-img" src="./icon-daeun.png"></span>
         <span class="gi-title">대운 흐름</span><span class="gi-sub">10년 주기의 운</span>
       </button>
 
       <button class="matchrow g-full" onclick="switchTab('match')">
-        <span class="mr-ico">💑</span>
+        <span class="mr-ico"><img class="icon-img mr-ico-img" src="./icon-match.png"></span>
         <div>
           <div class="mr-title">궁합 보기</div>
           <div class="mr-sub">상대방과의 에너지를 맞춰보세요</div>
@@ -308,7 +324,7 @@ button.go:active{transform:scale(.98);opacity:.9}
       </button>
     </div>
 
-    <button class="newbtn" onclick="openRegisterFresh()">＋ 새 사주 등록하기</button>
+    <button class="newbtn" onclick="openRegisterFresh()"><img class="icon-img newbtn-ico" src="./icon-plusregister.png"> 새 사주 등록하기</button>
   </section>
 
   <!-- ===================== 종합풀이 (등록폼 + 결과) ===================== -->
@@ -316,7 +332,7 @@ button.go:active{transform:scale(.98);opacity:.9}
 
     <!-- 등록 폼 (mode S) -->
     <div class="card" id="setup">
-      <div class="reglogo">🔮</div>
+      <div class="reglogo"><img src="./logo.png" alt="주주도사" style="width:38px;height:38px;object-fit:contain"></div>
       <div class="regtitle">사주 정보 입력</div>
       <div class="regsub">정확한 사주 풀이를 위해<br>태어난 정보를 입력해 주세요.</div>
 
@@ -486,11 +502,11 @@ button.go:active{transform:scale(.98);opacity:.9}
       <h2 class="sec">프로필 및 운세 정보</h2>
       <div class="setgroup">
         <button class="setrow" onclick="openRegisterFresh()">
-          <span class="sr-left"><span class="sr-ico">✏️</span><span class="sr-label">본인 사주 정보 수정</span></span>
+          <span class="sr-left"><span class="sr-ico"><img class="icon-img sr-ico-img" src="./icon-editprofile.png"></span><span class="sr-label">본인 사주 정보 수정</span></span>
           <span class="sr-chev">›</span>
         </button>
         <button class="setrow" onclick="switchTab('home')">
-          <span class="sr-left"><span class="sr-ico">👥</span><span class="sr-label">저장된 프로필 보기</span></span>
+          <span class="sr-left"><span class="sr-ico"><img class="icon-img sr-ico-img" src="./icon-profiles.png"></span><span class="sr-label">저장된 프로필 보기</span></span>
           <span class="sr-chev">›</span>
         </button>
       </div>
@@ -498,7 +514,7 @@ button.go:active{transform:scale(.98);opacity:.9}
       <h2 class="sec">요금제</h2>
       <div class="setgroup">
         <a class="setrow" href="./pricing.html" style="text-decoration:none;color:inherit">
-          <span class="sr-left"><span class="sr-ico">✨</span><span class="sr-label">요금제 안내</span></span>
+          <span class="sr-left"><span class="sr-ico"><img class="icon-img sr-ico-img" src="./icon-pricing.png"></span><span class="sr-label">요금제 안내</span></span>
           <span class="sr-chev">›</span>
         </a>
       </div>
@@ -506,21 +522,21 @@ button.go:active{transform:scale(.98);opacity:.9}
       <h2 class="sec">고객 지원</h2>
       <div class="setgroup">
         <a class="setrow" href="./terms.html" style="text-decoration:none;color:inherit">
-          <span class="sr-left"><span class="sr-ico">📄</span><span class="sr-label">서비스 이용약관</span></span>
+          <span class="sr-left"><span class="sr-ico"><img class="icon-img sr-ico-img" src="./icon-terms.png"></span><span class="sr-label">서비스 이용약관</span></span>
           <span class="sr-chev">↗</span>
         </a>
         <a class="setrow" href="./privacy.html" style="text-decoration:none;color:inherit">
-          <span class="sr-left"><span class="sr-ico">🔒</span><span class="sr-label">개인정보 처리방침</span></span>
+          <span class="sr-left"><span class="sr-ico"><img class="icon-img sr-ico-img" src="./icon-privacy.png"></span><span class="sr-label">개인정보 처리방침</span></span>
           <span class="sr-chev">↗</span>
         </a>
         <a class="setrow" href="./refund.html" style="text-decoration:none;color:inherit">
-          <span class="sr-left"><span class="sr-ico">💳</span><span class="sr-label">환불 및 결제 정책</span></span>
+          <span class="sr-left"><span class="sr-ico"><img class="icon-img sr-ico-img" src="./icon-refund.png"></span><span class="sr-label">환불 및 결제 정책</span></span>
           <span class="sr-chev">↗</span>
         </a>
       </div>
 
       <button class="setrow" style="background:var(--card);border-radius:16px;justify-content:center" onclick="logout()">
-        <span class="sr-left" style="color:var(--sub)"><span class="sr-ico">🚪</span><span class="sr-label">로그아웃</span></span>
+        <span class="sr-left" style="color:var(--sub)"><span class="sr-ico"><img class="icon-img sr-ico-img" src="./icon-logout.png"></span><span class="sr-label">로그아웃</span></span>
       </button>
     </div>
 
@@ -535,10 +551,10 @@ button.go:active{transform:scale(.98);opacity:.9}
 
 <nav class="bottomnav">
   <div class="bottomnav-inner">
-    <button class="navitem on" data-tab="home" onclick="switchTab('home')"><span class="ni-ico">🏠</span><span>홈</span></button>
-    <button class="navitem" data-tab="fortune" onclick="switchTab('fortune')"><span class="ni-ico">✨</span><span>종합풀이</span></button>
-    <button class="navitem" data-tab="match" onclick="switchTab('match')"><span class="ni-ico">💗</span><span>궁합</span></button>
-    <button class="navitem" data-tab="settings" onclick="switchTab('settings')"><span class="ni-ico">⚙️</span><span>설정</span></button>
+    <button class="navitem on" data-tab="home" onclick="switchTab('home')"><img class="icon-img ni-ico-img" src="./icon-home.png"><span>홈</span></button>
+    <button class="navitem" data-tab="fortune" onclick="switchTab('fortune')"><img class="icon-img ni-ico-img" src="./icon-fortune.png"><span>종합풀이</span></button>
+    <button class="navitem" data-tab="match" onclick="switchTab('match')"><img class="icon-img ni-ico-img" src="./icon-match.png"><span>궁합</span></button>
+    <button class="navitem" data-tab="settings" onclick="switchTab('settings')"><img class="icon-img ni-ico-img" src="./icon-settings.png"><span>설정</span></button>
   </div>
 </nav>
 
@@ -1169,7 +1185,16 @@ function goHome(){
  history=[];persona='';
 }
 function addMsg(txt,cls){const log=document.getElementById('log');
- const m=document.createElement('div');m.className='msg '+cls;m.textContent=txt;
+ const m=document.createElement('div');m.className='msg '+cls;
+ if(cls==='dosa'||cls==='thinking'){
+  const row=document.createElement('div');row.className='dosa-avatar-row';
+  row.innerHTML=`<img class="dosa-avatar" src="./avatar.png" alt="주주도사"><span class="dosa-avatar-name">주주도사</span>`;
+  m.appendChild(row);
+  const body=document.createElement('div');body.textContent=txt;
+  m.appendChild(body);
+ }else{
+  m.textContent=txt;
+ }
  log.appendChild(m);m.scrollIntoView({behavior:'smooth',block:'end'});return m;}
 function renderAccordion(text){
  const re=/「([^」]+)」/g;
@@ -1178,6 +1203,9 @@ function renderAccordion(text){
  if(!idxs.length){addMsg(text,'dosa');return;}
  const log=document.getElementById('log');
  const wrap=document.createElement('div');wrap.className='accordion';
+ const row=document.createElement('div');row.className='dosa-avatar-row';
+ row.innerHTML=`<img class="dosa-avatar" src="./avatar.png" alt="주주도사"><span class="dosa-avatar-name">주주도사의 첫 풀이</span>`;
+ wrap.appendChild(row);
  idxs.forEach((it,i)=>{
   const end=i+1<idxs.length?idxs[i+1].start:text.length;
   const body=text.slice(it.contentStart,end).trim();
