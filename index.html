@@ -948,11 +948,11 @@ function personBlock(P,title){
  return `${title}
 사주: ${r.pillars.map(p=>{const ss=p.label==='일주'?'일간(나)':sipseong(ds,p.stem);
   const bs=sipseong(ds,BMAIN[p.branch]);
-  return `${p.label} ${gz(p)}(${gzk(p)}) [천간:${ss}/지지:${bs}]`;}).join(', ')}${r.timeUnknown?' — 시주 미상':''}
+  return `${p.label} ${gzk(p)}(${gz(p)}) [천간:${ss}/지지:${bs}]`;}).join(', ')}${r.timeUnknown?' — 시주 미상':''}
 오행 분포: ${r.elemCount.map((c,i)=>`${EK[i]}${c}`).join(' ')}
 성별: ${P.gender==='M'?'남':'여'} · 세는나이 ${P.age}세
-${P.daeun?`대운(${P.daeun.forward?'순행':'역행'}, ${P.daeun.startAge}세 시작): ${P.daeun.pillars.map(p=>`${p.ageStart}세 ${gz(p)}`).join(' → ')}
-현재 대운: ${P.cur?`${P.cur.ageStart}~${P.cur.ageEnd}세 ${gz(P.cur)}`:'범위 밖'}`:'대운: 시주 미상으로 생략'}`;}
+${P.daeun?`대운(${P.daeun.forward?'순행':'역행'}, ${P.daeun.startAge}세 시작): ${P.daeun.pillars.map(p=>`${p.ageStart}~${p.ageEnd}세 ${gzk(p)}(${gz(p)})`).join(' → ')}
+현재 나이 ${P.age}세는 대운 구간 ${P.cur?`${P.cur.ageStart}~${P.cur.ageEnd}세 ${gzk(P.cur)}(${gz(P.cur)})`:'범위 밖'}에 해당함`:'대운: 시주 미상으로 생략'}`;}
 
 function gz(p){return SH[p.stem]+BH[p.branch];}
 function gzk(p){return SK[p.stem]+BK[p.branch];}
@@ -1030,7 +1030,7 @@ function renderSoloResult(A,mbtiVal,genderLabel,ownerLabel){
  const r=A.r;
  const nowY=A.nowY;
  const seun=[];for(let yy=nowY-1;yy<=nowY+2;yy++){const s=((yy-4)%10+10)%10,b=((yy-4)%12+12)%12;
-  seun.push(`${yy}년 ${SH[s]}${BH[b]}(${SK[s]}${BK[b]})`);}
+  seun.push(`${yy}년 ${SK[s]}${BK[b]}(${SH[s]}${BH[b]})`);}
  const today=new Date();
  const todayStr=`${today.getFullYear()}년 ${today.getMonth()+1}월 ${today.getDate()}일`;
  const hourWarn=(r.corrections&&r.corrections.hourNear)?
@@ -1085,6 +1085,8 @@ ${mbtiSection}「일과 돈」 어떤 방식으로 일할 때 성과가 나는�
 function BASE_RULES(todayStr){
  return `너는 "주주도사"다. 명리학에 정통한 도사로서 찾아온 사람의 명식을 읽고 상담한다. 너는 점쟁이가 아니라 시간의 흐름을 읽어주는 조언자다.
 
+[표기] 갑자·을축 같은 간지를 말할 때는 항상 한글을 먼저 쓰고 한자를 괄호로 덧붙인다. 예: 계사(癸巳)년. 한자만 단독으로 쓰지 않는다.
+[나이와 대운 구분 — 중요] 대운은 10년 단위 구간이고, 상담자의 실제 나이와 그 구간의 시작 나이는 다르다. "현재 53세 대운"처럼 구간 시작 나이를 상담자의 실제 나이인 것처럼 말하지 않는다. 대운을 언급할 때는 반드시 "상담자의 실제 나이(세는나이) + 그 나이가 속한 대운 구간"을 함께, 명확히 구분해서 말한다. 예: "지금 56세시고, 53~62세 계사(癸巳) 대운 구간에 계세요."
 [오늘 날짜] 오늘은 ${todayStr}이다. "올해", "내년", "요즘" 같은 표현은 반드시 이 날짜를 기준으로 계산해서 말한다. 절대 다른 연도를 올해로 착각하지 않는다.
 [말투] 존댓말. 도사의 품위는 지키되 말은 쉽고 일상적이어야 한다. 짧은 문장으로 끊는다. 감탄사·웃음 금지.
 [구체성 — 최상위 규칙] 듣고 나서 "그래서 뭐?"가 남으면 실패다. 뜬구름 표현 금지: "기운이 흐른다", "그릇", "계절", "흐름이 감돈다" 같은 추상어를 쓰지 않는다. 비유는 답변 전체에 최대 1개, 없어도 된다. 대신 이렇게 말한다 — 성격은 행동으로, 재능은 상황으로, 시기는 할 일로. 일·돈·사람·습관처럼 손에 잡히는 영역으로 말한다. 근거 글자는 문장 끝 괄호로 짧게. 예: (월지 정인)
@@ -1111,15 +1113,15 @@ function submitMatch(){
 
  const nowY=A.nowY;
  const seun=[];for(let yy=nowY-1;yy<=nowY+2;yy++){const s=((yy-4)%10+10)%10,b=((yy-4)%12+12)%12;
-  seun.push(`${yy}년 ${SH[s]}${BH[b]}(${SK[s]}${BK[b]})`);}
+  seun.push(`${yy}년 ${SK[s]}${BK[b]}(${SH[s]}${BH[b]})`);}
  const today=new Date();
  const todayStr=`${today.getFullYear()}년 ${today.getMonth()+1}월 ${today.getDate()}일`;
  const rel=document.getElementById('relType').value;
  const ra=A.r,rb=B.r,dA=ra.pillars[2],dB=rb.pillars[2],yA=ra.pillars[0],yB=rb.pillars[0];
  const facts=[
-  `일간 관계: 나 ${SH[dA.stem]} ↔ 상대 ${SH[dB.stem]} → ${stemRel(dA.stem,dB.stem)}`,
-  `일지 관계: 나 ${BH[dA.branch]} ↔ 상대 ${BH[dB.branch]} → ${branchRel(dA.branch,dB.branch)}`,
-  `띠(년지) 관계: 나 ${BH[yA.branch]} ↔ 상대 ${BH[yB.branch]} → ${branchRel(yA.branch,yB.branch)}`,
+  `일간 관계: 나 ${SK[dA.stem]}(${SH[dA.stem]}) ↔ 상대 ${SK[dB.stem]}(${SH[dB.stem]}) → ${stemRel(dA.stem,dB.stem)}`,
+  `일지 관계: 나 ${BK[dA.branch]}(${BH[dA.branch]}) ↔ 상대 ${BK[dB.branch]}(${BH[dB.branch]}) → ${branchRel(dA.branch,dB.branch)}`,
+  `띠(년지) 관계: 나 ${BK[yA.branch]}(${BH[yA.branch]}) ↔ 상대 ${BK[yB.branch]}(${BH[yB.branch]}) → ${branchRel(yA.branch,yB.branch)}`,
  ].join('\n');
 
  document.getElementById('summary').innerHTML=`
