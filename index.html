@@ -249,6 +249,14 @@ button.go:active{transform:scale(.98);opacity:.9}
   border:1.5px solid var(--line);border-radius:12px;background:#fff;font-size:13px;
   cursor:pointer;color:var(--text)}
 .mq .qopt.picked{border-color:var(--primary);background:var(--primary-tint);color:var(--primary);font-weight:700}
+.prow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid var(--bg)}
+.prow:last-child{border-bottom:none}
+.prow-name{font-size:14px;font-weight:700}
+.prow-tag{background:var(--primary-tint);color:var(--primary);font-size:10px;font-weight:800;border-radius:999px;padding:2px 7px;margin-left:5px}
+.prow-date{font-size:12px;color:var(--sub);margin-top:2px}
+.prow-actions{display:flex;gap:6px;flex-shrink:0}
+.prow-btn{background:var(--bg);border:none;border-radius:9px;padding:7px 11px;font-size:12px;font-weight:700;color:var(--text);cursor:pointer;white-space:nowrap}
+.prow-btn.danger{background:#FEF3F2;color:#F04438}
 </style>
 </head>
 <body>
@@ -511,7 +519,7 @@ button.go:active{transform:scale(.98);opacity:.9}
           <span class="sr-left"><span class="sr-ico"><img class="icon-img sr-ico-img" src="./icon-editprofile.png"></span><span class="sr-label">본인 사주 정보 수정</span></span>
           <span class="sr-chev">›</span>
         </button>
-        <button class="setrow" onclick="switchTab('home')">
+        <button class="setrow" onclick="openProfilesModal()">
           <span class="sr-left"><span class="sr-ico"><img class="icon-img sr-ico-img" src="./icon-profiles.png"></span><span class="sr-label">저장된 프로필 보기</span></span>
           <span class="sr-chev">›</span>
         </button>
@@ -563,6 +571,17 @@ button.go:active{transform:scale(.98);opacity:.9}
     <button class="navitem" data-tab="settings" onclick="switchTab('settings')"><img class="icon-img ni-ico-img" src="./icon-settings.png"><span>설정</span></button>
   </div>
 </nav>
+
+<div class="modalbg" id="profilesModal" style="display:none">
+  <div class="modalcard">
+    <div class="modalhead">
+      <span>저장된 프로필</span>
+      <button class="modalclose" onclick="closeProfilesModal()">✕</button>
+    </div>
+    <div class="modalsub">본인으로 설정을 바꾸거나, 필요 없는 프로필을 삭제할 수 있어요.</div>
+    <div id="profilesListBox"></div>
+  </div>
+</div>
 
 <div class="modalbg" id="mbtiModal" style="display:none">
   <div class="modalcard">
@@ -801,6 +820,59 @@ async function loadProfiles(){
  }catch(e){console.error('프로필 불러오기 실패',e);}
 }
 function onTfSelect(){loadFortuneFor(document.getElementById('tfSelect').value);}
+
+function openProfilesModal(){
+ renderProfilesModalList();
+ document.getElementById('profilesModal').style.display='flex';
+}
+function closeProfilesModal(){document.getElementById('profilesModal').style.display='none';}
+function renderProfilesModalList(){
+ const box=document.getElementById('profilesListBox');
+ if(!savedProfiles.length){
+  box.innerHTML='<div style="font-size:13px;color:var(--sub);text-align:center;padding:24px 0">아직 저장된 프로필이 없어요</div>';
+  return;
+ }
+ box.innerHTML=savedProfiles.map(p=>`
+  <div class="prow">
+   <div>
+    <div class="prow-name">${p.label||p.bdate}${p.isSelf?'<span class="prow-tag">본인</span>':''}</div>
+    <div class="prow-date">${p.bdate}${p.calType==='lunar'?' (음)':''}</div>
+   </div>
+   <div class="prow-actions">
+    ${!p.isSelf?`<button class="prow-btn" onclick="setAsSelfId('${p.id}')">본인으로</button>`:''}
+    <button class="prow-btn danger" onclick="deleteProfile('${p.id}')">삭제</button>
+   </div>
+  </div>`).join('');
+}
+async function setAsSelfId(id){
+ if(!currentUser)return;
+ try{
+  const col=db.collection('users').doc(currentUser.uid).collection('profiles');
+  const batch=db.batch();
+  savedProfiles.forEach(p=>{if(p.isSelf&&p.id!==id)batch.update(col.doc(p.id),{isSelf:false});});
+  batch.update(col.doc(id),{isSelf:true});
+  await batch.commit();
+  await loadProfiles();
+  renderProfilesModalList();
+ }catch(e){console.error('본인 설정 실패',e);}
+}
+async function deleteProfile(id){
+ if(!currentUser)return;
+ const target=savedProfiles.find(p=>p.id===id);
+ if(!target)return;
+ if(!confirm(`"${target.label||target.bdate}" 프로필을 삭제할까요? 되돌릴 수 없어요.`))return;
+ try{
+  const col=db.collection('users').doc(currentUser.uid).collection('profiles');
+  const wasSelf=target.isSelf;
+  await col.doc(id).delete();
+  savedProfiles=savedProfiles.filter(p=>p.id!==id);
+  if(wasSelf&&savedProfiles.length){
+   await col.doc(savedProfiles[0].id).set({isSelf:true},{merge:true});
+  }
+  await loadProfiles();
+  renderProfilesModalList();
+ }catch(e){console.error('프로필 삭제 실패',e);alert('삭제 중 문제가 발생했어요.');}
+}
 function renderTodayCard(){
  const card=document.getElementById('todayCardHome');
  if(!savedProfiles.length){card.style.display='none';return;}
@@ -1061,7 +1133,7 @@ function renderSoloResult(A,mbtiVal,genderLabel,ownerLabel){
   ${hourWarn}`;
 
  const baseRules=BASE_RULES(todayStr);
- const mbtiSection=mbtiVal?`「MBTI로 보면」 이 사람의 MBTI는 ${mbtiVal}이다. 사주에서 읽히는 기질과 ${mbtiVal}가 겹치는 지점을 먼저 짚는다. 두 도구가 다르게 말하는 지점이 있다면 숨기지 말고 정직하게 짚고, 그 차이를 흥미로운 관찰로 다룬다. MBTI는 검사 시점의 스냅샷이고 사주는 태어난 순간 고정된 원본이라는 차이를 짧게 언급해도 좋다.
+ const mbtiSection=mbtiVal?`「MBTI로 보면」 이 사람의 MBTI는 ${mbtiVal}이다. 이 섹션은 특히 공들여서 8~10문장으로 두텁게 쓴다. 사주에서 읽히는 기질과 ${mbtiVal}가 겹치는 지점을 구체적 행동 사례로 2~3가지 짚는다. 두 도구가 다르게 말하는 지점이 있다면 숨기지 말고 정직하게 짚고, 그 차이를 흥미로운 관찰로 다룬다. MBTI는 검사 시점의 스냅샷이고 사주는 태어난 순간 고정된 원본이라는 차이를 짧게 언급해도 좋다.
 `:'';
  persona=`${baseRules}
 
@@ -1070,7 +1142,7 @@ ${personBlock(A,'')}
 세운: ${seun.join(', ')}
 ${mbtiVal?`MBTI: ${mbtiVal}`:''}
 
-[첫 풀이 — 매우 중요] 첫 응답은 인사가 아니라 종합 풀이다. 이것은 상담의 기초 공사이므로 충분히 길고 자세해야 한다. 아래 섹션을 라벨과 함께 차례로, 각 섹션 4~6문장씩 풀어라.
+[첫 풀이 — 매우 중요] 첫 응답은 인사가 아니라 종합 풀이다. 이것은 상담의 기초 공사이므로 충분히 길고 자세해야 한다. 짧게 요약하고 넘어가지 말고, 아래 섹션을 라벨과 함께 차례로, 각 섹션 7~10문장씩 실제 사례와 구체적 상황을 들어가며 두텁게 풀어라.
 「한 줄 요약」 이 사주를 일상 언어 한 문장으로. 예: "혼자 여러 가지를 벌이고, 사람을 통해 돈이 들어오는 사주입니다."
 「타고난 성격」 행동으로 확인되는 성격 4~5가지. 결정하는 방식, 말하는 방식, 스트레스 받을 때 나오는 습관까지. 본인이 "맞네" 할 수 있게.
 「강점과 조심할 점」 강점 3가지를 실제 상황으로, 조심할 패턴 2~3가지를 실제로 겪었을 법한 장면으로.
@@ -1078,14 +1150,14 @@ ${mbtiSection}「일과 돈」 어떤 방식으로 일할 때 성과가 나는�
 「사람과 관계」 사람을 대하는 방식, 가까운 사람(배우자·동료·친구)과의 관계에서 반복되는 패턴.
 「지난 흐름 돌아보기」 지나온 대운 2~3개를 나이대로 짚으며 그 시기에 있었을 법한 변화를 말한다.
 「지금과 앞으로」 현재 대운의 성격, 올해와 내년이 무엇을 하기 좋은 시기인지 할 일 단위로. 다음 대운이 언제 바뀌고 무엇이 달라지는지까지.
-마지막에 "무엇이 궁금하십니까" 하나로 마무리하고, 이후 대화는 이 풀이를 기초로 한다. 이후의 일반 답변은 3~6문단이면 충분하다.`;
+마지막에 "무엇이 궁금하십니까" 하나로 마무리하고, 이후 대화는 이 풀이를 기초로 한다. [이후 대화 분량] 후속 답변도 짧게 끊지 않는다. 질문 하나에 성의 있게 6~9문단으로 두텁게 답하되, 관련해서 궁금해할 만한 내용(다음 시기, 주의할 점, 실제 행동 조언 등)을 먼저 미리 얹어서 준다. 상담자가 매번 되물어야만 다음 얘기가 나오는 식으로 짧게 끊지 않는다.`;
  history=[{role:'user',content:'(상담자가 방에 들어와 절을 올리고 명식을 내민다. 종합 풀이를 시작하라.)'}];
 
  document.getElementById('setup').style.display='none';
  document.getElementById('resultPanel').style.display='block';
  document.getElementById('chatArea').style.display='flex';
  document.getElementById('log').innerHTML='';
- callDosa(4000,true);
+ callDosa(5200,true);
 }
 
 function BASE_RULES(todayStr){
@@ -1157,7 +1229,7 @@ ${personBlock(B,'[상대]')}
 ${facts}
 세운: ${seun.join(', ')}
 
-[첫 풀이 — 매우 중요] 첫 응답은 궁합 종합 풀이다. 관심 분야는 "${matchFocus}"이니 이 주제를 특히 비중있게 다뤄라. 아래 섹션을 라벨과 함께 차례로. 각 섹션 3~6문장, 손에 잡히는 상황으로.
+[첫 풀이 — 매우 중요] 첫 응답은 궁합 종합 풀이다. 관심 분야는 "${matchFocus}"이니 이 주제를 특히 비중있게 다뤄라. 아래 섹션을 라벨과 함께 차례로. 각 섹션 6~9문장, 손에 잡히는 상황으로.
 ${(rel==='사업 파트너'||rel==='직장 동료·상사')?
 `관계는 "${rel}" — 사업형 궁합이다.
 「한 줄 요약」 이 조합을 한 문장으로.
@@ -1180,7 +1252,7 @@ ${(rel==='사업 파트너'||rel==='직장 동료·상사')?
  document.getElementById('resultPanel').style.display='block';
  document.getElementById('chatArea').style.display='flex';
  document.getElementById('log').innerHTML='';
- callDosa(4000,true);
+ callDosa(5200,true);
 }
 
 /* ===================== 채팅 ===================== */
@@ -1232,24 +1304,60 @@ function renderAccordion(text){
 }
 async function callDosa(maxTok,isFirst){
  const th=addMsg('명식을 살피는 중…','thinking');
+ // 스트리밍용 말풍선 준비 (아직 화면엔 안 붙임 — 첫 글자 오면 thinking과 교체)
+ const bubble=document.createElement('div');bubble.className='msg dosa';
+ const row=document.createElement('div');row.className='dosa-avatar-row';
+ row.innerHTML=`<img class="dosa-avatar" src="./avatar.png" alt="주주도사"><span class="dosa-avatar-name">주주도사</span>`;
+ const body=document.createElement('div');body.style.whiteSpace='pre-wrap';
+ bubble.appendChild(row);bubble.appendChild(body);
+ let started=false,fullText='';
  try{
   const res=await fetch('https://jujudosa-api.jinjjabg.workers.dev/',{
    method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:maxTok||1500,system:persona,messages:history})});
-  const data=await res.json();
-  th.remove();
-  if(data.error){document.getElementById('cerr').textContent='도사님이 잠시 자리를 비웠습니다: '+(data.error.message||'오류');
-   document.getElementById('cerr').style.display='block';return;}
-  const txt=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
-  history.push({role:'assistant',content:txt});
-  if(isFirst)renderAccordion(txt);else addMsg(txt,'dosa');
+   body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:maxTok||1500,system:persona,messages:history,stream:true})});
+  if(!res.ok||!res.body){
+   const data=await res.json().catch(()=>({}));
+   throw new Error(data.error?.message||('서버 응답 오류 ('+res.status+')'));
+  }
+  const reader=res.body.getReader();
+  const decoder=new TextDecoder();
+  let buf='';
+  while(true){
+   const{done,value}=await reader.read();
+   if(done)break;
+   buf+=decoder.decode(value,{stream:true});
+   const parts=buf.split('\n\n');
+   buf=parts.pop();
+   for(const part of parts){
+    let dataStr='';
+    for(const line of part.split('\n'))if(line.startsWith('data: '))dataStr+=line.slice(6);
+    if(!dataStr)continue;
+    let json;try{json=JSON.parse(dataStr);}catch(e){continue;}
+    if(json.type==='content_block_delta'&&json.delta&&json.delta.type==='text_delta'){
+     if(!started){started=true;th.remove();document.getElementById('log').appendChild(bubble);}
+     fullText+=json.delta.text;
+     body.textContent=fullText;
+     bubble.scrollIntoView({behavior:'smooth',block:'end'});
+    }
+    if(json.type==='error')throw new Error(json.error?.message||'스트리밍 오류');
+   }
+  }
+  if(!started)th.remove(); // 내용 없이 끝난 경우 대비
+  if(!fullText.trim()){
+   document.getElementById('cerr').textContent='도사님이 잠시 자리를 비웠습니다: 응답이 비어 있습니다.';
+   document.getElementById('cerr').style.display='block';return;
+  }
+  history.push({role:'assistant',content:fullText});
+  if(isFirst){bubble.remove();renderAccordion(fullText);}
   if(pendingCategoryPrompt){
    const p=pendingCategoryPrompt;pendingCategoryPrompt=null;
-   setTimeout(()=>{addMsg(p,'me');history.push({role:'user',content:p});callDosa(1500);},300);
+   setTimeout(()=>{addMsg(p,'me');history.push({role:'user',content:p});callDosa(2400);},300);
   }
- }catch(e){th.remove();
+ }catch(e){
+  th.remove();bubble.remove();
   document.getElementById('cerr').textContent='연결에 문제가 있습니다: '+e.message;
-  document.getElementById('cerr').style.display='block';}
+  document.getElementById('cerr').style.display='block';
+ }
 }
 async function checkChatLimit(){
  if(!currentUser) return true;
@@ -1285,7 +1393,7 @@ async function send(){
  document.getElementById('cerr').style.display='none';
  const ok=await checkChatLimit();
  if(!ok){q.value='';return;}
- addMsg(t,'me');history.push({role:'user',content:t});q.value='';callDosa(1500);
+ addMsg(t,'me');history.push({role:'user',content:t});q.value='';callDosa(2400);
 }
 
 if('serviceWorker' in navigator){
