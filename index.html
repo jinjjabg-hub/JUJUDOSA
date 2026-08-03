@@ -103,7 +103,7 @@ h2.sec{font-size:13px;font-weight:700;color:var(--sub);margin:22px 0 8px;padding
 .icon-img{border-radius:50%;object-fit:cover;display:block;flex-shrink:0}
 .ni-ico-img{width:22px;height:22px;margin:0 auto}
 .gi-ico-img{width:38px;height:38px}
-.hb-ico-img{width:34px;height:34px}
+.hb-ico-img{width:44px;height:44px;box-shadow:0 0 0 2.5px rgba(255,255,255,.9)}
 .mr-ico-img{width:40px;height:40px}
 .sr-ico-img{width:34px;height:34px}
 .tf-ico-img{width:16px;height:16px;vertical-align:-3px;display:inline-block}
@@ -137,8 +137,11 @@ h2.sec{font-size:13px;font-weight:700;color:var(--sub);margin:22px 0 8px;padding
 .teaser-tag{font-size:12px;color:var(--primary);font-weight:700;margin-top:2px;margin-bottom:16px}
 .teaser-textwrap{position:relative;background:var(--bg);border-radius:14px;padding:16px;margin-bottom:18px;
   text-align:left;overflow:hidden}
-.teaser-text{font-size:14px;line-height:1.7;color:var(--text);filter:blur(3.5px);user-select:none}
-.teaser-fade{position:absolute;inset:0;background:linear-gradient(to bottom,transparent 30%,var(--bg) 90%);
+.teaser-text{font-size:14.5px;line-height:1.7;color:var(--text);font-weight:700;margin-bottom:12px}
+.teaser-blurlines{display:flex;flex-direction:column;gap:9px}
+.blur-line{height:12px;border-radius:6px;background:linear-gradient(90deg,#D8DBE3,#C7CBD6,#D8DBE3);
+  filter:blur(2.5px);opacity:.8}
+.teaser-fade{position:absolute;inset:0;background:linear-gradient(to bottom,transparent 42%,var(--bg) 88%);
   display:flex;align-items:flex-end;justify-content:center;padding-bottom:8px}
 .teaser-fade span{font-size:12px;color:var(--sub);font-weight:700;background:#fff;padding:4px 10px;
   border-radius:999px;box-shadow:0 1px 4px rgba(25,31,40,.08)}
@@ -323,9 +326,9 @@ button.go:active{transform:scale(.98);opacity:.9}
       <button class="hero-btn g-full" onclick="openFortuneTab()">
         <div>
           <div class="hb-title">종합 사주 풀이<span class="hb-badge">NEW</span></div>
-          <div class="hb-sub">인생의 큰 흐름을 한눈에 확인하세요</div>
+          <div class="hb-sub">주주도사 · 인생의 큰 흐름을 한눈에 확인하세요</div>
         </div>
-        <span class="hb-ico"><img class="icon-img hb-ico-img" src="./icon-fortune.png"></span>
+        <span class="hb-ico"><img class="icon-img hb-ico-img" src="./avatar.png"></span>
       </button>
 
       <h2 class="sec g-full" style="margin-top:6px">전문 도사님께 물어보기</h2>
@@ -606,6 +609,11 @@ button.go:active{transform:scale(.98);opacity:.9}
     <div class="teaser-tag" id="teaserTag"></div>
     <div class="teaser-textwrap">
       <div class="teaser-text" id="teaserText"></div>
+      <div class="teaser-blurlines">
+        <div class="blur-line" style="width:96%"></div>
+        <div class="blur-line" style="width:88%"></div>
+        <div class="blur-line" style="width:72%"></div>
+      </div>
       <div class="teaser-fade"><span>🔒 라이트 이상 구독 시 전체 확인</span></div>
     </div>
     <button class="go" onclick="location.href='./pricing.html'">✨ 업그레이드하고 전체 보기</button>
