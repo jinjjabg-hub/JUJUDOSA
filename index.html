@@ -118,8 +118,8 @@ h2.sec{font-size:13px;font-weight:700;color:var(--sub);margin:22px 0 8px;padding
 .matchrow .mr-sub{font-size:12px;color:var(--sub)}
 .newbtn{width:100%;height:52px;background:var(--card);border:1.5px dashed var(--line);border-radius:16px;
   color:var(--text);font-weight:700;font-size:14px;cursor:pointer;margin-top:6px}
-.personarow{display:flex;gap:14px;overflow-x:auto;padding:2px 2px 14px}
-.persona-item{flex:0 0 auto;width:68px;text-align:center;cursor:pointer}
+.personarow{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 4px;padding:2px 2px 14px}
+.persona-item{width:auto;text-align:center;cursor:pointer}
 .persona-item:active{transform:scale(.95)}
 .persona-avatar-wrap{width:60px;height:60px;border-radius:50%;overflow:hidden;margin:0 auto 6px;
   box-shadow:0 2px 10px rgba(25,31,40,.1);position:relative;background:var(--primary-tint)}
@@ -134,7 +134,7 @@ h2.sec{font-size:13px;font-weight:700;color:var(--sub);margin:22px 0 8px;padding
 .teaser-avatar{width:76px;height:76px;border-radius:50%;object-fit:cover;margin:0 auto 12px;
   box-shadow:0 4px 14px rgba(25,31,40,.12)}
 .teaser-name{font-size:17px;font-weight:800}
-.teaser-tag{font-size:12px;color:var(--primary);font-weight:700;margin-top:2px;margin-bottom:16px}
+.teaser-tag{font-size:12px;color:var(--primary);font-weight:700;margin-top:2px;margin-bottom:6px}
 .teaser-textwrap{position:relative;background:var(--bg);border-radius:14px;padding:16px;margin-bottom:18px;
   text-align:left;overflow:hidden}
 .teaser-text{font-size:14.5px;line-height:1.7;color:var(--text);font-weight:700;margin-bottom:12px}
@@ -607,6 +607,7 @@ button.go:active{transform:scale(.98);opacity:.9}
     <img class="teaser-avatar" id="teaserAvatar" src="">
     <div class="teaser-name" id="teaserName"></div>
     <div class="teaser-tag" id="teaserTag"></div>
+    <div style="font-size:12.5px;color:var(--sub);line-height:1.5;margin-bottom:16px" id="teaserIntro"></div>
     <div class="teaser-textwrap">
       <div class="teaser-text" id="teaserText"></div>
       <div class="teaser-blurlines">
@@ -792,26 +793,38 @@ let pendingCategoryPrompt=null;
 const PERSONAS={
  general:{name:'주주도사',avatar:'./avatar.png',tag:'종합',focus:null,free:true},
  jaecheon:{name:'재천도사',avatar:'./persona-jaecheon.png',tag:'재물운',category:'재물운',icon:'./icon-wealth.png',
+  intro:'돈 얘기는 돌려 말하지 않는, 냉정하고 실전적인 도사입니다. 사주는 두루 보되, 재물의 흐름만큼은 누구보다 깊게 파고듭니다.',
+  tone:'말투는 냉정하고 실전적이다. 돈 얘기를 돌려 말하지 않는다. 위로보다 팩트와 판단을 먼저 준다. 문장이 짧고 단호하다.',
   focus:'일과 돈',
-  focusNote:'특히 과거 대운 전환 시점의 자산 형태 변화와, 앞으로 다가올 대운에서 돈이 들어오는 경로가 어떻게 달라지는지 시간순으로 짚는다. 이 섹션은 16~20문장으로 다른 섹션보다 훨씬 두텁게.',
+  focusNote:'이 섹션은 20~26문장으로 다른 섹션보다 훨씬 두텁게, 다음 순서로 짚는다. ① 정재·편재 중 어느 쪽이 강한지 진단하고, 정재형(안정적·꾸준함, 월급·임대료·저축형)인지 편재형(변동성 크고 규모 큼, 사업·투자·성과급형)인지 실제 수입 형태로 번역한다 — 정재형이 사업을 벌이면 스트레스가 크고, 편재형이 평생 고정급만 받으면 답답해한다는 식으로 구체적으로. ② 재물 파이프라인 4갈래를 점검한다: (a)식상생재 — 능력을 돈으로 바꾸는 통로가 살아있는지, (b)비겁탈재 — 돈이 새는 구멍(동업 분쟁·보증·과다 지출·퍼주는 습관)이 있는지, (c)재생관 — 돈이 지위·신뢰로 잘 전환되는지, (d)재극인 — 실리와 공부·자격 중 어느 쪽으로 기우는지. ③ 마지막으로 과거 대운 전환 시점의 자산 형태 변화와, 앞으로 다가올 대운에서 돈이 들어오는 경로가 어떻게 달라지는지 시간순으로 짚는다.',
   teaser:(A)=>A.cur?`${A.cur.ageStart}세 무렵부터 자산이 들어오는 경로 자체가 바뀌는데, 그 이유는 —`:'지금 대운에서 돈이 들어오는 경로를 자세히 보면 —'},
  gwallok:{name:'관록도사',avatar:'./persona-gwallok.png',tag:'직업운',category:'직업운',icon:'./icon-career.png',
+  intro:'전략가 기질의 도사입니다. 시기와 판단을 딱딱 짚어주는 스타일로, 커리어의 방향과 다음 수를 명확하게 제시합니다.',
+  tone:'말투는 전략가답게 명료하다. "이 시기엔 이렇게 움직이십시오"처럼 판단과 방향을 분명히 제시한다. 애매하게 얼버무리지 않는다.',
   focus:'일과 돈',
-  focusNote:'특히 커리어의 방향 전환 시점, 지금 대운에서 유리한 직무·역할, 이직이나 승진에 유리한 시기를 시간순으로 짚는다. 이 섹션은 16~20문장으로 다른 섹션보다 훨씬 두텁게.',
+  focusNote:'이 섹션은 20~26문장으로 다른 섹션보다 훨씬 두텁게, 다음 순서로 짚는다. ① 정관·편관 중 어느 쪽이 강한지 진단하고, 정관형(규칙과 직급 안에서 안정적으로 성장, 조직·공직·대기업형)인지 편관형(리스크를 감수하는 승부사 기질, 독립·창업·프리랜서·전문직형)인지 실제 커리어 형태로 번역한다 — 정관형이 무리하게 독립하면 불안정에 시달리고, 편관형이 평생 조직에 순응만 하면 답답해한다는 식으로 구체적으로. ② 커리어의 방향 전환 시점, 지금 대운에서 유리한 직무·역할을 짚는다. ③ 이직이나 승진에 유리한 시기를 시간순으로 짚는다.',
   teaser:(A)=>A.cur?`${A.cur.ageStart}세부터 시작된 이 대운에서 유리한 자리가 따로 있는데 —`:'지금 자리보다 더 유리한 자리가 있는지 살펴보면 —'},
  wolha:{name:'월하도사',avatar:'./persona-wolha.png',tag:'연애운',category:'연애운',icon:'./icon-love.png',
+  intro:'다정하고 은유적인 도사입니다. 감정의 결을 세심하게 읽어, 인연과 관계의 흐름을 부드럽게 짚어줍니다.',
+  tone:'말투는 다정하고 은유적이다. 감정의 결을 세심하게 살피며, 부드럽고 여운 있는 문장을 쓴다. 딱딱한 단정보다 다독이듯 풀어낸다.',
   focus:'사람과 관계',
   focusNote:'특히 인연이 들어오는 시기, 끌리는 상대의 유형, 연애 관계에서 반복되는 패턴을 짚는다. 이 섹션은 16~20문장으로 다른 섹션보다 훨씬 두텁게.',
   teaser:()=>'이 사주에 자주 끌리는 인연의 유형이 있는데, 그건 —'},
  seulha:{name:'슬하도사',avatar:'./persona-seulha.png',tag:'자녀운',category:'자녀운',icon:'./icon-child.png',
+  intro:'따뜻하고 포근한 도사입니다. 가족과 자녀 이야기에 특히 강해서, 슬하의 인연을 세심하게 짚어줍니다.',
+  tone:'말투는 따뜻하고 포근하다. 가족을 대하듯 다정한 어휘를 쓰되, 근거 없는 위로에 머물지 않고 구체적으로 짚는다.',
   focus:'사람과 관계',
   focusNote:'특히 자녀와의 관계, 가족 안에서의 역할, 자녀운이 강해지는 시기를 짚는다. 이 섹션은 16~20문장으로 다른 섹션보다 훨씬 두텁게.',
   teaser:()=>'가족 안에서 이 사주가 맡게 되는 역할이 있는데 —'},
  dadok:{name:'다독도사',avatar:'./persona-dadok.png',tag:'힘들 때는',category:'힘들 때는',icon:'./icon-hardtimes.png',
+  intro:'가장 부드러운 도사입니다. 위로가 먼저, 조언은 그다음. 지금 힘든 시기를 지나고 있다면 마음부터 다독여줍니다.',
+  tone:'말투는 이 6명 중 가장 부드럽고 조심스럽다. 판단이나 지적보다 먼저 마음을 다독인다. 문장 끝을 단정적으로 끊지 않고 여지를 남긴다.',
   focus:'강점과 조심할 점',
   focusNote:'가장 부드러운 말투로, 지금 힘든 시기를 지나고 있다면 그 마음부터 다독이고, 조심할 패턴보다 강점과 회복력을 먼저 짚는다. 이 섹션은 16~20문장으로 다른 섹션보다 훨씬 두텁게.',
   teaser:()=>'지금 마음이 힘드시다면, 이 사주에 숨어있는 회복력은 —'},
  cheonmyeong:{name:'천명도사',avatar:'./persona-cheonmyeong.png',tag:'대운 흐름',category:'대운 흐름',icon:'./icon-daeun.png',
+  intro:'격식 있고 묵직한 도사입니다. 인생을 길게 보는 시선으로, 지나온 흐름과 앞으로의 흐름을 조망해줍니다.',
+  tone:'말투는 격식 있고 묵직하다. 어른스럽고 신중한 어휘를 쓰며, 인생을 긴 흐름으로 조망하는 시선을 유지한다. 가볍게 단정하지 않는다.',
   focus:'지금과 앞으로',
   focusNote:'격식 있고 묵직한 말투로, 지나온 대운과 앞으로의 대운을 나이대별로 짚어 인생 전체를 긴 흐름으로 조망한다. 이 섹션은 18~22문장으로 다른 섹션보다 훨씬 두텁게.',
   teaser:(A)=>A.cur?`지금 ${A.cur.ageStart}~${A.cur.ageEnd}세 대운을 지나 다음 대운으로 넘어가면 —`:'앞으로의 대운 흐름을 길게 보면 —'},
@@ -853,6 +866,7 @@ function openTeaser(personaId,selfP){
  document.getElementById('teaserAvatar').src=P.avatar;
  document.getElementById('teaserName').textContent=P.name;
  document.getElementById('teaserTag').textContent=P.tag+' 전문';
+ document.getElementById('teaserIntro').textContent=P.intro;
  document.getElementById('teaserText').textContent=teaserText;
  document.getElementById('teaserFallback').onclick=()=>{
   closeTeaser();
@@ -1268,6 +1282,14 @@ function renderSoloResult(A,mbtiVal,genderLabel,ownerLabel,personaId,profileId){
  }).join('');
 
  document.getElementById('summary').innerHTML=`
+  ${personaId!=='general'?`
+  <div class="pillars-card" style="display:flex;align-items:center;gap:12px;background:var(--primary-tint);box-shadow:none">
+   <img src="${P.avatar}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;box-shadow:0 0 0 2px #fff;flex-shrink:0">
+   <div>
+    <div style="font-weight:800;font-size:14px;color:var(--primary)">${P.name} <span style="font-weight:600;font-size:11px;color:var(--sub)">· ${P.tag} 전문</span></div>
+    <div style="font-size:12.5px;color:var(--text);margin-top:3px;line-height:1.5">${P.intro}</div>
+   </div>
+  </div>`:''}
   <div class="pillars-card">
    <div class="pillars-title"><img src="${P.avatar}" style="width:22px;height:22px;border-radius:50%;object-fit:cover;vertical-align:-5px;margin-right:2px">${ownerLabel}님의 사주 팔자 · ${P.name}</div>
    <div class="pillars-grid">${pillarsHtml}</div>
@@ -1280,7 +1302,7 @@ function renderSoloResult(A,mbtiVal,genderLabel,ownerLabel,personaId,profileId){
  const mbtiSection=mbtiVal?`「MBTI로 보면」 이 사람의 MBTI는 ${mbtiVal}이다. 이 섹션은 특히 공들여서 8~10문장으로 두텁게 쓴다. 사주에서 읽히는 기질과 ${mbtiVal}가 겹치는 지점을 구체적 행동 사례로 2~3가지 짚는다. 두 도구가 다르게 말하는 지점이 있다면 숨기지 말고 정직하게 짚고, 그 차이를 흥미로운 관찰로 다룬다. MBTI는 검사 시점의 스냅샷이고 사주는 태어난 순간 고정된 원본이라는 차이를 짧게 언급해도 좋다.
 `:'';
  const focusNote=(personaId!=='general'&&P.focus)?
-  `\n[페르소나 확대 지시 — 매우 중요] 너는 지금 "${P.name}"로서 상담한다. 「${P.focus}」 섹션은 다른 섹션보다 훨씬 두텁고 상세하게 쓴다: ${P.focusNote} 나머지 섹션은 평소 분량(9~13문장)을 유지하되, 인사말이나 자기소개에서 네가 ${P.name}임을 은근히 드러내도 좋다.`:'';
+  `\n[페르소나 확대 지시 — 매우 중요] 너는 지금 "${P.name}"로서 상담한다. [말투] ${P.tone} 「${P.focus}」 섹션은 다른 섹션보다 훨씬 두텁고 상세하게 쓴다: ${P.focusNote} 나머지 섹션도 위 말투를 일관되게 유지한다. 인사말이나 자기소개에서 네가 ${P.name}임을 은근히 드러내도 좋다.`:'';
  persona=`${baseRules}
 
 ## 상담자 명식 데이터
@@ -1293,7 +1315,7 @@ ${focusNote}
 「한 줄 요약」 이 사주를 일상 언어 한 문장으로. 예: "혼자 여러 가지를 벌이고, 사람을 통해 돈이 들어오는 사주입니다."
 「타고난 성격」 행동으로 확인되는 성격 4~5가지. 결정하는 방식, 말하는 방식, 스트레스 받을 때 나오는 습관까지. 본인이 "맞네" 할 수 있게.
 「강점과 조심할 점」 강점 3가지를 실제 상황으로, 조심할 패턴 2~3가지를 실제로 겪었을 법한 장면으로.
-${mbtiSection}「일과 돈」 어떤 방식으로 일할 때 성과가 나는지(혼자/팀, 벌이기/관리, 사람 상대/기술), 돈이 들어오는 경로의 특징과 새는 습관까지.
+${mbtiSection}「일과 돈」 어떤 방식으로 일할 때 성과가 나는지(혼자/팀, 벌이기/관리, 사람 상대/기술), 돈이 들어오는 경로의 특징과 새는 습관까지. 이 안에 정재·편재 중 어느 쪽이 강한지도 한두 문장으로 짧게 짚어준다(정재형=안정적 고정 수입이 잘 맞음, 편재형=변동성 크고 규모 큰 수입에 잘 맞음). 깊게 파고들지는 말고 짧게 짚기만 한다.
 「사람과 관계」 사람을 대하는 방식, 가까운 사람(배우자·동료·친구)과의 관계에서 반복되는 패턴.
 「건강」 사주 오행 분포를 기준으로 상대적으로 약한 오행이 있다면, 그와 연결되는 몸의 영역(목=간·신경, 화=심장·순환, 토=소화·비위, 금=폐·호흡·피부, 수=신장·비뇨/생식)을 짚고, 평소 챙기면 좋을 생활 습관을 구체적으로 2~3가지 제안한다. 진단이나 예언이 아니라 생활 습관 제안임을 분명히 한다.
 「지난 흐름 돌아보기」 지나온 대운 2~3개를 나이대로 짚으며 그 시기에 있었을 법한 변화를 말한다.
@@ -1318,7 +1340,7 @@ ${mbtiSection}「일과 돈」 어떤 방식으로 일할 때 성과가 나는�
  }else{
   pendingCacheProfileId=profileId;
   pendingCachePersonaId=personaId;
-  callDosa(6800,true);
+  callDosa(7600,true);
  }
 }
 
@@ -1417,7 +1439,7 @@ ${(rel==='연인'||rel==='부부'||rel==='결혼을 생각하는 상대')?`「�
  document.getElementById('resultPanel').style.display='block';
  document.getElementById('chatArea').style.display='flex';
  document.getElementById('log').innerHTML='';
- callDosa(6800,true);
+ callDosa(7600,true);
 }
 
 /* ===================== 채팅 ===================== */
