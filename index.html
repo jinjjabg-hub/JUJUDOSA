@@ -596,7 +596,7 @@ button.go:active{transform:scale(.98);opacity:.9}
 <nav class="bottomnav">
   <div class="bottomnav-inner">
     <button class="navitem on" data-tab="home" onclick="switchTab('home')"><img class="icon-img ni-ico-img" src="./icon-home.png"><span>홈</span></button>
-    <button class="navitem" data-tab="fortune" onclick="switchTab('fortune')"><img class="icon-img ni-ico-img" src="./icon-fortune.png"><span>종합풀이</span></button>
+    <button class="navitem" data-tab="fortune" onclick="openFortuneTab()"><img class="icon-img ni-ico-img" src="./icon-fortune.png"><span>종합풀이</span></button>
     <button class="navitem" data-tab="match" onclick="switchTab('match')"><img class="icon-img ni-ico-img" src="./icon-match.png"><span>궁합</span></button>
     <button class="navitem" data-tab="settings" onclick="switchTab('settings')"><img class="icon-img ni-ico-img" src="./icon-settings.png"><span>설정</span></button>
   </div>
@@ -643,6 +643,11 @@ button.go:active{transform:scale(.98);opacity:.9}
       <button class="modalclose" onclick="closeMbtiQuiz()">✕</button>
     </div>
     <div class="modalsub">둘 중 더 나에게 가까운 쪽을 골라주세요 (16문항)</div>
+    <div style="background:var(--bg);border-radius:12px;padding:10px 12px;font-size:12px;color:var(--sub);
+      line-height:1.6;margin-bottom:14px">
+      ⚠️ 16문항짜리 간이 검사라 정확도가 떨어질 수 있어요. 참고용으로만 봐주시고, 정확한 결과는
+      <a href="https://www.16personalities.com/ko" target="_blank" rel="noopener" style="color:var(--primary);font-weight:700">공식 MBTI 검사 사이트</a>에서 확인해보시는 걸 추천드려요.
+    </div>
     <div id="mbtiQBox"></div>
     <button class="go" id="mbtiSubmit" onclick="submitMbtiQuiz()" disabled>결과 보기</button>
   </div>
@@ -1237,7 +1242,7 @@ function submitMbtiQuiz(){
    (score.T>=score.F?'T':'F')+(score.J>=score.P?'J':'P');
  document.getElementById('mbti').value=result;
  closeMbtiQuiz();
- alert('검사 결과: '+result+'\n선택 목록에 자동으로 반영했습니다.');
+ alert('검사 결과: '+result+'\n선택 목록에 자동으로 반영했습니다.\n(간이 검사 결과이니, 정확한 유형은 공식 사이트에서도 한번 확인해보세요)');
 }
 
 /* ===================== 사주 상담 시작 (mode S) ===================== */
