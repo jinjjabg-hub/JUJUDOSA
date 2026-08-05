@@ -145,6 +145,18 @@ h2.sec{font-size:13px;font-weight:700;color:var(--sub);margin:22px 0 8px;padding
   display:flex;align-items:flex-end;justify-content:center;padding-bottom:8px}
 .teaser-fade span{font-size:12px;color:var(--sub);font-weight:700;background:#fff;padding:4px 10px;
   border-radius:999px;box-shadow:0 1px 4px rgba(25,31,40,.08)}
+.plancard{display:flex;align-items:center;justify-content:space-between;border:1.5px solid var(--line);
+  border-radius:14px;padding:14px 16px;margin-bottom:10px;cursor:pointer;text-align:left;background:#fff}
+.plancard.on{border-color:var(--primary);background:var(--primary-tint)}
+.plancard .pc-name{font-size:14px;font-weight:800}
+.plancard .pc-desc{font-size:11.5px;color:var(--sub);margin-top:2px}
+.plancard .pc-price{font-size:15px;font-weight:800;color:var(--primary)}
+.bankbox{background:var(--bg);border-radius:14px;padding:16px;margin:14px 0;text-align:left}
+.bankbox .bb-row{display:flex;justify-content:space-between;align-items:center;font-size:13.5px;padding:4px 0}
+.bankbox .bb-label{color:var(--sub)}
+.bankbox .bb-value{font-weight:800}
+.bankbox .bb-copy{background:var(--primary);color:#fff;border:none;border-radius:8px;padding:5px 10px;
+  font-size:11px;font-weight:700;cursor:pointer;margin-left:8px}
 
 /* ===== 설정 ===== */
 .setgroup{background:var(--card);border-radius:16px;overflow:hidden;margin-bottom:18px}
@@ -254,6 +266,7 @@ button.go:active{transform:scale(.98);opacity:.9}
 .msg.thinking{background:var(--card);align-self:flex-start;color:var(--sub);
   box-shadow:0 1px 3px rgba(25,31,40,.06)}
 .quickchips{display:flex;gap:8px;overflow-x:auto;margin-bottom:10px;padding-bottom:2px}
+.chat-hint{font-size:12px;color:var(--sub);margin:0 2px 8px;font-weight:600}
 .qchip{flex-shrink:0;background:var(--card);border:1px solid var(--line);border-radius:999px;
   padding:8px 13px;font-size:12.5px;font-weight:700;color:var(--text);cursor:pointer;white-space:nowrap}
 .inputbar{display:flex;gap:8px;background:var(--card);border:1.5px solid var(--line);border-radius:16px;
@@ -442,8 +455,9 @@ button.go:active{transform:scale(.98);opacity:.9}
           <button class="qchip" onclick="quickAsk('이직 시기가 궁금해요')">💼 이직 시기</button>
           <button class="qchip" onclick="quickAsk('올해 인연운이 궁금해요')">❤️ 인연운</button>
         </div>
+        <div class="chat-hint">전체적인 운세를 바탕으로 궁금한 걸 자세히 물어보세요</div>
         <div class="inputbar">
-          <input type="text" id="q" placeholder="도사님께 물어보세요" onkeydown="if(event.key==='Enter')send()">
+          <input type="text" id="q" placeholder="예: 재물운을 더 자세히 알려주세요" onkeydown="if(event.key==='Enter')send()">
           <button onclick="send()">전송</button>
         </div>
         <div class="err" id="cerr"></div>
@@ -557,9 +571,13 @@ button.go:active{transform:scale(.98);opacity:.9}
 
       <h2 class="sec">요금제</h2>
       <div class="setgroup">
-        <a class="setrow" href="./pricing.html" style="text-decoration:none;color:inherit">
-          <span class="sr-left"><span class="sr-ico"><img class="icon-img sr-ico-img" src="./icon-pricing.png"></span><span class="sr-label">요금제 안내</span></span>
+        <button class="setrow" onclick="openSubscribeModal()">
+          <span class="sr-left"><span class="sr-ico"><img class="icon-img sr-ico-img" src="./icon-pricing.png"></span><span class="sr-label">구독 신청 / 업그레이드</span></span>
           <span class="sr-chev">›</span>
+        </button>
+        <a class="setrow" href="./pricing.html" style="text-decoration:none;color:inherit">
+          <span class="sr-left"><span class="sr-ico">📋</span><span class="sr-label">요금제 자세히 비교하기</span></span>
+          <span class="sr-chev">↗</span>
         </a>
       </div>
 
@@ -602,6 +620,43 @@ button.go:active{transform:scale(.98);opacity:.9}
   </div>
 </nav>
 
+<div class="modalbg" id="subscribeModal" style="display:none">
+  <div class="modalcard" style="max-width:400px">
+    <div class="modalhead">
+      <span>구독 신청</span>
+      <button class="modalclose" onclick="closeSubscribeModal()">✕</button>
+    </div>
+    <div class="modalsub">아직 카드 자동결제 준비 중이라, 계좌이체로 먼저 신청받고 있어요. 입금 확인되면 24시간 내로 등급을 올려드립니다.</div>
+
+    <div class="plancard on" id="planLite" onclick="selectPlan('lite')">
+      <div><div class="pc-name">라이트</div><div class="pc-desc">하루 채팅 3회</div></div>
+      <div class="pc-price">4,900원<span style="font-size:11px;color:var(--sub);font-weight:600">/월</span></div>
+    </div>
+    <div class="plancard" id="planStandard" onclick="selectPlan('standard')">
+      <div><div class="pc-name">스탠다드</div><div class="pc-desc">하루 채팅 15회 · 전문 도사 6명 전체 이용</div></div>
+      <div class="pc-price">9,900원<span style="font-size:11px;color:var(--sub);font-weight:600">/월</span></div>
+    </div>
+
+    <div class="bankbox">
+      <div class="bb-row"><span class="bb-label">은행</span><span class="bb-value">신한은행</span></div>
+      <div class="bb-row"><span class="bb-label">계좌번호</span>
+        <span><span class="bb-value">110-163-374542</span><button class="bb-copy" onclick="copyAccount()">복사</button></span>
+      </div>
+      <div class="bb-row"><span class="bb-label">예금주</span><span class="bb-value">송승훈</span></div>
+    </div>
+
+    <label class="f">입금자명 (실제 이체 시 사용한 이름)</label>
+    <input type="text" id="depositorName" placeholder="예: 홍길동" style="margin-bottom:12px">
+
+    <button class="go" onclick="submitSubscribeRequest()">신청 완료했어요</button>
+    <div class="err" id="subErr"></div>
+    <div id="subSuccess" style="display:none;text-align:center;font-size:13px;color:var(--primary);
+      font-weight:700;margin-top:12px;line-height:1.6">
+      ✅ 신청 접수됐어요!<br>입금 확인 후 24시간 내로 등급이 올라갑니다.
+    </div>
+  </div>
+</div>
+
 <div class="modalbg" id="teaserModal" style="display:none">
   <div class="teasercard">
     <img class="teaser-avatar" id="teaserAvatar" src="">
@@ -617,7 +672,7 @@ button.go:active{transform:scale(.98);opacity:.9}
       </div>
       <div class="teaser-fade"><span>🔒 라이트 이상 구독 시 전체 확인</span></div>
     </div>
-    <button class="go" onclick="location.href='./pricing.html'">✨ 업그레이드하고 전체 보기</button>
+    <button class="go" onclick="openSubscribeModal()">✨ 업그레이드하고 전체 보기</button>
     <button class="go" id="teaserFallback" style="background:none;color:var(--sub);box-shadow:none;margin-top:6px">
       괜찮아요, 주주도사한테 물어볼게요
     </button>
@@ -880,6 +935,53 @@ function openTeaser(personaId,selfP){
  document.getElementById('teaserModal').style.display='flex';
 }
 function closeTeaser(){document.getElementById('teaserModal').style.display='none';}
+
+/* ===== 구독 신청 (계좌이체) ===== */
+let selectedPlan='lite';
+function selectPlan(plan){
+ selectedPlan=plan;
+ document.getElementById('planLite').classList.toggle('on',plan==='lite');
+ document.getElementById('planStandard').classList.toggle('on',plan==='standard');
+}
+function openSubscribeModal(){
+ document.getElementById('subErr').style.display='none';
+ document.getElementById('subSuccess').style.display='none';
+ document.getElementById('depositorName').value='';
+ document.getElementById('depositorName').style.display='block';
+ document.querySelector('#subscribeModal .go').style.display='block';
+ document.getElementById('teaserModal').style.display='none';
+ document.getElementById('subscribeModal').style.display='flex';
+}
+function closeSubscribeModal(){document.getElementById('subscribeModal').style.display='none';}
+function copyAccount(){
+ navigator.clipboard?.writeText('110163374542').then(()=>{
+  const btn=document.querySelector('.bb-copy');
+  const old=btn.textContent;btn.textContent='복사됨';
+  setTimeout(()=>{btn.textContent=old;},1500);
+ }).catch(()=>{alert('계좌번호: 110-163-374542');});
+}
+async function submitSubscribeRequest(){
+ const err=document.getElementById('subErr');err.style.display='none';
+ if(!currentUser){err.textContent='로그인 후 신청할 수 있어요.';err.style.display='block';return;}
+ const name=document.getElementById('depositorName').value.trim();
+ if(!name){err.textContent='입금자명을 입력해 주세요.';err.style.display='block';return;}
+ try{
+  await db.collection('users').doc(currentUser.uid).set({
+   upgradeRequest:{
+    plan:selectedPlan,
+    depositorName:name,
+    requestedAt:firebase.firestore.FieldValue.serverTimestamp(),
+    status:'pending'
+   }
+  },{merge:true});
+  document.getElementById('depositorName').style.display='none';
+  document.querySelector('#subscribeModal .go').style.display='none';
+  document.getElementById('subSuccess').style.display='block';
+ }catch(e){
+  console.error('구독 신청 실패',e);
+  err.textContent='신청 중 문제가 발생했어요. 다시 시도해주세요.';err.style.display='block';
+ }
+}
 function parsePersonLocal(p){
  try{
   const dg=(p.bdate||'').replace(/\D/g,'');
@@ -1507,7 +1609,7 @@ async function callDosa(maxTok,isFirst){
  row.innerHTML=`<img class="dosa-avatar" src="${PERSONAS[currentPersonaId].avatar}" alt="${PERSONAS[currentPersonaId].name}"><span class="dosa-avatar-name">${PERSONAS[currentPersonaId].name}</span>`;
  const body=document.createElement('div');body.style.whiteSpace='pre-wrap';
  bubble.appendChild(row);bubble.appendChild(body);
- let started=false,fullText='';
+ let started=false,fullText='',lastStreamScroll=0;
  try{
   const res=await fetch('https://jujudosa-api.jinjjabg.workers.dev/',{
    method:'POST',headers:{'Content-Type':'application/json'},
@@ -1534,7 +1636,11 @@ async function callDosa(maxTok,isFirst){
      if(!started){started=true;th.remove();document.getElementById('log').appendChild(bubble);}
      fullText+=json.delta.text;
      body.textContent=fullText;
-     bubble.scrollIntoView({behavior:'smooth',block:'end'});
+     const now=Date.now();
+     if(now-lastStreamScroll>400){
+      lastStreamScroll=now;
+      bubble.scrollIntoView({behavior:'auto',block:'end'});
+     }
     }
     if(json.type==='error')throw new Error(json.error?.message||'스트리밍 오류');
    }
