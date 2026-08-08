@@ -1606,8 +1606,9 @@ function renderAccordion(text){
  log.appendChild(wrap);
  wrap.scrollIntoView({behavior:'smooth',block:'start'});
 }
-async function callDosa(maxTok,isFirst){
- const th=addMsg('명식을 살피는 중…','thinking');
+async function callDosa(maxTok,isFirst,retryCount){
+ retryCount=retryCount||0;
+ const th=addMsg(retryCount>0?'연결이 불안정해 다시 시도하는 중…':'명식을 살피는 중…','thinking');
  // 스트리밍용 말풍선 준비 (아직 화면엔 안 붙임 — 첫 글자 오면 thinking과 교체)
  const bubble=document.createElement('div');bubble.className='msg dosa';
  const row=document.createElement('div');row.className='dosa-avatar-row';
@@ -1679,7 +1680,14 @@ async function callDosa(maxTok,isFirst){
   }
  }catch(e){
   th.remove();bubble.remove();
-  document.getElementById('cerr').textContent='연결에 문제가 있습니다: '+e.message;
+  // Cloudflare Worker가 가끔 Anthropic이 서비스하지 않는 리전의 엣지로 요청을 보내면서
+  // 발생하는 일시적 오류(Request not allowed 등). 자동으로 최대 2회 재시도한다.
+  const transient=/request not allowed|525|502|503|504|failed to fetch|networkerror|network error/i.test(e.message||'');
+  if(transient&&retryCount<2){
+   setTimeout(()=>callDosa(maxTok,isFirst,retryCount+1),700*(retryCount+1));
+   return;
+  }
+  document.getElementById('cerr').textContent='연결에 문제가 있습니다: '+e.message+(retryCount>0?' (자동 재시도도 실패했어요, 잠시 후 다시 시도해주세요)':'');
   document.getElementById('cerr').style.display='block';
  }
 }
