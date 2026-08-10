@@ -318,6 +318,7 @@ button.go:active{transform:scale(.98);opacity:.9}
     <div id="loginBannerHome" class="loginbanner" style="display:none">
       <div class="lb-text">카카오로 로그인하면<br>사주를 저장하고 매일 확인할 수 있어요.</div>
       <button onclick="loginKakao()">카카오 로그인</button>
+      <div style="font-size:12px;color:var(--sub);text-decoration:underline;cursor:pointer;margin-top:6px" onclick="switchTab('settings')">이메일로 로그인하기</div>
     </div>
 
     <div id="profilePillWrap" style="display:none">
@@ -546,6 +547,20 @@ button.go:active{transform:scale(.98);opacity:.9}
       <div style="font-weight:800;margin-bottom:8px">로그인이 필요해요</div>
       <div style="font-size:13px;color:var(--sub);margin-bottom:14px">카카오로 로그인하면 사주를 저장하고 매일 운세를 받아볼 수 있어요.</div>
       <button class="go" style="background:#FEE500;color:#191600" onclick="loginKakao()">카카오로 시작하기</button>
+
+      <div style="display:flex;align-items:center;gap:10px;margin:16px 0;color:var(--sub);font-size:12px">
+        <div style="flex:1;height:1px;background:var(--line)"></div>또는<div style="flex:1;height:1px;background:var(--line)"></div>
+      </div>
+
+      <div style="font-size:13px;font-weight:700;margin-bottom:8px" id="emailAuthTitle">이메일로 로그인</div>
+      <input type="email" id="emailAuthEmail" class="field" placeholder="이메일" style="width:100%;margin-bottom:8px;box-sizing:border-box">
+      <input type="password" id="emailAuthPw" class="field" placeholder="비밀번호 (6자 이상)" style="width:100%;margin-bottom:8px;box-sizing:border-box">
+      <button class="go" style="background:var(--primary)" id="emailAuthBtn" onclick="emailAuthSubmit()">로그인</button>
+      <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:12px;color:var(--sub)">
+        <span style="cursor:pointer;text-decoration:underline" onclick="toggleEmailAuthMode()" id="emailAuthToggle">계정이 없나요? 회원가입</span>
+        <span style="cursor:pointer;text-decoration:underline" onclick="emailAuthReset()">비밀번호 찾기</span>
+      </div>
+      <div class="err" id="emailAuthErr" style="display:none;margin-top:8px"></div>
     </div>
 
     <div id="settingsLoggedIn" style="display:none">
@@ -1018,6 +1033,53 @@ function loginKakao(){
  auth.signInWithPopup(provider).catch(e=>{alert('로그인에 실패했습니다: '+e.message);});
 }
 function logout(){auth.signOut();}
+
+/* ===== 이메일/비밀번호 로그인 (PG사 심사용 — 카카오 외 로그인 수단) ===== */
+let emailAuthMode='login';
+function toggleEmailAuthMode(){
+ emailAuthMode=(emailAuthMode==='login')?'signup':'login';
+ document.getElementById('emailAuthTitle').textContent=(emailAuthMode==='login')?'이메일로 로그인':'이메일로 회원가입';
+ document.getElementById('emailAuthBtn').textContent=(emailAuthMode==='login')?'로그인':'회원가입';
+ document.getElementById('emailAuthToggle').textContent=(emailAuthMode==='login')?'계정이 없나요? 회원가입':'이미 계정이 있나요? 로그인';
+ document.getElementById('emailAuthErr').style.display='none';
+}
+function emailAuthErrMsg(e){
+ const map={
+  'auth/invalid-email':'이메일 형식이 올바르지 않아요.',
+  'auth/missing-password':'비밀번호를 입력해주세요.',
+  'auth/weak-password':'비밀번호는 6자 이상이어야 해요.',
+  'auth/email-already-in-use':'이미 가입된 이메일이에요. 로그인을 이용해주세요.',
+  'auth/user-not-found':'가입되지 않은 이메일이에요.',
+  'auth/wrong-password':'비밀번호가 올바르지 않아요.',
+  'auth/invalid-credential':'이메일 또는 비밀번호가 올바르지 않아요.',
+  'auth/too-many-requests':'잠시 후 다시 시도해주세요.',
+ };
+ return map[e.code]||e.message;
+}
+function emailAuthSubmit(){
+ const email=document.getElementById('emailAuthEmail').value.trim();
+ const pw=document.getElementById('emailAuthPw').value;
+ const err=document.getElementById('emailAuthErr');
+ err.style.display='none';
+ if(!email||!pw){err.textContent='이메일과 비밀번호를 입력해주세요.';err.style.display='block';return;}
+ const btn=document.getElementById('emailAuthBtn');
+ btn.disabled=true;
+ const done=()=>{btn.disabled=false;};
+ if(emailAuthMode==='login'){
+  auth.signInWithEmailAndPassword(email,pw).then(done).catch(e=>{done();err.textContent=emailAuthErrMsg(e);err.style.display='block';});
+ }else{
+  auth.createUserWithEmailAndPassword(email,pw).then(done).catch(e=>{done();err.textContent=emailAuthErrMsg(e);err.style.display='block';});
+ }
+}
+function emailAuthReset(){
+ const email=document.getElementById('emailAuthEmail').value.trim();
+ const err=document.getElementById('emailAuthErr');
+ err.style.display='none';
+ if(!email){err.textContent='비밀번호를 재설정할 이메일을 먼저 입력해주세요.';err.style.display='block';return;}
+ auth.sendPasswordResetEmail(email).then(()=>{
+  err.style.color='';err.textContent='비밀번호 재설정 메일을 보냈어요. 메일함을 확인해주세요.';err.style.display='block';
+ }).catch(e=>{err.textContent=emailAuthErrMsg(e);err.style.display='block';});
+}
 auth.onAuthStateChanged(u=>{
  currentUser=u;
  const homeBanner=document.getElementById('loginBannerHome');
