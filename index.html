@@ -552,12 +552,12 @@ button.go:active{transform:scale(.98);opacity:.9}
         <div style="flex:1;height:1px;background:var(--line)"></div>또는<div style="flex:1;height:1px;background:var(--line)"></div>
       </div>
 
-      <div style="font-size:13px;font-weight:700;margin-bottom:8px" id="emailAuthTitle">이메일로 로그인</div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:8px">이메일로 로그인</div>
       <input type="email" id="emailAuthEmail" class="field" placeholder="이메일" style="width:100%;margin-bottom:8px;box-sizing:border-box">
-      <input type="password" id="emailAuthPw" class="field" placeholder="비밀번호 (6자 이상)" style="width:100%;margin-bottom:8px;box-sizing:border-box">
+      <input type="password" id="emailAuthPw" class="field" placeholder="비밀번호" style="width:100%;margin-bottom:8px;box-sizing:border-box">
       <button class="go" style="background:var(--primary)" id="emailAuthBtn" onclick="emailAuthSubmit()">로그인</button>
       <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:12px;color:var(--sub)">
-        <span style="cursor:pointer;text-decoration:underline" onclick="toggleEmailAuthMode()" id="emailAuthToggle">계정이 없나요? 회원가입</span>
+        <span style="cursor:pointer;text-decoration:underline" onclick="openSignupModal()">계정이 없나요? 회원가입</span>
         <span style="cursor:pointer;text-decoration:underline" onclick="emailAuthReset()">비밀번호 찾기</span>
       </div>
       <div class="err" id="emailAuthErr" style="display:none;margin-top:8px"></div>
@@ -669,6 +669,26 @@ button.go:active{transform:scale(.98);opacity:.9}
       font-weight:700;margin-top:12px;line-height:1.6">
       ✅ 신청 접수됐어요!<br>입금 확인 후 24시간 내로 등급이 올라갑니다.
     </div>
+  </div>
+</div>
+
+<div class="modalbg" id="signupModal" style="display:none">
+  <div class="modalcard" style="max-width:380px">
+    <div class="modalhead">
+      <span>이메일로 회원가입</span>
+      <button class="modalclose" onclick="closeSignupModal()">✕</button>
+    </div>
+    <div class="modalsub">주주도사를 이메일 계정으로 시작해보세요.</div>
+
+    <label class="f">이메일</label>
+    <input type="email" id="signupEmail" placeholder="예: name@email.com" style="margin-bottom:12px">
+    <label class="f">비밀번호</label>
+    <input type="password" id="signupPw" placeholder="6자 이상" style="margin-bottom:12px">
+    <label class="f">비밀번호 확인</label>
+    <input type="password" id="signupPw2" placeholder="비밀번호를 다시 입력해주세요" style="margin-bottom:12px">
+
+    <button class="go" id="signupBtn" onclick="emailSignupSubmit()">가입하기</button>
+    <div class="err" id="signupErr" style="display:none"></div>
   </div>
 </div>
 
@@ -1034,15 +1054,7 @@ function loginKakao(){
 }
 function logout(){auth.signOut();}
 
-/* ===== 이메일/비밀번호 로그인 (PG사 심사용 — 카카오 외 로그인 수단) ===== */
-let emailAuthMode='login';
-function toggleEmailAuthMode(){
- emailAuthMode=(emailAuthMode==='login')?'signup':'login';
- document.getElementById('emailAuthTitle').textContent=(emailAuthMode==='login')?'이메일로 로그인':'이메일로 회원가입';
- document.getElementById('emailAuthBtn').textContent=(emailAuthMode==='login')?'로그인':'회원가입';
- document.getElementById('emailAuthToggle').textContent=(emailAuthMode==='login')?'계정이 없나요? 회원가입':'이미 계정이 있나요? 로그인';
- document.getElementById('emailAuthErr').style.display='none';
-}
+/* ===== 이메일/비밀번호 로그인 & 회원가입 (PG사 심사용 — 카카오 외 로그인 수단) ===== */
 function emailAuthErrMsg(e){
  const map={
   'auth/invalid-email':'이메일 형식이 올바르지 않아요.',
@@ -1064,12 +1076,9 @@ function emailAuthSubmit(){
  if(!email||!pw){err.textContent='이메일과 비밀번호를 입력해주세요.';err.style.display='block';return;}
  const btn=document.getElementById('emailAuthBtn');
  btn.disabled=true;
- const done=()=>{btn.disabled=false;};
- if(emailAuthMode==='login'){
-  auth.signInWithEmailAndPassword(email,pw).then(done).catch(e=>{done();err.textContent=emailAuthErrMsg(e);err.style.display='block';});
- }else{
-  auth.createUserWithEmailAndPassword(email,pw).then(done).catch(e=>{done();err.textContent=emailAuthErrMsg(e);err.style.display='block';});
- }
+ auth.signInWithEmailAndPassword(email,pw)
+  .then(()=>{btn.disabled=false;})
+  .catch(e=>{btn.disabled=false;err.textContent=emailAuthErrMsg(e);err.style.display='block';});
 }
 function emailAuthReset(){
  const email=document.getElementById('emailAuthEmail').value.trim();
@@ -1079,6 +1088,29 @@ function emailAuthReset(){
  auth.sendPasswordResetEmail(email).then(()=>{
   err.style.color='';err.textContent='비밀번호 재설정 메일을 보냈어요. 메일함을 확인해주세요.';err.style.display='block';
  }).catch(e=>{err.textContent=emailAuthErrMsg(e);err.style.display='block';});
+}
+function openSignupModal(){
+ document.getElementById('signupEmail').value='';
+ document.getElementById('signupPw').value='';
+ document.getElementById('signupPw2').value='';
+ document.getElementById('signupErr').style.display='none';
+ document.getElementById('signupModal').style.display='flex';
+}
+function closeSignupModal(){document.getElementById('signupModal').style.display='none';}
+function emailSignupSubmit(){
+ const email=document.getElementById('signupEmail').value.trim();
+ const pw=document.getElementById('signupPw').value;
+ const pw2=document.getElementById('signupPw2').value;
+ const err=document.getElementById('signupErr');
+ err.style.display='none';
+ if(!email||!pw||!pw2){err.textContent='모든 항목을 입력해주세요.';err.style.display='block';return;}
+ if(pw.length<6){err.textContent='비밀번호는 6자 이상이어야 해요.';err.style.display='block';return;}
+ if(pw!==pw2){err.textContent='비밀번호가 서로 달라요. 다시 확인해주세요.';err.style.display='block';return;}
+ const btn=document.getElementById('signupBtn');
+ btn.disabled=true;
+ auth.createUserWithEmailAndPassword(email,pw)
+  .then(()=>{btn.disabled=false;closeSignupModal();})
+  .catch(e=>{btn.disabled=false;err.textContent=emailAuthErrMsg(e);err.style.display='block';});
 }
 auth.onAuthStateChanged(u=>{
  currentUser=u;
