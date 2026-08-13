@@ -297,6 +297,18 @@ button.go:active{transform:scale(.98);opacity:.9}
 .prow-actions{display:flex;gap:6px;flex-shrink:0}
 .prow-btn{background:var(--bg);border:none;border-radius:9px;padding:7px 11px;font-size:12px;font-weight:700;color:var(--text);cursor:pointer;white-space:nowrap}
 .prow-btn.danger{background:#FEF3F2;color:#F04438}
+.prow-btn.deep{background:var(--primary-tint);color:var(--primary)}
+.progbar{height:5px;border-radius:99px;background:var(--bg);overflow:hidden;margin-bottom:16px}
+.progfill{height:100%;background:var(--primary);border-radius:99px;transition:width .25s}
+.mdctx{font-size:13.5px;line-height:1.6;color:var(--text);background:var(--bg);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.mdopt{display:block;width:100%;text-align:left;padding:11px 14px;margin-bottom:6px;
+  border:1.5px solid var(--line);border-radius:12px;background:#fff;font-size:13px;
+  line-height:1.5;cursor:pointer;color:var(--text)}
+.mdopt.picked{border-color:var(--primary);background:var(--primary-tint);color:var(--primary);font-weight:700}
+.mdtextarea{width:100%;min-height:64px;border:1.5px solid var(--line);border-radius:12px;
+  padding:11px 14px;font-size:13px;font-family:inherit;margin-top:8px;resize:vertical;box-sizing:border-box}
+.mdnav{display:flex;justify-content:space-between;align-items:center;margin-top:14px;gap:8px}
+.mdnav .go{flex:1;margin-top:0}
 </style>
 </head>
 <body>
@@ -740,6 +752,22 @@ button.go:active{transform:scale(.98);opacity:.9}
     </div>
     <div id="mbtiQBox"></div>
     <button class="go" id="mbtiSubmit" onclick="submitMbtiQuiz()" disabled>결과 보기</button>
+  </div>
+</div>
+
+<div class="modalbg" id="mbtiDeepModal" style="display:none">
+  <div class="modalcard">
+    <div class="modalhead">
+      <span>정밀 MBTI 분석</span>
+      <button class="modalclose" onclick="closeMbtiDeepQuiz()">✕</button>
+    </div>
+    <div class="modalsub" id="mdProgress">질문 1 / 20</div>
+    <div class="progbar"><div class="progfill" id="mdProgFill" style="width:5%"></div></div>
+    <div id="mdQBox"></div>
+    <div id="mdLoading" style="display:none;text-align:center;padding:28px 4px;font-size:13px;color:var(--sub);line-height:1.7">
+      20개 답변을 바탕으로 분석 중이에요.<br>보통 20~30초 정도 걸려요.
+    </div>
+    <div id="mdResultBox" style="display:none"></div>
   </div>
 </div>
 
@@ -1191,10 +1219,11 @@ function renderProfilesModalList(){
  box.innerHTML=savedProfiles.map(p=>`
   <div class="prow">
    <div>
-    <div class="prow-name">${p.label||p.bdate}${p.isSelf?'<span class="prow-tag">본인</span>':''}</div>
+    <div class="prow-name">${p.label||p.bdate}${p.isSelf?'<span class="prow-tag">본인</span>':''}${p.mbti?`<span class="prow-tag" style="background:var(--bg);color:var(--sub)">${p.mbti}</span>`:''}</div>
     <div class="prow-date">${p.bdate}${p.calType==='lunar'?' (음)':''}</div>
    </div>
    <div class="prow-actions">
+    <button class="prow-btn deep" onclick="openMbtiDeepQuiz('${p.id}')">정밀MBTI</button>
     ${!p.isSelf?`<button class="prow-btn" onclick="setAsSelfId('${p.id}')">본인으로</button>`:''}
     <button class="prow-btn danger" onclick="deleteProfile('${p.id}')">삭제</button>
    </div>
@@ -1391,6 +1420,179 @@ ${P.daeun?`대운(${P.daeun.forward?'순행':'역행'}, ${P.daeun.startAge}세 �
 function gz(p){return SH[p.stem]+BH[p.branch];}
 function gzk(p){return SK[p.stem]+BK[p.branch];}
 
+/* ===== 정밀 MBTI 분석 (결제회원 전용, 20문항) ===== */
+const MBTI_DEEP_Q=[
+ {ctx:'토요일 아침, 원래 하루 종일 하기로 했던 약속이 갑자기 취소됐다. 오늘 반드시 해야 하는 일은 없고, 내일부터 다시 바쁘다.',
+  opts:['평소 해보고 싶었던 곳이나 활동을 찾아서 일단 나간다','갑자기 생긴 시간에 미뤄둔 일이나 필요한 것부터 처리한다','아무것도 정하지 않고 집에서 하고 싶은 걸 하며 보낸다','친구들에게 뭐 하는지 물어보고 재미있는 계획이 생기면 합류한다']},
+ {ctx:'친구 셋과 여행 중, 오늘의 핵심 일정이었던 장소가 갑자기 휴무. 네 명 모두 대안은 준비하지 않았다.',
+  opts:['근처에서 할 수 있는 걸 빠르게 찾아 몇 가지 대안을 제시한다','일단 주변을 돌아다니다가 눈에 들어오는 곳으로 간다','원래 왜 이 장소를 선택했는지 생각해서 비슷한 경험을 할 수 있는 곳을 찾는다','다른 사람들이 가장 하고 싶은 걸 먼저 물어보고 거기에 맞춘다']},
+ {ctx:'한 번도 해본 적 없는 업무를 맡았다. 설명은 짧고, 정확히 어떻게 해야 하는지는 알아서 판단해야 한다.',
+  opts:['예전에 다른 사람이 만든 결과물을 몇 개 찾아본다','이 일이 궁극적으로 무엇을 만들어내야 하는지부터 정리한다','일단 직접 조금 해보면서 모르는 부분이 생길 때마다 해결한다','잘 아는 사람에게 전체적인 접근 방법부터 물어본다']},
+ {ctx:'친한 친구가 "회사 너무 싫어, 그냥 때려치우고 싶어"라고 한다. 그런데 지금 당장 퇴사하는 건 현실적으로 꽤 위험해 보인다.',
+  opts:['일단 왜 그렇게 힘들어졌는지 끝까지 들어본다','퇴사를 한다면 현실적으로 어떤 문제가 생길지 같이 정리한다','퇴사냐 아니냐보다 친구가 진짜 원하는 삶이 무엇인지 이야기해본다','당장 결론 내리지 말고 휴가나 이직 준비 같은 중간 방법부터 제안한다']},
+ {ctx:'매일 사용할 물건이고 가격도 꽤 비싸다. 후보가 너무 많아서 비교할수록 더 헷갈리는 상황이다.',
+  opts:['중요한 조건 몇 개를 정하고 그 기준에서 가장 좋은 제품을 고른다','리뷰와 실제 사용자 후기를 많이 본 뒤 가장 실패 가능성이 낮은 걸 고른다','여러 제품을 보다가 유독 끌리는 제품이 생기면 그것을 중심으로 비교한다','내가 이 제품을 실제로 쓰는 상황을 상상해보고 가장 잘 맞는 것을 고른다']},
+ {ctx:'내가 제안한 아이디어를 동료 한 명이 강하게 반대한다. 그 사람 말에도 일부 일리는 있지만, 나는 아직 내 아이디어가 더 낫다고 생각한다.',
+  opts:['상대방 논리에서 정확히 어디가 맞고 어디가 틀렸는지 따져본다','두 방법을 실제로 적용했을 때 결과가 어떻게 달라질지 비교한다','상대가 왜 그렇게 강하게 반대하는지 배경부터 파악한다','두 아이디어를 섞어서 제3의 방법을 만들 수 있는지 생각한다']},
+ {ctx:'갑자기 어떤 분야에 꽂혔다. 아직 완전 초보다.',
+  opts:['입문자용 자료를 처음부터 차근차근 따라간다','관심 가는 것부터 이것저것 찾아보다가 점점 깊게 들어간다','잘하는 사람들의 결과물을 보면서 전체 감을 먼저 잡는다','직접 해보고 실패하면서 필요한 것만 그때그때 배운다']},
+ {ctx:'5명이 식당을 정하는데 20분째 의견이 안 모인다. 한식·양식·아무거나로 갈렸고, 나는 배가 많이 고프다.',
+  opts:['몇 가지 기준을 정해서 가장 무난한 곳 하나를 고르자고 한다','강하게 원하는 사람이 있으면 그 사람 의견대로 가자고 한다','지금까지 안 나온 전혀 다른 메뉴를 하나 던져본다','근처 괜찮은 곳을 검색해서 현실적으로 갈 만한 선택지만 다시 제시한다']},
+ {ctx:'해야 할 일을 예상보다 두 시간 일찍 끝냈다. 다음 일정까지 시간이 애매하게 남았다.',
+  opts:['다음에 해야 할 일을 조금 미리 시작한다','갑자기 하고 싶은 게 떠오르면 그걸 한다','아무것도 안 하고 쉬면서 머리를 비운다','평소 궁금했던 걸 검색하거나 이것저것 찾아본다']},
+ {ctx:'여러 명이 대화하는 자리에서 한 사람이 잘못된 정보를 꽤 자신 있게 말한다. 중요한 문제는 아니지만 나는 그게 틀렸다는 걸 알고 있다.',
+  opts:['바로 정정한다, 틀린 건 틀린 거니까','굳이 분위기를 끊을 정도가 아니면 그냥 넘어간다','"내가 알기로는 다른데?" 정도로 부드럽게 확인한다','궁금해져서 그 자리에서 실제 정보를 찾아본다']},
+ {ctx:'혼자 여행 중인데 지도 앱이 제대로 작동하지 않는다. 목적지까지 시간 여유는 꽤 있다.',
+  opts:['주변 사람에게 바로 길을 물어본다','표지판과 주변 지형을 보면서 직접 방향을 추측해본다','일단 원래 알고 있던 지점으로 돌아가서 다시 길을 잡는다','꼭 원래 길로 갈 필요는 없으니 주변을 보면서 다른 경로로 움직인다']},
+ {ctx:'친구들과 작은 프로젝트를 시작했는데, 회의를 하다 보니 괜찮아 보이는 아이디어가 여섯 개나 나왔다. 모두 할 수는 없다.',
+  opts:['목표에 가장 직접적으로 도움이 되는 아이디어부터 남긴다','가장 재미있고 발전 가능성이 커 보이는 아이디어를 고른다','각각 장단점을 비교하면서 하나씩 제거한다','작은 형태로 몇 개를 먼저 시험해보고 반응을 본다']},
+ {ctx:'약속시간 두 시간 전에 친구가 "오늘 너무 피곤해서 못 만날 것 같다"고 한다. 나는 이미 오늘 일정 대부분을 그 약속에 맞춰놨다.',
+  opts:['짜증은 나지만 그럴 수 있다고 하고 다른 일을 찾는다','왜 이렇게 늦게 말했는지부터 궁금하고 다음에는 미리 말해달라고 한다','친구 상태가 정말 안 좋은 건 아닌지 먼저 물어본다','오히려 갑자기 시간이 생긴 게 나쁘지 않아서 다른 계획을 만든다']},
+ {ctx:'전문가가 어떤 개념을 설명해줬다. 결론 자체는 맞는 것 같지만 중간 설명이 어딘가 논리적으로 찜찜하다.',
+  opts:['결과가 맞고 실제로 잘 작동한다면 일단 넘어간다','어디서 논리가 끊기는지 이해될 때까지 계속 생각한다','다른 설명이나 자료를 찾아서 비교한다','실제 사례를 몇 개 적용해보면서 설명이 맞는지 확인한다']},
+ {ctx:'6개월 뒤 해외여행을 가기로 했다. 항공권만 구매한 상태이고 일정은 아무것도 정하지 않았다. 출발 한 달 전쯤 나의 모습은?',
+  opts:['주요 일정과 숙소, 이동수단은 거의 정리돼 있다','꼭 하고 싶은 것 몇 개만 정했고 나머지는 현지에서 결정하려 한다','관련 정보를 엄청 많이 저장해뒀지만 아직 일정은 못 정했다','큰 방향만 정해놨고 상황을 보면서 구체화할 생각이다']},
+ {ctx:'어떤 문제에 대해 이미 꽤 확실한 의견이 있다. 친구가 정반대 의견을 말하며 한 시간 동안 토론한다. 생각이 바뀌는 경우는 보통 어떤 때인가?',
+  opts:['내 논리에서 명백한 오류를 발견했을 때','내가 몰랐던 중요한 사실이 새롭게 나왔을 때','상대의 관점으로 상황을 보니 내가 놓친 의미가 보였을 때','완전히 바뀌기보다 두 관점을 합친 새로운 생각이 생길 때']},
+ {ctx:'작은 프로젝트에서 갑자기 내가 전체 진행을 맡게 됐다. 팀원들은 실력도 성격도 제각각이고 마감은 한 달 뒤다.',
+  opts:['목표와 역할, 마감 시점을 명확히 정한다','팀원들과 이야기하면서 각자가 잘하는 것과 원하는 역할을 파악한다','프로젝트에서 가장 중요한 문제가 무엇인지부터 파악한다','일단 초반 작업을 시작해서 진행하면서 역할을 조정한다']},
+ {ctx:'몇 년 동안 잘 써오던 방식이 있는데, 최근에는 결과가 예전만큼 좋지 않다.',
+  opts:['무엇이 달라졌는지 이전 상황과 현재 상황을 비교한다','기존 방식을 버리고 새로운 접근을 여러 개 시험해본다','근본적으로 왜 그 방식이 통했는지 원리부터 다시 생각한다','지금 상황에서 가장 효과적인 다른 방법을 찾아 바로 바꾼다']},
+ {ctx:'현재 생활도 크게 나쁘지 않은데, 갑자기 꽤 매력적인 새로운 기회가 들어왔다. 성공하면 훨씬 재미있을 수 있지만 실패 위험도 있다.',
+  opts:['실패했을 때 내가 감당해야 하는 현실적인 손실','이 기회를 놓쳤을 때 나중에 후회할 가능성','이 선택이 내가 장기적으로 가고 싶은 방향과 맞는지','충분한 정보를 모은 뒤 성공 가능성이 얼마나 되는지']},
+ {ctx:'몇 달 동안 준비한 큰 일이 오늘 끝났다. 결과는 성공적이었다. 집에 돌아와 혼자 있을 때 가장 자연스럽게 떠오를 것 같은 것은?',
+  opts:['"잘 끝났다, 이제 다음에 뭘 하지?"','진행 과정에서 잘했던 것과 아쉬웠던 부분들이 떠오른다','이 일을 하면서 내가 무엇을 느꼈고 무엇이 달라졌는지 생각한다','있었던 일들이 하나둘 생각나면서 그냥 성취감을 즐긴다']},
+];
+let mdProfileId=null,mdAnswers={},mdIndex=0,mdPicked=null;
+async function openMbtiDeepQuiz(profileId){
+ await getUserTier();
+ if(userTier==='free'){
+  alert('정밀 MBTI 분석은 라이트 이상 결제 회원 전용 기능이에요. 요금제를 먼저 확인해주세요.');
+  return;
+ }
+ mdProfileId=profileId;mdAnswers={};
+ document.getElementById('mdResultBox').style.display='none';
+ document.getElementById('mdLoading').style.display='none';
+ document.getElementById('mdQBox').style.display='block';
+ document.getElementById('mbtiDeepModal').style.display='flex';
+ try{
+  const snap=await db.collection('users').doc(currentUser.uid).collection('profiles').doc(profileId)
+   .collection('mbtiProgress').doc('current').get();
+  if(snap.exists&&snap.data().answers)mdAnswers=snap.data().answers;
+ }catch(e){}
+ mdIndex=0;
+ while(mdIndex<MBTI_DEEP_Q.length&&mdAnswers[mdIndex])mdIndex++;
+ if(mdIndex>=MBTI_DEEP_Q.length)mdIndex=MBTI_DEEP_Q.length-1;
+ renderMdQuestion();
+}
+function closeMbtiDeepQuiz(){document.getElementById('mbtiDeepModal').style.display='none';}
+function renderMdQuestion(){
+ const q=MBTI_DEEP_Q[mdIndex];
+ const saved=mdAnswers[mdIndex];
+ mdPicked=saved?saved.choice:null;
+ document.getElementById('mdProgress').textContent=`질문 ${mdIndex+1} / ${MBTI_DEEP_Q.length}`;
+ document.getElementById('mdProgFill').style.width=((mdIndex+1)/MBTI_DEEP_Q.length*100)+'%';
+ const letters=['A','B','C','D'];
+ document.getElementById('mdQBox').innerHTML=`
+  <div class="mdctx">${q.ctx}</div>
+  ${q.opts.map((o,i)=>`<button type="button" class="mdopt" id="mdopt${i}" onclick="pickMd(${i})">${letters[i]}. ${o}</button>`).join('')}
+  <textarea id="mdReason" class="mdtextarea" placeholder="선택한 이유를 짧게 적어주세요">${saved?saved.reason:''}</textarea>
+  <div class="mdnav">
+   ${mdIndex>0?`<button type="button" class="prow-btn" onclick="mdPrev()">이전</button>`:'<span></span>'}
+   <button type="button" class="go" id="mdNext" onclick="mdNext()">${mdIndex===MBTI_DEEP_Q.length-1?'분석 시작':'다음'}</button>
+  </div>`;
+ if(saved!=null)markMdPicked(saved.choice);
+}
+function pickMd(i){mdPicked=i;markMdPicked(i);}
+function markMdPicked(i){for(let k=0;k<4;k++)document.getElementById('mdopt'+k).classList.toggle('picked',k===i);}
+async function saveMdProgress(){
+ if(!currentUser||!mdProfileId)return;
+ try{
+  await db.collection('users').doc(currentUser.uid).collection('profiles').doc(mdProfileId)
+   .collection('mbtiProgress').doc('current')
+   .set({answers:mdAnswers,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+ }catch(e){console.error('MBTI 진행 저장 실패',e);}
+}
+function captureMdAnswer(){
+ const reason=document.getElementById('mdReason').value.trim();
+ if(mdPicked==null||!reason)return false;
+ mdAnswers[mdIndex]={choice:mdPicked,choiceText:MBTI_DEEP_Q[mdIndex].opts[mdPicked],reason};
+ return true;
+}
+function mdPrev(){
+ captureMdAnswer();
+ mdIndex--;renderMdQuestion();
+}
+async function mdNext(){
+ if(!captureMdAnswer()){alert('선택과 이유를 모두 입력해주세요.');return;}
+ await saveMdProgress();
+ if(mdIndex===MBTI_DEEP_Q.length-1){runMbtiDeepAnalysis();return;}
+ mdIndex++;renderMdQuestion();
+}
+async function runMbtiDeepAnalysis(){
+ document.getElementById('mdQBox').style.display='none';
+ document.getElementById('mdLoading').style.display='block';
+ const qaText=MBTI_DEEP_Q.map((q,i)=>{
+  const a=mdAnswers[i];
+  return `Q${i+1}. ${q.ctx}\n선택: ${a.choiceText}\n이유: ${a.reason}`;
+ }).join('\n\n');
+ const sys=`당신은 20년차 MBTI 분석 전문가다. 아래 20개 질문에 대한 사용자의 선택과 이유를 근거로 심층 분석한다.
+
+[분석 원칙]
+- 단순히 선택지 하나로 축을 기계적으로 매기지 않는다. 선택과 이유를 함께 읽고 판단한다.
+- 여러 질문에서 반복되는 패턴은 강한 근거, 한 번만 나온 것은 약한 근거로 취급한다.
+- 상황에 따라 다르게 행동하는 모순도 무시하지 말고 왜 다른지 분석에 반영한다.
+- 인지기능(Ne,Ni,Se,Si,Te,Ti,Fe,Fi) 관점에서 먼저 관찰한 뒤 MBTI를 도출한다. 유형을 먼저 정하고 근거를 끼워맞추지 않는다.
+
+[출력 형식]
+다른 설명이나 코드펜스 없이, 아래 키를 가진 순수 JSON 객체 하나만 출력하라.
+{
+ "mbti": "네 글자 유형",
+ "confidence": "적합도 퍼센트, 숫자만",
+ "axes": {"EI":"한두 문장 요약과 핵심 근거","SN":"...","TF":"...","JP":"..."},
+ "judgmentPattern": "이 사람이 언제 결정을 빨리 내리고 언제 오래 고민하는지, 그 기준이 무엇인지 2~3문장",
+ "mbtiDetail": "사주 상담 챗봇이 상담 중 참고자료로 쓸 300~450자 요약. 일반적 유형 설명이 아니라 이 사람만의 구체적 판단·행동 패턴 위주로 쓴다.",
+ "reportText": "사용자에게 보여줄 전체 리포트. 마크다운. 4개 축 분석과 근거, 인지기능 순위, 후보 TOP3와 반증 과정, 최종 결과를 포함해 상세하게 작성."
+}`;
+ try{
+  const res=await fetch('https://jujudosa-api.jinjjabg.workers.dev/',{
+   method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:3000,system:sys,
+    messages:[{role:'user',content:qaText}]})});
+  const data=await res.json();
+  let txt=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
+  txt=txt.replace(/^```json\s*|```$/g,'').trim();
+  const result=JSON.parse(txt);
+  await saveMdResult(result);
+  db.collection('users').doc(currentUser.uid).collection('profiles').doc(mdProfileId)
+   .collection('mbtiProgress').doc('current').delete().catch(()=>{});
+  showMdResult(result);
+ }catch(e){
+  console.error('MBTI 정밀분석 실패',e);
+  document.getElementById('mdLoading').innerHTML='분석 중 문제가 발생했어요. 답변은 저장되어 있으니 다시 시도해주세요.<br><button class="go" style="margin-top:10px" onclick="runMbtiDeepAnalysis()">다시 시도</button>';
+ }
+}
+async function saveMdResult(result){
+ const payload={mbti:result.mbti,mbtiDetail:result.mbtiDetail,mbtiReport:result.reportText,
+  mbtiJudgmentPattern:result.judgmentPattern,mbtiConfidence:result.confidence,
+  mbtiTestAt:firebase.firestore.FieldValue.serverTimestamp()};
+ await db.collection('users').doc(currentUser.uid).collection('profiles').doc(mdProfileId).set(payload,{merge:true});
+ const idx=savedProfiles.findIndex(x=>x.id===mdProfileId);
+ if(idx>-1)Object.assign(savedProfiles[idx],payload);
+}
+function showMdResult(result){
+ document.getElementById('mdLoading').style.display='none';
+ document.getElementById('mdResultBox').style.display='block';
+ document.getElementById('mdResultBox').innerHTML=`
+  <div style="text-align:center;padding:6px 0 14px">
+   <div style="font-size:12px;color:var(--sub);font-weight:700">정밀 분석 결과</div>
+   <div style="font-size:28px;font-weight:900;color:var(--primary);margin-top:4px">${result.mbti}</div>
+   <div style="font-size:12px;color:var(--sub);margin-top:2px">예상 적합도 ${result.confidence}%</div>
+  </div>
+  <div style="font-size:13px;line-height:1.7;color:var(--text);white-space:pre-wrap;max-height:340px;overflow-y:auto;padding:2px 2px">${result.reportText}</div>
+  <button class="go" style="margin-top:14px" onclick="closeMbtiDeepQuiz();renderProfilesModalList();">확인</button>`;
+}
+
 /* ===== MBTI 간단 자가진단 ===== */
 const MBTI_Q=[
  {dim:'EI',a:['사람 많은 모임에 있으면','에너지가 올라간다'],b:['사람 많은 모임에 있으면','에너지가 소모된다']},
@@ -1458,9 +1660,9 @@ function startFromProfile(p,personaId){
  fillFromProfile(p);
  const A=parsePerson('bdate','btime','timeUnknown','region',p.gender,'',p.calType||'solar','isLeap');
  if(A.err){switchTab('fortune');return;}
- renderSoloResult(A,p.mbti,p.gender==='M'?'남':'여',p.label||p.bdate,personaId||'general',p.id);
+ renderSoloResult(A,p.mbti,p.gender==='M'?'남':'여',p.label||p.bdate,personaId||'general',p.id,p.mbtiDetail,p.mbtiJudgmentPattern);
 }
-function renderSoloResult(A,mbtiVal,genderLabel,ownerLabel,personaId,profileId){
+function renderSoloResult(A,mbtiVal,genderLabel,ownerLabel,personaId,profileId,mbtiDetail,mbtiJudgmentPattern){
  personaId=personaId||'general';
  currentPersonaId=personaId;
  const P=PERSONAS[personaId];
@@ -1500,8 +1702,12 @@ function renderSoloResult(A,mbtiVal,genderLabel,ownerLabel,personaId,profileId){
   ${hourWarn}`;
 
  const baseRules=BASE_RULES(todayStr,P.name);
- const mbtiSection=mbtiVal?`「MBTI로 보면」 이 사람의 MBTI는 ${mbtiVal}이다. 이 섹션은 특히 공들여서 8~10문장으로 두텁게 쓴다. 사주에서 읽히는 기질과 ${mbtiVal}가 겹치는 지점을 구체적 행동 사례로 2~3가지 짚는다. 두 도구가 다르게 말하는 지점이 있다면 숨기지 말고 정직하게 짚고, 그 차이를 흥미로운 관찰로 다룬다. MBTI는 검사 시점의 스냅샷이고 사주는 태어난 순간 고정된 원본이라는 차이를 짧게 언급해도 좋다.
+ const mbtiSection=mbtiVal?`「MBTI로 보면」 이 사람의 MBTI는 ${mbtiVal}이다. 이 섹션은 특히 공들여서 8~10문장으로 두텁게 쓴다. 사주에서 읽히는 기질과 ${mbtiVal}가 겹치는 지점을 구체적 행동 사례로 2~3가지 짚는다.${mbtiDetail?' 아래 [MBTI 정밀분석 참고자료]에 있는 이 사람의 실제 판단·행동 패턴을 반드시 근거로 활용해서, 일반적인 유형 설명이 아니라 이 사람만의 구체적인 사례로 풀어쓴다.':''} 두 도구가 다르게 말하는 지점이 있다면 숨기지 말고 정직하게 짚고, 그 차이를 흥미로운 관찰로 다룬다. MBTI는 검사 시점의 스냅샷이고 사주는 태어난 순간 고정된 원본이라는 차이를 짧게 언급해도 좋다.
 `:'';
+ const mbtiDetailBlock=mbtiDetail?`
+[MBTI 정밀분석 참고자료 — 상담 전체에서 활용] ${mbtiDetail}${mbtiJudgmentPattern?`
+[이 사람의 판단·결정 패턴] ${mbtiJudgmentPattern}`:''}
+이 자료는 사용자가 20문항 정밀검사를 거쳐 얻은 실제 분석 결과다. MBTI 관련 언급뿐 아니라, 상담자가 고민이나 결정을 망설이는 이야기를 꺼낼 때도 [고민 판별 지시]에 따라 이 판단 패턴을 근거로 활용한다.`:'';
  const focusNote=(personaId!=='general'&&P.focus)?
   `\n[페르소나 확대 지시 — 매우 중요] 너는 지금 "${P.name}"로서 상담한다. [말투] ${P.tone} 「${P.focus}」 섹션은 다른 섹션보다 훨씬 두텁고 상세하게 쓴다: ${P.focusNote} 나머지 섹션도 위 말투를 일관되게 유지한다. 인사말이나 자기소개에서 네가 ${P.name}임을 은근히 드러내도 좋다.`:'';
  const specialistList=Object.keys(PERSONAS).filter(k=>k!=='general')
@@ -1515,6 +1721,7 @@ function renderSoloResult(A,mbtiVal,genderLabel,ownerLabel,personaId,profileId){
 ${personBlock(A,'')}
 세운: ${seun.join(', ')}
 ${mbtiVal?`MBTI: ${mbtiVal}`:''}
+${mbtiDetailBlock}
 ${focusNote}
 
 [첫 풀이 — 매우 중요] 첫 응답은 인사가 아니라 종합 풀이다. 이것은 상담의 기초 공사이므로 충분히 길고 자세해야 한다. 짧게 요약하고 넘어가지 말고, 아래 섹션을 라벨과 함께 차례로, 각 섹션 9~13문장씩 실제 사례와 구체적 상황을 들어가며 두텁게 풀어라 (단, 위 페르소나 확대 지시가 있는 섹션은 그 지시를 따른다).
@@ -1558,6 +1765,8 @@ function BASE_RULES(todayStr,personaName){
 [나이와 대운 구분 — 중요] 대운은 10년 단위 구간이고, 상담자의 실제 나이와 그 구간의 시작 나이는 다르다. "현재 53세 대운"처럼 구간 시작 나이를 상담자의 실제 나이인 것처럼 말하지 않는다. 대운을 언급할 때는 반드시 "상담자의 실제 나이(세는나이) + 그 나이가 속한 대운 구간"을 함께, 명확히 구분해서 말한다. 예: "지금 56세시고, 53~62세 계사(癸巳) 대운 구간에 계세요."
 [오늘 날짜] 오늘은 ${todayStr}이다. "올해", "내년", "요즘" 같은 표현은 반드시 이 날짜를 기준으로 계산해서 말한다. 절대 다른 연도를 올해로 착각하지 않는다.
 [말투] 존댓말. 도사의 품위는 지키되 말은 쉽고 일상적이어야 한다. 짧은 문장으로 끊는다. 감탄사·웃음 금지.
+[구체성 원칙 — 매우 중요] 모든 문장은 "일반성 테스트"를 통과해야 한다: 이 사람의 이름·사주 구조·MBTI를 빼도 다른 사람에게 똑같이 할 수 있는 말이면 쓰지 않는다. "환절기 건강 조심하세요", "무리하지 마세요", "마음의 여유를 가지세요", "차 조심하세요", "좋은 일이 생길 거예요" 같은 누구에게나 통하는 덕담·클리셰는 금지한다. 대신 실제 명식 데이터(오행 개수, 십성, 대운 시기, 일간)나 MBTI 정밀분석 근거를 문장 안에 구체적으로 박아 넣는다. 건강 조언도 "물 기운이 약하다" 정도로 끝내지 말고, 어떤 상황에서 그게 드러나는지(예: 무리해서 일 벌일 때 신장·수면 쪽이 먼저 무너지는 패턴) 구체적 장면으로 짚는다. 이 원칙은 첫 풀이뿐 아니라 이후 모든 후속 답변에도 동일하게 적용한다.
+[고민 판별 지시] 상담자가 결정을 못 내리는 고민을 꺼내면, 그 고민이 (1) 사안 자체가 정말 복잡하거나 정보가 부족해서 판단이 어려운 것인지, (2) 상담자의 타고난 기질·판단 패턴(사주 구조, 그리고 있다면 MBTI 정밀분석의 판단패턴 참고자료) 때문에 늘 이런 식으로 고민이 길어지는 것인지를 먼저 구분해서 짚어준다. 후자로 보인다면 "이건 사안 자체보다 평소 이런 유형의 결정에서 늘 시간이 걸리시는 편이라 그런 걸 수 있다"는 식으로, 그 사람의 반복되는 패턴을 근거로 알려주고, 사안 자체는 이미 답이 나와 있을 가능성을 짚어준다. 이 구분을 섣불리 하지 말고, 상담자가 실제로 결정·선택을 미루거나 망설이는 뉘앙스로 말할 때만 적용한다.
 [구체성 — 최상위 규칙] 듣고 나서 "그래서 뭐?"가 남으면 실패다. 뜬구름 표현 금지: "기운이 흐른다", "그릇", "계절", "흐름이 감돈다" 같은 추상어를 쓰지 않는다. 비유는 답변 전체에 최대 1개, 없어도 된다. 대신 이렇게 말한다 — 성격은 행동으로, 재능은 상황으로, 시기는 할 일로. 일·돈·사람·습관처럼 손에 잡히는 영역으로 말한다. 근거 글자는 문장 끝 괄호로 짧게. 예: (월지 정인)
 [강의 금지 — 매우 중요] "병(丙)은 편관입니다", "진(辰)은 토입니다" 처럼 명리학 개념 자체를 풀어 설명하지 않는다. 상담자는 편관이 뭔지 안 궁금하고, 자기 인생에 뭐가 오는지가 궁금하다. 용어 설명은 단 한 글자도 본문에 쓰지 않고, 결론만 말한 뒤 괄호로 근거만 남긴다.
 [결론도 구체적으로] 근거(간지·오행)만 구체적이고 결론이 뭉뚱그려지면 실패다. "책임지는 일이 생긴다", "새로운 국면이 시작된다" 같은 말은 누구에게나 해당되는 말이라 쓰지 않는다. 실제로 벌어질 법한 장면으로 못 박는다.
