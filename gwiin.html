@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>귀인지도 · 주주도사</title>
+<meta property="og:title" content="내 주변에 귀인이 몇 명일까?">
+<meta property="og:description" content="생년월일만 넣으면 나와 어떤 인연인지 지도에 떠요.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="./korean-lunar-calendar.min.js"></script>
+<style>
+:root{
+  --bg:#F7F8FA; --card:#FFF; --text:#191F28; --sub:#8B95A1; --line:#E5E8EB;
+  --primary:#5D5FEF; --primary-dark:#4a4dd8; --primary-tint:#EFF0FE;
+  --wood:#12B76A; --fire:#F04438; --earth:#F79009; --metal:#667085; --water:#2E90FA;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;overflow-x:hidden}
+body{background:var(--bg);color:var(--text);
+  font-family:'Pretendard Variable',Pretendard,-apple-system,'Noto Sans KR',sans-serif;
+  -webkit-font-smoothing:antialiased;padding-bottom:40px}
+button,input,select{font-family:inherit}
+.wrap{max-width:480px;margin:0 auto;padding:20px 18px}
+.card{background:var(--card);border-radius:18px;padding:20px 18px;margin-bottom:14px;
+  box-shadow:0 1px 3px rgba(0,0,0,.04)}
+h1{font-size:23px;font-weight:900;line-height:1.35;margin-bottom:8px}
+h2{font-size:16px;font-weight:800;margin-bottom:10px}
+.sub{font-size:13px;color:var(--sub);line-height:1.65}
+.f{display:block;font-size:12px;font-weight:700;color:var(--sub);margin:14px 0 6px}
+.field,input[type=text]{width:100%;border:1.5px solid var(--line);border-radius:12px;
+  padding:13px 14px;font-size:14px;background:#fff;color:var(--text)}
+.field:focus,input:focus{outline:none;border-color:var(--primary)}
+.row{display:grid;grid-template-columns:1fr 96px;gap:8px}
+.go{width:100%;background:var(--primary);color:#fff;border:none;border-radius:14px;
+  padding:15px;font-size:15px;font-weight:800;cursor:pointer;margin-top:16px}
+.go:active{transform:scale(.98)}
+.go.ghost{background:var(--primary-tint);color:var(--primary)}
+.go.line{background:#fff;color:var(--text);border:1.5px solid var(--line)}
+.err{color:var(--fire);font-size:12.5px;margin-top:10px;display:none;line-height:1.6}
+.hint{font-size:11.5px;color:var(--sub);margin-top:6px;line-height:1.6}
+.notice{background:var(--bg);border-radius:12px;padding:12px 14px;font-size:12px;
+  color:var(--sub);line-height:1.7;margin-top:14px}
+
+/* 결과 히어로 */
+.hero{text-align:center;padding:8px 0 4px}
+.hero .who{font-size:12.5px;color:var(--sub);font-weight:700}
+.hero .label{font-size:30px;font-weight:900;margin:8px 0 4px}
+.hero .score{font-size:13px;color:var(--sub);font-weight:700}
+.hero .line{font-size:14px;line-height:1.7;margin-top:14px;text-align:left;
+  background:var(--bg);border-radius:12px;padding:14px}
+.badge{display:inline-block;border-radius:999px;padding:5px 13px;font-size:12px;font-weight:800;color:#fff}
+.el-0{background:var(--wood)}.el-1{background:var(--fire)}.el-2{background:var(--earth)}
+.el-3{background:var(--metal)}.el-4{background:var(--water)}
+
+/* 관계 지도 */
+.mapbox{background:#151B2B;border-radius:16px;padding:16px 10px;margin-top:4px}
+.maplegend{display:flex;justify-content:center;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.maplegend span{font-size:10.5px;color:#8B95A1;background:rgba(255,255,255,.06);
+  border-radius:999px;padding:3px 9px}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:12px}
+.stat{background:var(--bg);border-radius:12px;padding:11px 4px;text-align:center}
+.stat b{display:block;font-size:19px;font-weight:900}
+.stat span{font-size:10.5px;color:var(--sub);font-weight:700}
+
+/* 참여자 목록 */
+.prow{display:flex;align-items:center;gap:11px;padding:13px 0;border-bottom:1px solid var(--bg)}
+.prow:last-child{border-bottom:none}
+.pdot{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:900;color:#fff;flex-shrink:0}
+.pname{font-size:14px;font-weight:800}
+.prel{font-size:12px;color:var(--sub);margin-top:2px;line-height:1.5}
+.pscore{margin-left:auto;font-size:13px;font-weight:800;color:var(--primary);flex-shrink:0}
+.empty{text-align:center;padding:26px 0;font-size:13px;color:var(--sub);line-height:1.7}
+details{margin-top:12px}
+summary{font-size:12.5px;color:var(--sub);cursor:pointer;font-weight:700}
+details .notice{margin-top:8px}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#191F28;color:#fff;
+  font-size:13px;padding:11px 20px;border-radius:999px;opacity:0;transition:opacity .25s;z-index:99;pointer-events:none}
+.toast.on{opacity:1}
+.loading{text-align:center;padding:40px 0;color:var(--sub);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><div class="loading">불러오는 중…</div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===== Firebase ===== */
+firebase.initializeApp({
+  apiKey:"AIzaSyCL4lIbgD1EtzfA9YMzbfqb24hrm9WXXSA",
+  authDomain:"jujudosa.firebaseapp.com",
+  projectId:"jujudosa",
+  storageBucket:"jujudosa.firebasestorage.app",
+  messagingSenderId:"986803631175",
+  appId:"1:986803631175:web:7e3c84c735ac16db29ed62"
+});
+const auth=firebase.auth(),db=firebase.firestore();
+let currentUser=null;
+
+/* ===== 만세력 코어 (index.html과 동일 엔진) ===== */
+const SH=['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'],SK=['갑','을','병','정','무','기','경','신','임','계'];
+const BH=['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'],BK=['자','축','인','묘','진','사','오','미','신','유','술','해'];
+const SE=[0,0,1,1,2,2,3,3,4,4],BE=[4,2,0,0,2,1,1,2,3,3,2,4],EK=['목','화','토','금','수'];
+const DST=[['1948-06-01T00:00','1948-09-13T00:00'],['1949-04-03T00:00','1949-09-11T00:00'],
+['1950-04-01T00:00','1950-09-10T00:00'],['1951-05-06T00:00','1951-09-09T00:00'],
+['1955-05-05T00:00','1955-09-09T00:00'],['1956-05-20T00:00','1956-09-30T00:00'],
+['1957-05-05T00:00','1957-09-22T00:00'],['1958-05-04T00:00','1958-09-21T00:00'],
+['1959-05-03T00:00','1959-09-20T00:00'],['1960-05-01T00:00','1960-09-18T00:00'],
+['1987-05-10T02:00','1987-10-11T03:00'],['1988-05-08T02:00','1988-10-09T03:00']];
+const K830S='1954-03-21T00:00',K830E='1961-08-10T00:00';
+const pad=(n,w=2)=>String(n).padStart(w,'0');
+const tk=(y,mo,d,h,mi)=>`${pad(y,4)}-${pad(mo)}-${pad(d)}T${pad(h)}:${pad(mi)}`;
+function jdn(y,mo,d){const a=Math.floor((14-mo)/12),yy=y+4800-a,mm=mo+12*a-3;
+ return d+Math.floor((153*mm+2)/5)+365*yy+Math.floor(yy/4)-Math.floor(yy/100)+Math.floor(yy/400)-32045;}
+function fromJdn(j){let a=j+32044;const b=Math.floor((4*a+3)/146097),c=a-Math.floor(146097*b/4),
+ dd=Math.floor((4*c+3)/1461),e=c-Math.floor(1461*dd/4),m=Math.floor((5*e+2)/153);
+ return{d:e-Math.floor((153*m+2)/5)+1,mo:m+3-12*Math.floor(m/10),y:100*b+dd-4800+Math.floor(m/10)};}
+function addMin(y,mo,d,h,mi,del){let t=h*60+mi+del,ds=Math.floor(t/1440);t-=ds*1440;
+ const dt=fromJdn(jdn(y,mo,d)+ds);return{y:dt.y,mo:dt.mo,d:dt.d,h:Math.floor(t/60),mi:t%60};}
+function sunLon(jde){const T=(jde-2451545)/36525,r=Math.PI/180;
+ const L0=280.46646+36000.76983*T+.0003032*T*T,M=357.52911+35999.05029*T-.0001537*T*T;
+ const C=(1.914602-.004817*T-.000014*T*T)*Math.sin(M*r)+(.019993-.000101*T)*Math.sin(2*M*r)+.000289*Math.sin(3*M*r);
+ let L=L0+C-.00569-.00478*Math.sin((125.04-1934.136*T)*r);L%=360;return L<0?L+360:L;}
+const jdeUT=(y,mo,d,h,mi)=>jdn(y,mo,d)-0.5+(h+mi/60)/24;
+function ipchun(year){let lo=jdeUT(year,1,25,0,0),hi=jdeUT(year,2,15,0,0);
+ const f=j=>{let d=sunLon(j)-315;while(d>180)d-=360;while(d<-180)d+=360;return d;};
+ for(let i=0;i<60;i++){const m=(lo+hi)/2;if(f(m)<0)lo=m;else hi=m;}return(lo+hi)/2;}
+function computeSaju(inp){
+ const{y,mo,d,h=12,mi=0,timeUnknown=false,lonDeg=126.98,useLon=true}=inp;
+ const key=tk(y,mo,d,h,mi);let dstMin=0;
+ for(const[s,e]of DST)if(key>=s&&key<e){dstMin=-60;break;}
+ const is830=key>=K830S&&key<K830E,mer=is830?127.5:135,lonMin=useLon?Math.round((lonDeg-mer)*4):0;
+ const std=addMin(y,mo,d,h,mi,dstMin),ut=addMin(std.y,std.mo,std.d,std.h,std.mi,-(is830?510:540));
+ const jde=jdeUT(ut.y,ut.mo,ut.d,ut.h,ut.mi),lon=sunLon(jde);
+ let sy=std.y;if(jde<ipchun(std.y))sy=std.y-1;
+ const ys=((sy-4)%10+10)%10,yb=((sy-4)%12+12)%12;
+ const mIdx=Math.floor((((lon-315)%360)+360)%360/30),mb=(mIdx+2)%12,ms=((ys%5)*2+2+mIdx)%10;
+ const app=addMin(std.y,std.mo,std.d,std.h,std.mi,lonMin);
+ let dj=jdn(app.y,app.mo,app.d);if(!timeUnknown&&app.h===23)dj+=1;
+ const dgz=((dj+49)%60+60)%60,ds=dgz%10,db=dgz%12;
+ const P=[{label:'년주',stem:ys,branch:yb},{label:'월주',stem:ms,branch:mb},{label:'일주',stem:ds,branch:db}];
+ const ec=[0,0,0,0,0];for(const p of P){ec[SE[p.stem]]++;ec[BE[p.branch]]++;}
+ return{pillars:P,elemCount:ec,sajuYear:sy};}
+function lunarToSolar(y,mo,d,isLeap){
+ try{const c=new KoreanLunarCalendar();
+  if(c.setLunarDate(y,mo,d,!!isLeap)===false)return null;
+  const s=c.getSolarCalendar();return{y:s.year,mo:s.month,d:s.day};
+ }catch(e){return null;}}
+const SAMHAP=[[8,0,4],[2,6,10],[5,9,1],[11,3,7]];
+function branchRel(a,b){
+ if(a===b)return 'same';
+ if(a+b===13||(a===0&&b===1)||(a===1&&b===0))return 'yukhap';
+ if(Math.abs(a-b)===6)return 'chung';
+ for(const g of SAMHAP)if(g.includes(a)&&g.includes(b))return 'samhap';
+ return 'none';}
+
+/* ===== 귀인지도 관계 판정 =====
+   메인축: 일간 오행 관계 (내 기준)
+   가감점: 연지·월지·일지 3주의 지지 관계 */
+const REL={
+ gwiin:{key:'gwiin',name:'귀인',emoji:'🌟',base:86,
+  desc:e=>`${EK[e.other]}이 ${EK[e.me]}을 살려요 — 기운이 빠졌을 때 이 사람을 만나면 다시 차오르는 사이예요.`},
+ chaejjik:{key:'chaejjik',name:'채찍',emoji:'⚡',base:84,
+  desc:e=>`${EK[e.other]}이 ${EK[e.me]}을 두드려요 — 이 사람 앞에서는 긴장하게 되지만, 그 덕에 흐트러지지 않아요.`},
+ jjakkung:{key:'jjakkung',name:'짝꿍',emoji:'💛',base:78,
+  desc:e=>`같은 ${EK[e.me]} 기운 — 성향이 비슷해서 설명 없이도 손발이 맞아요.`},
+ naesaram:{key:'naesaram',name:'내사람',emoji:'🌱',base:74,
+  desc:e=>`${EK[e.me]}이 ${EK[e.other]}을 살려요 — 내가 챙기고 이끌게 되는, 내 사람이에요.`},
+ jorak:{key:'jorak',name:'조력',emoji:'🛠',base:70,
+  desc:e=>`${EK[e.me]}이 ${EK[e.other]}을 다뤄요 — 내가 방향을 잡으면 잘 따라와주는 사이예요.`},
+};
+const REL_ORDER=['gwiin','chaejjik','jjakkung','naesaram','jorak'];
+function relOf(meStem,otherStem){
+ const me=SE[meStem],other=SE[otherStem];
+ if(me===other)return 'jjakkung';
+ if((other+1)%5===me)return 'gwiin';      // 상대가 나를 생함
+ if((me+1)%5===other)return 'naesaram';   // 내가 상대를 생함
+ if((other+2)%5===me)return 'chaejjik';   // 상대가 나를 극함
+ return 'jorak';                          // 내가 상대를 극함
+}
+/* 3주 지지 가감점: 삼합 +4, 육합 +3, 같은 글자 +2, 충 -5, 나머지 0 */
+function branchBonus(myP,otP){
+ let s=0;
+ for(let i=0;i<3;i++){
+  const r=branchRel(myP[i].branch,otP[i].branch);
+  if(r==='samhap')s+=4;else if(r==='yukhap')s+=3;
+  else if(r==='same')s+=2;else if(r==='chung')s-=5;
+ }
+ return s;
+}
+function calcRelation(ownerSaju,guestSaju){
+ const myD=ownerSaju.pillars[2],otD=guestSaju.pillars[2];
+ const key=relOf(myD.stem,otD.stem);
+ const r=REL[key];
+ const bonus=branchBonus(ownerSaju.pillars,guestSaju.pillars);
+ let score=r.base+bonus;
+ if(score>99)score=99;if(score<40)score=40;
+ return{relKey:key,relName:r.name,emoji:r.emoji,score,
+  element:SE[otD.stem],
+  desc:r.desc({me:SE[myD.stem],other:SE[otD.stem]})};
+}
+
+/* ===== 공용 유틸 ===== */
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');
+ setTimeout(()=>t.classList.remove('on'),1800);}
+function parseBirth(dateStr,cal,leap){
+ const dg=(dateStr||'').replace(/\D/g,'');
+ if(dg.length!==8)return{err:'생년월일을 8자리로 입력해 주세요. (예: 19930821)'};
+ let y=+dg.slice(0,4),mo=+dg.slice(4,6),d=+dg.slice(6,8);
+ if(y<1900||y>2030)return{err:'연도는 1900~2030년 사이여야 해요.'};
+ if(cal==='lunar'){
+  const s=lunarToSolar(y,mo,d,leap);
+  if(!s)return{err:'음력 날짜를 변환할 수 없어요. 날짜를 확인해 주세요.'};
+  y=s.y;mo=s.mo;d=s.d;
+ }
+ const c=new Date(y,mo-1,d);
+ if(c.getFullYear()!==y||c.getMonth()!==mo-1||c.getDate()!==d)return{err:'존재하지 않는 날짜예요.'};
+ return{saju:computeSaju({y,mo,d,h:12,mi:0,timeUnknown:true})};
+}
+function autoFmtDate(el){el.addEventListener('input',()=>{
+ const dg=el.value.replace(/\D/g,'').slice(0,8);
+ let o=dg;if(dg.length>6)o=dg.slice(0,4)+'-'+dg.slice(4,6)+'-'+dg.slice(6);
+ else if(dg.length>4)o=dg.slice(0,4)+'-'+dg.slice(4);el.value=o;});}
+
+/* ===== 라우팅 ===== */
+const params=new URLSearchParams(location.search);
+const MAP_UID=params.get('u'),MAP_ID=params.get('m');
+auth.onAuthStateChanged(u=>{currentUser=u;route();});
+function route(){
+ if(MAP_UID&&MAP_ID)renderGuestView();
+ else renderOwnerView();
+}
+
+/* ===== 참여자 화면 (로그인 불필요) ===== */
+let ownerData=null,ownerSaju=null;
+async function renderGuestView(){
+ const app=document.getElementById('app');
+ app.innerHTML='<div class="loading">지도를 불러오는 중…</div>';
+ try{
+  const snap=await db.collection('users').doc(MAP_UID).collection('gwiinMaps').doc(MAP_ID).get();
+  if(!snap.exists){app.innerHTML='<div class="card"><h2>지도를 찾을 수 없어요</h2><div class="sub">링크가 만료되었거나 삭제된 지도예요.</div><button class="go" onclick="location.href=\'./gwiin.html\'">내 귀인지도 만들기</button></div>';return;}
+  ownerData=snap.data();
+  const p=parseBirth(ownerData.bdate,ownerData.calType,ownerData.isLeap);
+  if(p.err){app.innerHTML='<div class="card"><h2>지도 정보에 문제가 있어요</h2></div>';return;}
+  ownerSaju=p.saju;
+  drawGuestForm();
+ }catch(e){
+  console.error(e);
+  app.innerHTML='<div class="card"><h2>불러오지 못했어요</h2><div class="sub">잠시 후 다시 시도해 주세요.</div></div>';
+ }
+}
+function drawGuestForm(){
+ const name=esc(ownerData.ownerName);
+ document.getElementById('app').innerHTML=`
+  <div class="card">
+   <h1>나는 ${name}님에게<br>어떤 사람일까?</h1>
+   <div class="sub">생일만 넣으면 바로 나와요. 태어난 시각은 묻지 않아요.</div>
+   <label class="f">이름 또는 별명</label>
+   <input type="text" id="gName" maxlength="12" placeholder="예) 승훈">
+   <label class="f">생년월일</label>
+   <div class="row">
+    <input type="text" id="gDate" inputmode="numeric" maxlength="10" placeholder="예) 19930821">
+    <select id="gCal" class="field"><option value="solar">양력</option><option value="lunar">음력</option></select>
+   </div>
+   <div class="err" id="gErr"></div>
+   <button class="go" onclick="submitGuest()">${name}님과의 인연 보기</button>
+   <div class="notice">관계는 연주·월주·일주(삼주)만으로 봐요. 태어난 시각은 정식 궁합에서만 반영해요.</div>
+  </div>`;
+ autoFmtDate(document.getElementById('gDate'));
+}
+async function submitGuest(){
+ const name=document.getElementById('gName').value.trim();
+ const dateStr=document.getElementById('gDate').value;
+ const cal=document.getElementById('gCal').value;
+ const err=document.getElementById('gErr');
+ err.style.display='none';
+ if(!name){err.textContent='이름 또는 별명을 입력해 주세요.';err.style.display='block';return;}
+ const p=parseBirth(dateStr,cal,false);
+ if(p.err){err.textContent=p.err;err.style.display='block';return;}
+ const rel=calcRelation(ownerSaju,p.saju);
+ try{
+  await db.collection('users').doc(MAP_UID).collection('gwiinMaps').doc(MAP_ID)
+   .collection('entries').add({name,bdate:dateStr,calType:cal,
+    relKey:rel.relKey,relName:rel.relName,score:rel.score,element:rel.element,
+    createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+ }catch(e){console.error('참여 저장 실패',e);}
+ drawGuestResult(rel,name);
+}
+function drawGuestResult(rel,myName){
+ const owner=esc(ownerData.ownerName);
+ document.getElementById('app').innerHTML=`
+  <div class="card">
+   <div class="hero">
+    <div class="who">${esc(myName)}님은 ${owner}님에게</div>
+    <div class="label">${rel.emoji} ${rel.relName}</div>
+    <div class="score">케미 ${rel.score}점</div>
+    <div class="line">${rel.desc}</div>
+   </div>
+  </div>
+  <div class="card">
+   <h2>내 귀인지도도 만들어볼까요?</h2>
+   <div class="sub">내 링크를 뿌리면, 친구들이 각자 생일을 넣고 <b>나에게 어떤 사람인지</b> 지도에 떠요.</div>
+   <button class="go" onclick="location.href='./gwiin.html'">내 귀인지도 만들기</button>
+  </div>
+  <div class="card">
+   <h2>사주도 궁금하다면</h2>
+   <div class="sub">주주도사가 명식을 읽고 성격·일·관계·흐름까지 풀어드려요. 처음 3번은 무료예요.</div>
+   <button class="go ghost" onclick="location.href='./index.html'">주주도사에게 사주 묻기</button>
+  </div>`;
+ window.scrollTo(0,0);
+}
+
+/* ===== 주인 화면 (로그인 필요) ===== */
+async function renderOwnerView(){
+ const app=document.getElementById('app');
+ if(!currentUser){
+  app.innerHTML=`
+   <div class="card">
+    <h1>내 주변에 귀인이<br>몇 명일까?</h1>
+    <div class="sub">내 사주를 기준으로 지도를 만들고 링크를 뿌리면, 친구들이 각자 생일로 지도에 올라와요.<br>나를 살리는 귀인인지, 나를 두드리는 채찍인지 — 주주도사가 짚어드려요.</div>
+    <button class="go" onclick="login()">로그인하고 내 지도 만들기</button>
+    <div class="hint">내 지도를 만들 때만 로그인이 필요해요. 친구들은 로그인 없이 참여할 수 있어요.</div>
+   </div>`;
+  return;
+ }
+ app.innerHTML='<div class="loading">내 지도를 불러오는 중…</div>';
+ try{
+  const col=db.collection('users').doc(currentUser.uid).collection('gwiinMaps');
+  const snap=await col.limit(1).get();
+  if(snap.empty){drawOwnerForm();return;}
+  const doc=snap.docs[0];
+  drawOwnerMap(doc.id,doc.data());
+ }catch(e){console.error(e);app.innerHTML='<div class="card"><h2>불러오지 못했어요</h2></div>';}
+}
+function login(){
+ const p=new firebase.auth.GoogleAuthProvider();
+ auth.signInWithPopup(p).catch(e=>{console.error(e);toast('로그인에 실패했어요');});
+}
+function drawOwnerForm(){
+ document.getElementById('app').innerHTML=`
+  <div class="card">
+   <h1>내 귀인지도 만들기</h1>
+   <div class="sub">내 생일을 넣으면 지도가 생겨요. 이 지도 링크를 친구에게 보내면 돼요.</div>
+   <label class="f">이름 또는 별명</label>
+   <input type="text" id="oName" maxlength="12" placeholder="친구들에게 보일 이름">
+   <label class="f">생년월일</label>
+   <div class="row">
+    <input type="text" id="oDate" inputmode="numeric" maxlength="10" placeholder="예) 19711116">
+    <select id="oCal" class="field"><option value="solar">양력</option><option value="lunar">음력</option></select>
+   </div>
+   <div class="err" id="oErr"></div>
+   <button class="go" onclick="createMap()">내 지도 만들기</button>
+   <div class="notice">지도 관계는 연주·월주·일주(삼주)로만 계산해요. 친구는 생일만 넣으면 되니 부담 없이 보낼 수 있어요.</div>
+  </div>`;
+ autoFmtDate(document.getElementById('oDate'));
+}
+async function createMap(){
+ const name=document.getElementById('oName').value.trim();
+ const dateStr=document.getElementById('oDate').value;
+ const cal=document.getElementById('oCal').value;
+ const err=document.getElementById('oErr');
+ err.style.display='none';
+ if(!name){err.textContent='이름 또는 별명을 입력해 주세요.';err.style.display='block';return;}
+ const p=parseBirth(dateStr,cal,false);
+ if(p.err){err.textContent=p.err;err.style.display='block';return;}
+ try{
+  const ref=await db.collection('users').doc(currentUser.uid).collection('gwiinMaps')
+   .add({ownerName:name,bdate:dateStr,calType:cal,isLeap:false,
+    createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+  const snap=await ref.get();
+  drawOwnerMap(ref.id,snap.data());
+ }catch(e){console.error('지도 생성 실패',e);err.textContent='지도를 만들지 못했어요. 잠시 후 다시 시도해 주세요.';err.style.display='block';}
+}
+async function drawOwnerMap(mapId,data){
+ const app=document.getElementById('app');
+ app.innerHTML='<div class="loading">참여자를 불러오는 중…</div>';
+ let entries=[];
+ try{
+  const snap=await db.collection('users').doc(currentUser.uid).collection('gwiinMaps').doc(mapId)
+   .collection('entries').get();
+  entries=snap.docs.map(d=>({id:d.id,...d.data()}));
+ }catch(e){console.error(e);}
+ entries.sort((a,b)=>(b.score||0)-(a.score||0));
+ const counts={};REL_ORDER.forEach(k=>counts[k]=0);
+ entries.forEach(e=>{if(counts[e.relKey]!==undefined)counts[e.relKey]++;});
+ const shareUrl=`${location.origin}${location.pathname}?u=${currentUser.uid}&m=${mapId}`;
+ const rows=entries.length?entries.map(e=>`
+  <div class="prow">
+   <div class="pdot el-${e.element}">${EK[e.element]}</div>
+   <div>
+    <div class="pname">${esc(e.name)}</div>
+    <div class="prel">${REL[e.relKey]?REL[e.relKey].emoji:''} ${esc(e.relName)}</div>
+   </div>
+   <div class="pscore">${e.score}점</div>
+  </div>`).join(''):
+  `<div class="empty">아직 아무도 안 왔어요.<br>아래 링크를 친구에게 보내보세요.</div>`;
+
+ app.innerHTML=`
+  <div class="card">
+   <div class="hero">
+    <div class="who">${esc(data.ownerName)}님의 귀인지도</div>
+    <div class="label" style="font-size:22px;margin-top:6px">${entries.length}명 참여</div>
+   </div>
+   <div class="stats">
+    ${REL_ORDER.map(k=>`<div class="stat"><b>${counts[k]}</b><span>${REL[k].emoji} ${REL[k].name}</span></div>`).join('')}
+   </div>
+  </div>
+
+  <div class="card">
+   <h2>친구에게 공유하기</h2>
+   <div class="sub">친구가 생일만 넣으면 나와 어떤 인연인지 이 지도에 떠요.</div>
+   <button class="go" onclick="copyShare('${shareUrl}')">🔗 링크 복사하기</button>
+  </div>
+
+  <div class="card">
+   <h2>내 지도 · ${entries.length}명</h2>
+   ${rows}
+   <details>
+    <summary>관계 이름은 무슨 뜻인가요?</summary>
+    <div class="notice">
+     ${REL_ORDER.map(k=>`<b>${REL[k].emoji} ${REL[k].name}</b> · ${REL[k].base}점 기준<br>`).join('')}
+     오행 상생상극으로 관계를 보고, 연지·월지·일지의 합·충으로 점수를 더하고 뺍니다.
+    </div>
+   </details>
+  </div>
+
+  <div class="card">
+   <h2>지도에서 생긴 궁금증, 도사에게</h2>
+   <div class="sub">이 사람과는 왜 이렇게 부딪히는지, 어떻게 지내면 좋을지 — 주주도사가 사주로 짚어드려요.</div>
+   <button class="go ghost" onclick="location.href='./index.html'">주주도사에게 물어보기</button>
+  </div>
+
+  <div class="card">
+   <button class="go line" onclick="copyShare('${shareUrl}')">🔗 링크 다시 복사하기</button>
+  </div>`;
+ window.scrollTo(0,0);
+}
+function copyShare(url){
+ if(navigator.share){
+  navigator.share({title:'내 귀인지도',text:'내가 너에게 어떤 사람인지 봐줘',url}).catch(()=>{});
+  return;
+ }
+ navigator.clipboard.writeText(url).then(()=>toast('링크를 복사했어요'))
+  .catch(()=>{prompt('아래 링크를 복사해 주세요',url);});
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+
+      // 기존 프로필 (본인만)
+      match /profiles/{profileId} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+
+        // 정밀 MBTI 진행상황 (본인만)
+        match /mbtiProgress/{docId} {
+          allow read, write: if request.auth != null && request.auth.uid == uid;
+        }
+      }
+
+      // ===== 귀인지도 =====
+      // 지도 문서: 주인만 생성·수정·삭제, 읽기는 누구나 (링크 공유용)
+      match /gwiinMaps/{mapId} {
+        allow read: if true;
+        allow create, update, delete: if request.auth != null && request.auth.uid == uid;
+
+        // 참여자: 로그인 없이 추가만 가능. 수정·삭제는 지도 주인만.
+        match /entries/{entryId} {
+          allow read: if true;
+
+          allow create: if
+            // 필수 필드가 모두 있고 타입이 맞을 것
+            request.resource.data.keys().hasAll(['name','bdate','calType','relKey','relName','score','element','createdAt'])
+            && request.resource.data.name is string
+            && request.resource.data.name.size() > 0
+            && request.resource.data.name.size() <= 12
+            && request.resource.data.bdate is string
+            && request.resource.data.bdate.size() <= 12
+            && request.resource.data.calType in ['solar','lunar']
+            && request.resource.data.relKey in ['gwiin','chaejjik','jjakkung','naesaram','jorak']
+            && request.resource.data.relName is string
+            && request.resource.data.score is int
+            && request.resource.data.score >= 0
+            && request.resource.data.score <= 100
+            && request.resource.data.element is int
+            && request.resource.data.element >= 0
+            && request.resource.data.element <= 4
+            // 지도가 실제로 존재할 때만
+            && exists(/databases/$(database)/documents/users/$(uid)/gwiinMaps/$(mapId));
+
+          allow update: if false;
+          allow delete: if request.auth != null && request.auth.uid == uid;
+        }
+      }
+    }
+  }
+}
