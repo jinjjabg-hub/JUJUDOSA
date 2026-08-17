@@ -283,12 +283,25 @@ async function submitGuest(){
  if(!name){err.textContent='이름 또는 별명을 입력해 주세요.';err.style.display='block';return;}
  const p=parseBirth(dateStr,cal,false);
  if(p.err){err.textContent=p.err;err.style.display='block';return;}
+
+ const entriesCol=db.collection('users').doc(MAP_UID).collection('gwiinMaps').doc(MAP_ID).collection('entries');
+
+ // 같은 이름+생일로 이미 참여했는지 확인 (중복 방지)
+ try{
+  const dup=await entriesCol.where('name','==',name).where('bdate','==',dateStr).where('calType','==',cal).limit(1).get();
+  if(!dup.empty){
+   const d=dup.docs[0].data();
+   drawGuestResult({relKey:d.relKey,relName:d.relName,emoji:REL[d.relKey]?REL[d.relKey].emoji:'',
+    score:d.score,element:d.element,desc:d.desc||''},name);
+   return;
+  }
+ }catch(e){console.error('중복 확인 실패',e);}
+
  const rel=calcRelation(ownerSaju,p.saju);
  try{
-  await db.collection('users').doc(MAP_UID).collection('gwiinMaps').doc(MAP_ID)
-   .collection('entries').add({name,bdate:dateStr,calType:cal,
-    relKey:rel.relKey,relName:rel.relName,score:rel.score,element:rel.element,
-    createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+  await entriesCol.add({name,bdate:dateStr,calType:cal,
+   relKey:rel.relKey,relName:rel.relName,score:rel.score,element:rel.element,desc:rel.desc,
+   createdAt:firebase.firestore.FieldValue.serverTimestamp()});
  }catch(e){console.error('참여 저장 실패',e);}
  drawGuestResult(rel,name);
 }
