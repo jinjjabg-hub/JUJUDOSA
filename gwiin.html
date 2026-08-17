@@ -79,9 +79,19 @@ h2{font-size:16px;font-weight:800;margin-bottom:10px}
 details{margin-top:12px}
 summary{font-size:12.5px;color:var(--sub);cursor:pointer;font-weight:700}
 details .notice{margin-top:8px}
+.explainstep{display:flex;gap:11px;padding:12px 0;border-bottom:1px solid var(--bg)}
+.explainstep:last-child{border-bottom:none}
+.explainstep .num{flex-shrink:0;width:22px;height:22px;border-radius:50%;background:var(--primary-tint);
+  color:var(--primary);font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center}
+.explainstep .et-title{font-size:13px;font-weight:800;margin-bottom:4px}
+.explainstep .et-body{font-size:12.5px;color:var(--sub);line-height:1.65}
+.rellegend{display:flex;align-items:center;justify-content:space-between;padding:8px 0;font-size:12.5px}
+.rellegend b{font-weight:800}
+.rellegend span{color:var(--sub)}
 .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#191F28;color:#fff;
   font-size:13px;padding:11px 20px;border-radius:999px;opacity:0;transition:opacity .25s;z-index:99;pointer-events:none}
 .toast.on{opacity:1}
+
 .loading{text-align:center;padding:40px 0;color:var(--sub);font-size:13px}
 </style>
 </head>
@@ -315,6 +325,26 @@ function drawGuestResult(rel,myName){
     <div class="score">케미 ${rel.score}점</div>
     <div class="line">${rel.desc}</div>
    </div>
+   <details style="margin-top:14px">
+    <summary>이 결과는 어떻게 나온 건가요?</summary>
+    <div class="notice">
+     <div class="explainstep">
+      <div class="num">1</div>
+      <div><div class="et-title">오행 관계로 이름표를 정해요</div>
+       <div class="et-body">두 사람의 일간(태어난 날의 기운)이 서로 살려주는 사이인지, 부딪히는 사이인지를 봐요. 그 관계가 귀인·채찍·짝꿍·내사람·조력 중 하나로 정해져요.</div></div>
+     </div>
+     <div class="explainstep">
+      <div class="num">2</div>
+      <div><div class="et-title">3주를 겹쳐서 점수를 조정해요</div>
+       <div class="et-body">연지·월지·일지(3주)가 얼마나 잘 맞물리는지에 따라 점수를 더하거나 빼요. 그래서 같은 이름표라도 사람마다 점수가 달라요.</div></div>
+     </div>
+     <div class="explainstep">
+      <div class="num">3</div>
+      <div><div class="et-title">태어난 시각은 쓰지 않아요</div>
+       <div class="et-body">지도는 시각 없이 간단하게 보는 거예요. 시각까지 반영한 정식 궁합은 주주도사 앱에서 볼 수 있어요.</div></div>
+     </div>
+    </div>
+   </details>
   </div>
   <div class="card">
    <h2>내 귀인지도도 만들어볼까요?</h2>
@@ -463,8 +493,23 @@ async function drawOwnerMap(mapId,data){
    <details>
     <summary>관계 이름은 무슨 뜻인가요?</summary>
     <div class="notice">
-     ${REL_ORDER.map(k=>`<b>${REL[k].emoji} ${REL[k].name}</b> · ${REL[k].base}점 기준<br>`).join('')}
-     오행 상생상극으로 관계를 보고, 연지·월지·일지의 합·충으로 점수를 더하고 뺍니다.
+     <div class="explainstep">
+      <div class="num">1</div>
+      <div><div class="et-title">이름표는 오행 관계로 정해져요</div>
+       <div class="et-body">나와 상대의 태어난 날 기운(일간)을 비교해서, 서로 살려주는 사이인지 부딪히는 사이인지를 봐요.</div></div>
+     </div>
+     <div class="explainstep">
+      <div class="num">2</div>
+      <div>
+       <div class="et-title">다섯 가지 이름표</div>
+       ${REL_ORDER.map(k=>`<div class="rellegend"><b>${REL[k].emoji} ${REL[k].name}</b><span>기준 ${REL[k].base}점</span></div>`).join('')}
+      </div>
+     </div>
+     <div class="explainstep">
+      <div class="num">3</div>
+      <div><div class="et-title">점수는 3주 궁합으로 조정돼요</div>
+       <div class="et-body">연지·월지·일지가 합·충으로 얼마나 잘 맞는지에 따라 점수가 오르내려요. 그래서 같은 이름표라도 사람마다 점수가 달라요. 태어난 시각은 지도에서 쓰지 않아요 — 정식 궁합은 앱에서 볼 수 있어요.</div></div>
+     </div>
     </div>
    </details>
   </div>
