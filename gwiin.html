@@ -320,13 +320,7 @@ function drawGuestResult(rel,myName){
 async function renderOwnerView(){
  const app=document.getElementById('app');
  if(!currentUser){
-  app.innerHTML=`
-   <div class="card">
-    <h1>내 주변에 귀인이<br>몇 명일까?</h1>
-    <div class="sub">내 사주를 기준으로 지도를 만들고 링크를 뿌리면, 친구들이 각자 생일로 지도에 올라와요.<br>나를 살리는 귀인인지, 나를 두드리는 채찍인지 — 주주도사가 짚어드려요.</div>
-    <button class="go" onclick="login()">로그인하고 내 지도 만들기</button>
-    <div class="hint">내 지도를 만들 때만 로그인이 필요해요. 친구들은 로그인 없이 참여할 수 있어요.</div>
-   </div>`;
+  drawOwnerView_LoggedOut();
   return;
  }
  app.innerHTML='<div class="loading">내 지도를 불러오는 중…</div>';
@@ -338,9 +332,41 @@ async function renderOwnerView(){
   drawOwnerMap(doc.id,doc.data());
  }catch(e){console.error(e);app.innerHTML='<div class="card"><h2>불러오지 못했어요</h2></div>';}
 }
-function login(){
- const p=new firebase.auth.GoogleAuthProvider();
- auth.signInWithPopup(p).catch(e=>{console.error(e);toast('로그인에 실패했어요');});
+function drawOwnerView_LoggedOut(){
+ document.getElementById('app').innerHTML=`
+  <div class="card">
+   <h1>내 주변에 귀인이<br>몇 명일까?</h1>
+   <div class="sub">내 사주를 기준으로 지도를 만들고 링크를 뿌리면, 친구들이 각자 생일로 지도에 올라와요.<br>나를 살리는 귀인인지, 나를 두드리는 채찍인지 — 주주도사가 짚어드려요.</div>
+   <button class="go" onclick="loginKakao()">카카오로 로그인하고 내 지도 만들기</button>
+   <button class="go line" onclick="toggleEmailLogin()">이메일로 로그인</button>
+   <div class="hint">내 지도를 만들 때만 로그인이 필요해요. 친구들은 로그인 없이 참여할 수 있어요.</div>
+  </div>
+  <div class="card" id="emailLoginBox" style="display:none">
+   <label class="f">이메일</label>
+   <input type="text" id="gwLoginEmail" placeholder="name@email.com">
+   <label class="f">비밀번호</label>
+   <input type="text" id="gwLoginPw" placeholder="비밀번호" style="-webkit-text-security:disc">
+   <div class="err" id="gwLoginErr"></div>
+   <button class="go" onclick="loginEmail()">로그인</button>
+   <div class="hint">주주도사 앱에 가입한 계정으로 로그인해 주세요. 계정이 없다면 주주도사 앱에서 먼저 회원가입해 주세요.</div>
+  </div>`;
+}
+function toggleEmailLogin(){
+ const box=document.getElementById('emailLoginBox');
+ box.style.display=box.style.display==='none'?'block':'none';
+}
+function loginKakao(){
+ const provider=new firebase.auth.OAuthProvider('oidc.kakao');
+ auth.signInWithPopup(provider).catch(e=>{toast('로그인에 실패했어요: '+e.message);});
+}
+function loginEmail(){
+ const email=document.getElementById('gwLoginEmail').value.trim();
+ const pw=document.getElementById('gwLoginPw').value;
+ const err=document.getElementById('gwLoginErr');
+ err.style.display='none';
+ if(!email||!pw){err.textContent='이메일과 비밀번호를 입력해 주세요.';err.style.display='block';return;}
+ auth.signInWithEmailAndPassword(email,pw)
+  .catch(e=>{err.textContent='로그인에 실패했어요. 이메일/비밀번호를 확인해 주세요.';err.style.display='block';});
 }
 function drawOwnerForm(){
  document.getElementById('app').innerHTML=`
