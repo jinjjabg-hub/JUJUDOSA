@@ -7,12 +7,18 @@
 <meta property="og:title" content="내 주변에 귀인이 몇 명일까?">
 <meta property="og:description" content="생년월일만 넣으면 나와 어떤 인연인지 지도에 떠요.">
 <meta property="og:type" content="website">
+<meta property="og:url" content="https://jinjjabg-hub.github.io/JUJUDOSA/gwiin.html">
+<meta property="og:image" content="https://jinjjabg-hub.github.io/JUJUDOSA/og-gwiin.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <script src="./korean-lunar-calendar.min.js"></script>
+<script defer src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js" crossorigin="anonymous"></script>
 <style>
 :root{
   --bg:#F7F8FA; --card:#FFF; --text:#191F28; --sub:#8B95A1; --line:#E5E8EB;
@@ -41,6 +47,9 @@ h2{font-size:16px;font-weight:800;margin-bottom:10px}
 .go:active{transform:scale(.98)}
 .go.ghost{background:var(--primary-tint);color:var(--primary)}
 .go.line{background:#fff;color:var(--text);border:1.5px solid var(--line)}
+.go.kakao{background:#FEE500;color:#191600;margin-bottom:10px}
+.pdel{margin-left:8px;flex:none;width:30px;height:30px;border:none;border-radius:50%;background:var(--bg);color:var(--sub);font-size:14px;cursor:pointer}
+.pdel:active{background:var(--line)}
 .err{color:var(--fire);font-size:12.5px;margin-top:10px;display:none;line-height:1.6}
 .hint{font-size:11.5px;color:var(--sub);margin-top:6px;line-height:1.6}
 .notice{background:var(--bg);border-radius:12px;padding:12px 14px;font-size:12px;
@@ -464,6 +473,7 @@ async function drawOwnerMap(mapId,data){
  const counts={};REL_ORDER.forEach(k=>counts[k]=0);
  entries.forEach(e=>{if(counts[e.relKey]!==undefined)counts[e.relKey]++;});
  const shareUrl=`${location.origin}${location.pathname}?u=${currentUser.uid}&m=${mapId}`;
+ currentOwnerMap={mapId,data,shareUrl};
  const rows=entries.length?entries.map(e=>`
   <div class="prow">
    <div class="pdot el-${e.element}">${EK[e.element]}</div>
@@ -472,6 +482,7 @@ async function drawOwnerMap(mapId,data){
     <div class="prel">${REL[e.relKey]?REL[e.relKey].emoji:''} ${esc(e.relName)}</div>
    </div>
    <div class="pscore">${e.score}점</div>
+   <button class="pdel" aria-label="${esc(e.name)} 삭제" onclick="deleteEntry('${e.id}')">✕</button>
   </div>`).join(''):
   `<div class="empty">아직 아무도 안 왔어요.<br>아래 링크를 친구에게 보내보세요.</div>`;
 
@@ -489,7 +500,8 @@ async function drawOwnerMap(mapId,data){
   <div class="card">
    <h2>친구에게 공유하기</h2>
    <div class="sub">친구가 생일만 넣으면 나와 어떤 인연인지 이 지도에 떠요.</div>
-   <button class="go" onclick="copyShare('${shareUrl}')">🔗 링크 복사하기</button>
+   ${kakaoReady()?`<button class="go kakao" onclick="shareKakao()">카카오톡으로 보내기</button>`:''}
+   <button class="go${kakaoReady()?' line':''}" onclick="copyShare('${shareUrl}')">🔗 링크 복사하기</button>
   </div>
 
   <div class="card">
@@ -534,6 +546,48 @@ async function drawOwnerMap(mapId,data){
    <button class="go line" onclick="copyShare('${shareUrl}')">🔗 링크 다시 복사하기</button>
   </div>`;
  window.scrollTo(0,0);
+}
+/* ===== 카카오톡 공유 ===== */
+// 카카오 개발자 콘솔 → 내 애플리케이션 → 앱 키 → "JavaScript 키"를 넣으세요.
+// (플랫폼 → Web 사이트 도메인에 https://jinjjabg-hub.github.io 등록 필요) 비어 있으면 카카오 버튼이 숨겨지고 링크 복사만 보여요.
+const KAKAO_JS_KEY='';
+const GWIIN_BASE='https://jinjjabg-hub.github.io/JUJUDOSA/';
+let currentOwnerMap=null;
+function kakaoReady(){
+ if(!KAKAO_JS_KEY||!window.Kakao)return false;
+ try{if(!Kakao.isInitialized())Kakao.init(KAKAO_JS_KEY);return Kakao.isInitialized();}catch(e){console.warn('Kakao 초기화 실패',e);return false;}
+}
+function shareKakao(){
+ if(!currentOwnerMap)return;
+ const{data,shareUrl}=currentOwnerMap;
+ if(!kakaoReady()){copyShare(shareUrl);return;}
+ try{
+  Kakao.Share.sendDefault({
+   objectType:'feed',
+   content:{
+    title:`${data.ownerName}님의 귀인지도`,
+    description:'내가 너에게 어떤 사람인지 봐줘 — 생년월일만 넣으면 바로 떠요',
+    imageUrl:GWIIN_BASE+'og-gwiin.png',imageWidth:1200,imageHeight:630,
+    link:{mobileWebUrl:shareUrl,webUrl:shareUrl}
+   },
+   buttons:[
+    {title:'나와의 인연 보기',link:{mobileWebUrl:shareUrl,webUrl:shareUrl}},
+    {title:'내 지도도 만들기',link:{mobileWebUrl:GWIIN_BASE+'gwiin.html',webUrl:GWIIN_BASE+'gwiin.html'}}
+   ]
+  });
+ }catch(e){console.error('카카오 공유 실패',e);copyShare(shareUrl);}
+}
+/* ===== 참여자 삭제 (지도 주인만 — Firestore 규칙에서도 주인만 허용) ===== */
+async function deleteEntry(entryId){
+ if(!currentOwnerMap||!currentUser)return;
+ if(!confirm('이 참여자를 지도에서 지울까요? 되돌릴 수 없어요.'))return;
+ const{mapId,data}=currentOwnerMap;
+ try{
+  await db.collection('users').doc(currentUser.uid).collection('gwiinMaps').doc(mapId)
+   .collection('entries').doc(entryId).delete();
+  toast('삭제했어요');
+  drawOwnerMap(mapId,data);
+ }catch(e){console.error('참여자 삭제 실패',e);toast('삭제하지 못했어요. 잠시 후 다시 시도해 주세요.');}
 }
 function copyShare(url){
  if(navigator.share){
