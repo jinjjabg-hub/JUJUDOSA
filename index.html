@@ -1277,6 +1277,7 @@ async function loadProfiles(){
   const snap=await db.collection('users').doc(currentUser.uid).collection('profiles')
    .orderBy('savedAt','desc').limit(10).get();
   savedProfiles=snap.docs.map(doc=>({id:doc.id,...doc.data()}));
+  recoverPendingConvos();
   const pillWrap=document.getElementById('profilePillWrap');
   const todayCard=document.getElementById('todayCardHome');
   if(snap.empty){
@@ -1763,6 +1764,7 @@ function startFromProfile(p,personaId){
 function renderSoloResult(A,mbtiVal,genderLabel,ownerLabel,personaId,profileId,mbtiDetail,mbtiJudgmentPattern){
  flushConvo(); // 홈을 거치지 않고 도사를 바꾼 경우에도 직전 대화 저장
  currentProfileId=profileId||null;
+ convoSessionId=currentProfileId?Date.now().toString(36)+Math.random().toString(36).slice(2,7):null;
  personaId=personaId||'general';
  currentPersonaId=personaId;
  const P=PERSONAS[personaId];
@@ -1981,15 +1983,44 @@ function convoTranscript(hist,dosaName){
  if(firstQ<0)return '';
  return hist.slice(firstQ).map(m=>`${m.role==='user'?'상담자':dosaName}: ${m.content}`).join('\n');
 }
-function flushConvo(){
- if(!currentProfileId||!currentUser||!history.length)return;
+// 탭을 그냥 닫아도 대화가 사라지지 않도록, 답변이 올 때마다 원문을 브라우저(localStorage)에 보관한다.
+// 요약 저장이 성공하면 지우고, 못 한 채 닫혔으면 다음 접속 때 이어서 요약한다.
+const CONVO_LS='jj_convo_pending';
+let convoSessionId=null,convoRecovered=false;
+function lsPendingRead(){try{return JSON.parse(localStorage.getItem(CONVO_LS)||'[]');}catch(e){return [];}}
+function lsPendingWrite(a){try{localStorage.setItem(CONVO_LS,JSON.stringify(a));}catch(e){}}
+function stashConvo(){
+ if(!currentProfileId||!currentUser||!convoSessionId)return;
  const transcript=convoTranscript(history,PERSONAS[currentPersonaId].name);
- if(!transcript)return; // 열었다 바로 닫은 경우
- const pid=currentProfileId;
+ if(!transcript)return;
+ const a=lsPendingRead().filter(x=>x.id!==convoSessionId);
+ a.push({id:convoSessionId,uid:currentUser.uid,pid:currentProfileId,transcript});
+ lsPendingWrite(a);
+}
+function unstashConvo(id){lsPendingWrite(lsPendingRead().filter(x=>x.id!==id));}
+function queueConvoSummary(id,pid,transcript){
  pendingConvo[pid]=(pendingConvo[pid]?pendingConvo[pid]+'\n':'')+transcript;
  convoSaveChain[pid]=(convoSaveChain[pid]||Promise.resolve())
   .then(()=>saveConvoSummary(pid,transcript))
-  .catch(e=>console.warn('대화 요약 저장 실패',e));
+  .then(()=>unstashConvo(id))
+  .catch(e=>console.warn('대화 요약 저장 실패(다음 접속 때 재시도)',e));
+}
+function flushConvo(){
+ const id=convoSessionId;convoSessionId=null;
+ if(!currentProfileId||!currentUser||!history.length||!id)return;
+ const transcript=convoTranscript(history,PERSONAS[currentPersonaId].name);
+ if(!transcript)return; // 열었다 바로 닫은 경우
+ convoSessionId=id;stashConvo();convoSessionId=null;
+ queueConvoSummary(id,currentProfileId,transcript);
+}
+// 지난번에 탭을 닫아 요약하지 못한 대화를 로그인 후 한 번 이어서 요약
+function recoverPendingConvos(){
+ if(convoRecovered||!currentUser)return;
+ convoRecovered=true;
+ for(const x of lsPendingRead()){
+  if(x.uid!==currentUser.uid||x.id===convoSessionId)continue;
+  queueConvoSummary(x.id,x.pid,x.transcript);
+ }
 }
 async function saveConvoSummary(profileId,transcript){
  const ref=db.collection('users').doc(currentUser.uid).collection('profiles').doc(profileId);
@@ -2124,6 +2155,7 @@ async function callDosa(maxTok,isFirst,retryCount){
    document.getElementById('cerr').style.display='block';return;
   }
   history.push({role:'assistant',content:fullText});
+  stashConvo();
   if(isFirst){
    bubble.remove();renderAccordion(fullText);
    if(pendingCacheProfileId&&pendingCachePersonaId&&currentUser){
