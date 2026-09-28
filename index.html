@@ -1447,6 +1447,7 @@ ${personBlock(P,'')}
 
 /* ===== 폼 상태 ===== */
 let gender=null,gender2=null,history=[],persona='';
+let currentProfileId=null; // 대화 기억(convoSummary)을 저장할 프로필. 궁합·비회원 상담은 null
 let calType='solar',calType2='solar';
 function setCal(t){calType=t;
  document.getElementById('calSolar').classList.toggle('on',t==='solar');
@@ -1760,6 +1761,8 @@ function startFromProfile(p,personaId){
  renderSoloResult(A,p.mbti,p.gender==='M'?'남':'여',p.label||p.bdate,personaId||'general',p.id,p.mbtiDetail,p.mbtiJudgmentPattern);
 }
 function renderSoloResult(A,mbtiVal,genderLabel,ownerLabel,personaId,profileId,mbtiDetail,mbtiJudgmentPattern){
+ flushConvo(); // 홈을 거치지 않고 도사를 바꾼 경우에도 직전 대화 저장
+ currentProfileId=profileId||null;
  personaId=personaId||'general';
  currentPersonaId=personaId;
  const P=PERSONAS[personaId];
@@ -1823,6 +1826,7 @@ ${personBlock(A,'')}
 ${luckBlock}
 ${mbtiVal?`MBTI: ${mbtiVal}`:''}
 ${mbtiDetailBlock}
+${buildConvoSummaryBlock(profileId)}
 ${focusNote}
 
 [첫 풀이 — 매우 중요] 첫 응답은 인사가 아니라 종합 풀이다. 이것은 상담의 기초 공사이므로 충분히 길고 자세해야 한다. 짧게 요약하고 넘어가지 말고, 아래 섹션을 라벨과 함께 차례로, 각 섹션 9~13문장씩 실제 사례와 구체적 상황을 들어가며 두텁게 풀어라 (단, 위 페르소나 확대 지시가 있는 섹션은 그 지시를 따른다).
@@ -1956,6 +1960,7 @@ ${(rel==='사업 파트너'||rel==='직장 동료·상사')?
 ${(rel==='연인'||rel==='부부'||rel==='결혼을 생각하는 상대')?`「속궁합」 두 사람의 일지(배우자 자리) 관계와 오행 조화를 바탕으로, 서로 몸과 마음이 끌리는 방식·정서적 친밀감의 결을 다룬다. 전통 명리 상담에서 쓰는 은유적 표현으로 다룬다 — "끌어당기는 힘", "정이 깊어지는 궁합", "서로를 편안하게 하는 조합" 같은 식. 노골적이거나 직접적인 성적 묘사는 쓰지 않는다.
 `:''}「이 관계를 위한 조언」 ${rel} 관계에 맞는 구체적 행동 2~3가지.`}
 명리 용어와 괄호 근거는 본문에 쓰지 않고 일상어로만 말한다(이유를 물으면 그때 설명). 마지막에 "무엇이 궁금하십니까" 하나로 마무리한다.`;
+ flushConvo();currentProfileId=null;
  history=[{role:'user',content:'(두 사람의 명식을 나란히 내밀며 궁합을 청한다. 궁합 종합 풀이를 시작하라.)'}];
 
  switchTab('fortune');
@@ -1967,7 +1972,62 @@ ${(rel==='연인'||rel==='부부'||rel==='결혼을 생각하는 상대')?`「�
 }
 
 /* ===================== 채팅 ===================== */
+/* ===== 도사 간 공유 대화 기억 (convoSummary) ===== */
+const pendingConvo={}; // 요약 저장이 끝나기 전 바로 다른 도사로 들어갈 때를 위한 임시 원문
+const convoSaveChain={}; // 같은 프로필 요약은 순서대로 저장(동시에 저장하다 앞 내용이 덮어써지는 것 방지)
+function convoTranscript(hist,dosaName){
+ // 첫 풀이(자동 요청+긴 종합 풀이)는 사주로 다시 만들 수 있으니 제외하고, 실제 질문부터 기록
+ const firstQ=hist.findIndex(m=>m.role==='user'&&!/^\(/.test(m.content));
+ if(firstQ<0)return '';
+ return hist.slice(firstQ).map(m=>`${m.role==='user'?'상담자':dosaName}: ${m.content}`).join('\n');
+}
+function flushConvo(){
+ if(!currentProfileId||!currentUser||!history.length)return;
+ const transcript=convoTranscript(history,PERSONAS[currentPersonaId].name);
+ if(!transcript)return; // 열었다 바로 닫은 경우
+ const pid=currentProfileId;
+ pendingConvo[pid]=(pendingConvo[pid]?pendingConvo[pid]+'\n':'')+transcript;
+ convoSaveChain[pid]=(convoSaveChain[pid]||Promise.resolve())
+  .then(()=>saveConvoSummary(pid,transcript))
+  .catch(e=>console.warn('대화 요약 저장 실패',e));
+}
+async function saveConvoSummary(profileId,transcript){
+ const ref=db.collection('users').doc(currentUser.uid).collection('profiles').doc(profileId);
+ const snap=await ref.get();
+ const prev=(snap.exists&&snap.data().convoSummary)||'';
+ const sys=`너는 사주 상담 앱의 상담 기록 정리 담당이다. [기존 요약]과 [이번 대화]를 합쳐 하나의 새 요약을 만든다.
+규칙:
+- 직업·현재 상황·고민·이미 나온 조언·상담자가 밝힌 계획과 결정을 유지하며 병합한다.
+- 숫자·나이·연도·시점·기간·금액·고유명사(회사명, 업종, 사람 관계 등)는 절대 누락하거나 바꾸지 않는다. 예: "45세 요식업 시작, 53세 확장, 54세 실패, 현재 회생 신청 중, 프로젝트 5개 진행 중"처럼 사실은 그대로 남긴다.
+- 기존 요약의 사실은 이번 대화에서 바뀐 게 명확할 때만 갱신하고, 그 외에는 지우지 않는다.
+- 인사·잡담·사주 풀이 문장 자체는 뺀다. 상담자에 대한 사실과, 어느 도사가 어떤 조언을 했는지만 남긴다.
+- 600자 이내, 짧은 문장의 나열. 마크다운 기호 금지. 요약문만 출력한다.`;
+ const res=await fetch('https://jujudosa-api.jinjjabg.workers.dev/',{
+  method:'POST',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:1200,system:sys,
+   messages:[{role:'user',content:`[기존 요약]\n${prev||'(없음)'}\n\n[이번 대화]\n${transcript.slice(-12000)}`}]})});
+ const data=await res.json();
+ const summary=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
+ if(!summary)throw new Error(data.error?.message||'요약 응답 없음');
+ await ref.set({convoSummary:summary,convoSummaryUpdatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+ const sp=savedProfiles.find(x=>x.id===profileId);
+ if(sp)sp.convoSummary=summary;
+ const rest=(pendingConvo[profileId]||'').replace(transcript,'').trim();
+ if(rest)pendingConvo[profileId]=rest;else delete pendingConvo[profileId];
+}
+function buildConvoSummaryBlock(profileId){
+ if(!profileId)return '';
+ const sp=savedProfiles.find(x=>x.id===profileId);
+ const summary=sp&&sp.convoSummary;
+ const pending=pendingConvo[profileId];
+ if(!summary&&!pending)return '';
+ return `
+[이전 상담 기록 — 다른 도사와 나눈 대화 포함] ${summary||''}${pending?`
+[방금 전 대화 원문 — 아직 요약 전] ${pending.slice(-4000)}`:''}
+이 상담자와 이전에 나눈 대화 내용이다. 이미 아는 내용을 처음 듣는 것처럼 다시 묻지 말고, 자연스럽게 이어서 상담한다. 단, 이 정보를 상담자가 먼저 꺼내지 않았는데 대뜸 아는 척하며 나열하지는 않는다 — 자연스러운 흐름에서 필요할 때만 활용한다.
+`;}
 function goHome(){
+ flushConvo(); // 요약 저장은 백그라운드에서 — 화면 전환을 기다리게 하지 않음
  document.getElementById('setup').style.display='block';
  document.getElementById('resultPanel').style.display='none';
  document.getElementById('chatArea').style.display='none';
