@@ -941,8 +941,11 @@ function debugLuckEngine(r,gender,nowY,title){
  const P=r.pillars,dayS=P[2].stem;
  const wolun=withSipseong(getCurrentWolun(),dayS);
  const seunList=getSeunList(dayS,nowY-1,nowY+2);
- const judge=g=>({간지:`${g.ganjiKr}(${g.ganjiHanja})`,천간십성:g.stemSipseong,지지십성:g.branchSipseong,
-  ...judgeJaewoon(P,g),...judgeYeonaeun(P,gender,g)});
+ const ox=b=>b?'O':'-';
+ const judge=g=>{const j=judgeJaewoon(P,g),y=judgeYeonaeun(P,gender,g);
+  return{간지:`${g.ganjiKr}(${g.ganjiHanja})`,'윗글자 십성':g.stemSipseong,'아랫글자 십성':g.branchSipseong,
+   '큰돈 기회(편재)':ox(j.hoengjae),'노력한 만큼 돈(정재)':ox(j.nolyeok),'재능이 돈으로(식상생재)':ox(j.siksangSaengjae),
+   '새 인연':ox(y.saeInYeon),'기존 관계 발전':ox(y.giJonBalJeon),'인기운(도화)':ox(y.dohwa)};};
  console.group(`[주주도사 엔진 확인] ${title||''} (${gender==='M'?'남':'여'})`);
  console.log('원국:',P.map(p=>`${p.label} ${SK[p.stem]}${BK[p.branch]}(${SH[p.stem]}${BH[p.branch]})`).join(' / '));
  console.table(wongukSipseong(P).map(x=>({위치:x.pos,십성:x.ss})));
