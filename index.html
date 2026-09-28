@@ -2151,7 +2151,7 @@ async function callDosa(maxTok,isFirst,retryCount){
   }
   if(!started)th.remove(); // 내용 없이 끝난 경우 대비
   if(!fullText.trim()){
-   document.getElementById('cerr').textContent='도사님이 잠시 자리를 비웠습니다: 응답이 비어 있습니다.';
+   document.getElementById('cerr').textContent='도사님이 잠시 자리를 비우셨어요. 잠시 후 다시 시도해주세요.';
    document.getElementById('cerr').style.display='block';return;
   }
   history.push({role:'assistant',content:fullText});
@@ -2180,14 +2180,27 @@ async function callDosa(maxTok,isFirst,retryCount){
  }catch(e){
   th.remove();bubble.remove();
   // Cloudflare Worker가 가끔 Anthropic이 서비스하지 않는 리전의 엣지로 요청을 보내면서
-  // 발생하는 일시적 오류(Request not allowed 등). 자동으로 최대 2회 재시도한다.
-  const transient=/request not allowed|525|502|503|504|failed to fetch|networkerror|network error/i.test(e.message||'');
-  if(transient&&retryCount<2){
-   setTimeout(()=>callDosa(maxTok,isFirst,retryCount+1),700*(retryCount+1));
+  // 발생하는 일시적 오류(Request not allowed 등). 자동으로 최대 3회 재시도하고, 그래도 안 되면 한글 안내와 "다시 불러오기" 버튼을 보여준다.
+  const msg=e.message||'';
+  console.warn('도사 응답 실패',msg);
+  const busy=/overloaded|529|429|rate.?limit/i.test(msg);
+  const transient=busy||/request not allowed|forbidden|525|502|503|504|failed to fetch|networkerror|network error|load failed/i.test(msg);
+  if(transient&&retryCount<3){
+   setTimeout(()=>callDosa(maxTok,isFirst,retryCount+1),[1000,2500,4000][retryCount]);
    return;
   }
-  document.getElementById('cerr').textContent='연결에 문제가 있습니다: '+e.message+(retryCount>0?' (자동 재시도도 실패했어요, 잠시 후 다시 시도해주세요)':'');
-  document.getElementById('cerr').style.display='block';
+  const cerr=document.getElementById('cerr');
+  cerr.textContent=busy
+   ?'지금 찾는 분이 많아 도사님이 잠시 바쁘세요. 잠시 후 아래 버튼으로 다시 불러주세요.'
+   :transient
+    ?'도사님과 연결이 잠시 불안정해요. 10초쯤 뒤에 아래 버튼을 눌러주세요.'
+    :'도사님 답변을 받지 못했어요. 잠시 후 다시 시도해주세요.';
+  const again=document.createElement('button');
+  again.textContent='다시 불러오기';
+  again.style.cssText='display:block;margin-top:8px;padding:8px 14px;border:none;border-radius:10px;background:var(--primary,#5D5FEF);color:#fff;font-weight:700;cursor:pointer';
+  again.onclick=()=>{cerr.style.display='none';callDosa(maxTok,isFirst);};
+  cerr.appendChild(again);
+  cerr.style.display='block';
  }
 }
 async function checkChatLimit(){
