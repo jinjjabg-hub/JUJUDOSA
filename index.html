@@ -887,6 +887,74 @@ function branchRel(a,b){
  for(const g of SAMHAP)if(g.includes(a)&&g.includes(b))return '삼합(반합)';
  return '합충 없음';}
 
+/* ===== 월운·세운 십성 / 재운·연애운 판별 (1단계: 계산만, 프롬프트 미연결) ===== */
+function ganjiInfo(stem,branch){
+ return{stem,branch,ganjiKr:SK[stem]+BK[branch],ganjiHanja:SH[stem]+BH[branch]};}
+function withSipseong(g,dayS){
+ return{...g,stemSipseong:sipseong(dayS,g.stem),branchSipseong:sipseong(dayS,BMAIN[g.branch])};}
+// 오늘(한국시간) 기준 이번 달 간지. 월지=태양황경(절입 기준), 월간=해당 세운 천간으로 오호둔법
+function getCurrentWolun(date=new Date()){
+ const kst=new Date(date.getTime()+9*3600000);
+ const jde=jdeUT(date.getUTCFullYear(),date.getUTCMonth()+1,date.getUTCDate(),date.getUTCHours(),date.getUTCMinutes());
+ let sy=kst.getUTCFullYear();if(jde<ipchun(sy))sy-=1;
+ const ys=((sy-4)%10+10)%10,lon=sunLon(jde);
+ const mIdx=Math.floor((((lon-315)%360)+360)%360/30),mb=(mIdx+2)%12,ms=((ys%5)*2+2+mIdx)%10;
+ return{...ganjiInfo(ms,mb),sajuYear:sy};}
+function getSeunList(dayS,fromY,toY){
+ const out=[];for(let yy=fromY;yy<=toY;yy++){
+  const s=((yy-4)%10+10)%10,b=((yy-4)%12+12)%12;
+  out.push({year:yy,...withSipseong(ganjiInfo(s,b),dayS)});}
+ return out;}
+// 원국 십성 목록 (일간 자신 제외, 지지는 본기)
+function wongukSipseong(sajuPillars){
+ const dayS=sajuPillars[2].stem,list=[];
+ sajuPillars.forEach((p,i)=>{
+  if(i!==2)list.push({pos:p.label+' 천간',stem:p.stem,ss:sipseong(dayS,p.stem)});
+  list.push({pos:p.label+' 지지',stem:BMAIN[p.branch],ss:sipseong(dayS,BMAIN[p.branch])});});
+ return list;}
+function judgeJaewoon(sajuPillars,wolunOrSeun){
+ const w=wolunOrSeun,ss=[w.stemSipseong,w.branchSipseong];
+ const hoengjae=ss.includes('편재'),nolyeok=ss.includes('정재');
+ // 운에서 들어온 재성 글자의 오행
+ const jaeEl=[];
+ if(w.stemSipseong==='편재'||w.stemSipseong==='정재')jaeEl.push(SE[w.stem]);
+ if(w.branchSipseong==='편재'||w.branchSipseong==='정재')jaeEl.push(SE[BMAIN[w.branch]]);
+ // 원국 식신·상관 오행이 그 재성 오행을 생하는지(목→화→토→금→수)
+ const sikEl=wongukSipseong(sajuPillars).filter(x=>x.ss==='식신'||x.ss==='상관').map(x=>SE[x.stem]);
+ const siksangSaengjae=sikEl.some(se=>jaeEl.some(je=>(se+1)%5===je));
+ return{hoengjae,nolyeok,siksangSaengjae};}
+// 일지 삼합 그룹의 도화: 申子辰→酉, 寅午戌→卯, 巳酉丑→午, 亥卯未→子 (SAMHAP 순서와 동일)
+const DOHWA=[9,3,6,0];
+function judgeDohwa(ilji,targetBranch){
+ const gi=SAMHAP.findIndex(g=>g.includes(ilji));
+ return gi>=0&&DOHWA[gi]===targetBranch;}
+function judgeYeonaeun(sajuPillars,gender,wolunOrSeun){
+ const spouse=gender==='M'?['정재','편재']:['정관','편관'];
+ const inWonguk=wongukSipseong(sajuPillars).some(x=>spouse.includes(x.ss));
+ const inLuck=[wolunOrSeun.stemSipseong,wolunOrSeun.branchSipseong].some(s=>spouse.includes(s));
+ const ilji=sajuPillars[2].branch;
+ return{saeInYeon:!inWonguk&&inLuck,
+  giJonBalJeon:branchRel(ilji,wolunOrSeun.branch)==='육합',
+  dohwa:judgeDohwa(ilji,wolunOrSeun.branch)};}
+// 확인용: 결과를 콘솔에 출력. 콘솔에서 직접 jujuDebug('19850315','14:30','M') 로도 호출 가능
+function debugLuckEngine(r,gender,nowY,title){
+ const P=r.pillars,dayS=P[2].stem;
+ const wolun=withSipseong(getCurrentWolun(),dayS);
+ const seunList=getSeunList(dayS,nowY-1,nowY+2);
+ const judge=g=>({간지:`${g.ganjiKr}(${g.ganjiHanja})`,천간십성:g.stemSipseong,지지십성:g.branchSipseong,
+  ...judgeJaewoon(P,g),...judgeYeonaeun(P,gender,g)});
+ console.group(`[주주도사 엔진 확인] ${title||''} (${gender==='M'?'남':'여'})`);
+ console.log('원국:',P.map(p=>`${p.label} ${SK[p.stem]}${BK[p.branch]}(${SH[p.stem]}${BH[p.branch]})`).join(' / '));
+ console.table(wongukSipseong(P).map(x=>({위치:x.pos,십성:x.ss})));
+ console.log('이번 달 월운:');console.table([judge(wolun)]);
+ console.log('세운:');console.table(Object.fromEntries(seunList.map(g=>[g.year+'년',judge(g)])));
+ console.groupEnd();
+ return{wolun,seunList};}
+window.jujuDebug=function(bdate,btime,gender,lonDeg,cal,isLeap){
+ const S=parseSajuFromData(bdate,btime,gender,lonDeg,cal,isLeap);
+ if(!S){console.warn('생년월일 형식: YYYYMMDD 또는 YYYY-MM-DD');return null;}
+ return debugLuckEngine(S.r,gender,S.nowY,bdate);};
+
 /* ===================== 탭 전환 ===================== */
 function switchTab(name){
  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
@@ -1678,6 +1746,7 @@ function renderSoloResult(A,mbtiVal,genderLabel,ownerLabel,personaId,profileId,m
  const nowY=A.nowY;
  const seun=[];for(let yy=nowY-1;yy<=nowY+2;yy++){const s=((yy-4)%10+10)%10,b=((yy-4)%12+12)%12;
   seun.push(`${yy}년 ${SK[s]}${BK[b]}(${SH[s]}${BH[b]})`);}
+ try{debugLuckEngine(A.r,A.gender,nowY,ownerLabel);}catch(e){console.warn(e);} // 1단계: 월운·세운 십성/판별 콘솔 확인용(프롬프트 미연결)
  const today=new Date();
  const todayStr=`${today.getFullYear()}년 ${today.getMonth()+1}월 ${today.getDate()}일`;
  const hourWarn=(r.corrections&&r.corrections.hourNear)?
@@ -1806,6 +1875,7 @@ function submitMatch(){
  const nowY=A.nowY;
  const seun=[];for(let yy=nowY-1;yy<=nowY+2;yy++){const s=((yy-4)%10+10)%10,b=((yy-4)%12+12)%12;
   seun.push(`${yy}년 ${SK[s]}${BK[b]}(${SH[s]}${BH[b]})`);}
+ try{debugLuckEngine(A.r,A.gender,nowY,'[나]');debugLuckEngine(B.r,B.gender,nowY,'[상대]');}catch(e){console.warn(e);} // 1단계: 콘솔 확인용(프롬프트 미연결)
  const today=new Date();
  const todayStr=`${today.getFullYear()}년 ${today.getMonth()+1}월 ${today.getDate()}일`;
  const rel=document.getElementById('relType').value;
