@@ -3,7 +3,32 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     match /users/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      // 등급(tier)은 관리자만 Firebase 콘솔에서 변경. 고객은 사용 횟수를 줄이거나 초기화할 수 없음.
+      function isOwner() { return request.auth != null && request.auth.uid == uid; }
+      function oldData() { return resource == null ? {} : resource.data; }
+      function newData() { return request.resource.data; }
+      function todayUTC() {
+        let t = request.time;
+        return string(t.year()) + '-' + (t.month() < 10 ? '0' : '') + string(t.month())
+          + '-' + (t.day() < 10 ? '0' : '') + string(t.day());
+      }
+      function tierUnchanged() {
+        return newData().get('tier', 'free') == oldData().get('tier', 'free');
+      }
+      function chatUsedOk() {
+        return newData().get('chatUsed', 0) >= oldData().get('chatUsed', 0);
+      }
+      function dailyOk() {
+        let oldD = oldData().get('dailyDate', '');
+        let newD = newData().get('dailyDate', '');
+        return newD == oldD
+          ? newData().get('dailyCount', 0) >= oldData().get('dailyCount', 0)
+          : newD == todayUTC();
+      }
+
+      allow read: if isOwner();
+      allow create, update: if isOwner() && tierUnchanged() && chatUsedOk() && dailyOk();
+      allow delete: if false;
 
       // 기존 프로필 (본인만)
       match /profiles/{profileId} {
