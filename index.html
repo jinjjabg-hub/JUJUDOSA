@@ -2104,6 +2104,7 @@ function renderAccordion(text){
  log.appendChild(wrap);
  wrap.scrollIntoView({behavior:'smooth',block:'start'});
 }
+let useCache=true;
 async function callDosa(maxTok,isFirst,retryCount){
  retryCount=retryCount||0;
  const th=addMsg(retryCount>0?'연결이 불안정해 다시 시도하는 중…':'명식을 살피는 중…','thinking');
@@ -2117,7 +2118,11 @@ async function callDosa(maxTok,isFirst,retryCount){
  try{
   const res=await fetch('https://jujudosa-api.jinjjabg.workers.dev/',{
    method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:maxTok||1500,system:persona,messages:history,stream:true})});
+   // 프롬프트 캐싱: 매번 같은 지시문(system)은 명시적 캐시 지점으로, 늘어나는 대화는 자동 캐싱으로
+   // 5분 안에 이어지는 질문은 앞부분을 약 1/10 가격으로 읽는다.
+   body:JSON.stringify(Object.assign({model:'claude-sonnet-4-6',max_tokens:maxTok||1500,
+    system:useCache?[{type:'text',text:persona,cache_control:{type:'ephemeral'}}]:persona,
+    messages:history,stream:true},useCache?{cache_control:{type:'ephemeral'}}:{}))});
   if(!res.ok||!res.body){
    const data=await res.json().catch(()=>({}));
    throw new Error(data.error?.message||('서버 응답 오류 ('+res.status+')'));
@@ -2147,6 +2152,10 @@ async function callDosa(maxTok,isFirst,retryCount){
      }
     }
     if(json.type==='error')throw new Error(json.error?.message||'스트리밍 오류');
+    if(json.type==='message_start'&&json.message&&json.message.usage){
+     const u=json.message.usage; // 캐싱 확인용: cache_read가 크면 절감 중
+     console.log('[토큰] 입력',u.input_tokens,'/ 캐시 읽기',u.cache_read_input_tokens||0,'/ 캐시 저장',u.cache_creation_input_tokens||0);
+    }
    }
   }
   if(!started)th.remove(); // 내용 없이 끝난 경우 대비
@@ -2183,6 +2192,8 @@ async function callDosa(maxTok,isFirst,retryCount){
   // 발생하는 일시적 오류(Request not allowed 등). 자동으로 최대 3회 재시도하고, 그래도 안 되면 한글 안내와 "다시 불러오기" 버튼을 보여준다.
   const msg=e.message||'';
   console.warn('도사 응답 실패',msg);
+  // 캐싱 옵션이 거부되면(안전장치) 캐싱 없이 즉시 다시 요청
+  if(useCache&&/cache_control|cache control/i.test(msg)){useCache=false;callDosa(maxTok,isFirst,retryCount);return;}
   const busy=/overloaded|529|429|rate.?limit/i.test(msg);
   const transient=busy||/request not allowed|forbidden|525|502|503|504|failed to fetch|networkerror|network error|load failed/i.test(msg);
   if(transient&&retryCount<3){
