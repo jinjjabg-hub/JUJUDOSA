@@ -472,7 +472,7 @@ button.go:active{transform:scale(.98);opacity:.9}
       <div id="summary"></div>
       <div id="chatArea">
         <div id="log"></div>
-        <div class="quickchips">
+        <div class="quickchips" id="quickChips">
           <button class="qchip" onclick="quickAsk('재물운 집중')">💰 재물운 집중</button>
           <button class="qchip" onclick="quickAsk('이직 시기가 궁금해요')">💼 이직 시기</button>
           <button class="qchip" onclick="quickAsk('올해 인연운이 궁금해요')">❤️ 인연운</button>
@@ -509,21 +509,30 @@ button.go:active{transform:scale(.98);opacity:.9}
     </div>
 
     <div class="card" id="partnerForm" style="display:none">
-      <label class="f">상대 성별</label>
-      <div class="gender" style="margin-bottom:12px">
-        <div class="gbtn" id="g2M" onclick="setG2('M')">남</div>
-        <div class="gbtn" id="g2F" onclick="setG2('F')">여</div>
-      </div>
       <label class="f">두 분의 관계</label>
-      <select id="relType" class="field" style="margin-bottom:12px">
+      <select id="relType" class="field" style="margin-bottom:12px" onchange="onRelChange()">
         <option value="연인">연인</option>
         <option value="부부">부부·배우자</option>
         <option value="결혼을 생각하는 상대">결혼을 생각하는 상대</option>
         <option value="사업 파트너">사업 파트너</option>
         <option value="직장 동료·상사">직장 동료·상사</option>
         <option value="친구·지인">친구·지인</option>
+        <option value="대표와 함께 일할 사람">대표 ↔ 직원·함께 일할 사람</option>
+        <option value="우리 회사">우리 회사 (창립일로 보는 회사 사주)</option>
       </select>
-      <label class="f">상대 생년월일</label>
+      <div id="g2Wrap">
+        <label class="f">상대 성별</label>
+        <div class="gender" style="margin-bottom:12px">
+          <div class="gbtn" id="g2M" onclick="setG2('M')">남</div>
+          <div class="gbtn" id="g2F" onclick="setG2('F')">여</div>
+        </div>
+      </div>
+      <div id="companyWrap" style="display:none">
+        <label class="f">회사 이름 (선택)</label>
+        <input type="text" id="companyName" class="field" maxlength="30" placeholder="예: 티엠링크" style="margin-bottom:12px" autocomplete="off">
+        <div class="sub" style="font-size:12px;color:var(--sub);margin:-4px 0 10px">법인은 <b>법인 설립등기일</b>, 개인사업자는 <b>개업일</b>을 넣어주세요. 회사가 태어난 날로 봅니다.</div>
+      </div>
+      <label class="f" id="bdate2Label">상대 생년월일</label>
       <div class="caltoggle">
         <button type="button" class="calbtn on" id="calSolar2" onclick="setCal2('solar')">양력</button>
         <button type="button" class="calbtn" id="calLunar2" onclick="setCal2('lunar')">음력</button>
@@ -531,9 +540,9 @@ button.go:active{transform:scale(.98);opacity:.9}
       </div>
       <div class="row">
         <div><input type="text" id="bdate2" inputmode="numeric" maxlength="10" placeholder="19750305" autocomplete="off"></div>
-        <div><input type="time" id="btime2" value="12:00"></div>
+        <div id="btime2Wrap"><input type="time" id="btime2" value="12:00"></div>
       </div>
-      <button class="advbtn" onclick="advToggle('advB',this)">상대 출생지 등 상세 설정 ⌄</button>
+      <button class="advbtn" id="advBBtn" onclick="advToggle('advB',this)">상대 출생지 등 상세 설정 ⌄</button>
       <div class="adv" id="advB">
         <label class="f">상대 출생 지역</label>
         <select id="region2" class="field" style="margin-bottom:10px">
@@ -549,7 +558,7 @@ button.go:active{transform:scale(.98);opacity:.9}
       </div>
     </div>
 
-    <h2 class="sec">관심 분야 선택</h2>
+    <h2 class="sec" id="matchFocusTitle">관심 분야 선택</h2>
     <div class="chips" id="matchFocusChips">
       <button class="chip on" data-v="연애운">연애운</button>
       <button class="chip" data-v="성격 합">성격 합</button>
@@ -876,10 +885,10 @@ function stemRel(a,b){
  if(Math.abs(a-b)===5)return '천간합';
  const de=SE[a],oe=SE[b];
  if(de===oe)return '같은 오행';
- if((de+1)%5===oe)return '나가 상대를 생함';
- if((oe+1)%5===de)return '상대가 나를 생함';
- if((de+2)%5===oe)return '나가 상대를 극함';
- return '상대가 나를 극함';}
+ if((de+1)%5===oe)return '앞사람이 뒷사람을 생함';
+ if((oe+1)%5===de)return '뒷사람이 앞사람을 생함';
+ if((de+2)%5===oe)return '앞사람이 뒷사람을 극함';
+ return '뒷사람이 앞사람을 극함';}
 function branchRel(a,b){
  if(a===b)return '같은 글자';
  if(a+b===13||(a===0&&b===1)||(a===1&&b===0))return '육합';
@@ -1004,7 +1013,36 @@ document.querySelectorAll('#matchFocusChips .chip').forEach(b=>{
   b.classList.add('on');matchFocus=b.dataset.v;
  });
 });
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let matchFocus='연애운';
+// 관계 종류별 관심 분야 칩과 입력칸 전환 (연애형 / 일·사업형 / 회사 사주)
+const MATCH_CHIPS={
+ love:['연애운','성격 합','결혼 시기','경제적 조화','속궁합'],
+ friend:['성격 합','서로 돕는 법','경제적 조화'],
+ biz:['업무 궁합','맞는 역할','소통·관리법','돈과 결정','함께할 시기'],
+ company:['회사의 기질','돈 흐름','대표와 회사 궁합','올해 회사 흐름']};
+const BIZ_RELS=['사업 파트너','직장 동료·상사','대표와 함께 일할 사람'];
+let companyTimeSet=false;
+function matchMode(rel){return rel==='우리 회사'?'company':BIZ_RELS.includes(rel)?'biz':rel==='친구·지인'?'friend':'love';}
+function setMatchChips(mode){
+ const box=document.getElementById('matchFocusChips');
+ box.innerHTML=MATCH_CHIPS[mode].map((v,i)=>`<button class="chip${i===0?' on':''}" data-v="${v}">${v}</button>`).join('');
+ matchFocus=MATCH_CHIPS[mode][0];
+ box.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{
+  box.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));b.classList.add('on');matchFocus=b.dataset.v;}));
+}
+function onRelChange(){
+ const rel=document.getElementById('relType').value,mode=matchMode(rel),isCo=mode==='company';
+ const show=(id,on)=>{const el=document.getElementById(id);if(el)el.style.display=on?'':'none';};
+ show('g2Wrap',!isCo);show('companyWrap',isCo);show('btime2Wrap',!isCo);show('advBBtn',!isCo);
+ if(isCo)show('advB',false);
+ document.getElementById('bdate2Label').textContent=isCo?'회사 설립일 (법인등기일·개업일)':(rel==='대표와 함께 일할 사람'?'함께 일할 사람 생년월일':'상대 생년월일');
+ // 회사는 태어난 시각이 없으므로 시간 모름으로 계산(3기둥)
+ const tu=document.getElementById('timeUnknown2');
+ if(isCo&&!tu.checked){tu.checked=true;companyTimeSet=true;}
+ else if(!isCo&&companyTimeSet){tu.checked=false;companyTimeSet=false;}
+ setMatchChips(mode);
+}
 
 /* ===== 홈 카테고리 버튼 → 종합풀이로 이동 + 자동 후속 질문 ===== */
 let pendingCategoryPrompt=null;
@@ -1205,6 +1243,17 @@ function goCategoryFallback(P){
   pendingCategoryPrompt=P.category+'에 대해 더 자세히 알려주세요';
   startFromProfile(selfP,'general');
  }
+}
+// 상담 종류에 맞는 빠른 질문 버튼 (개인 / 대표-직원 / 회사 사주)
+const QUICK_SETS={
+ personal:[['💰 재물운 집중','재물운 집중'],['💼 이직 시기','이직 시기가 궁금해요'],['❤️ 인연운','올해 인연운이 궁금해요']],
+ employer:[['🧩 맡길 일','이 사람에게 어떤 일을 맡기면 좋을까요?'],['💬 동기부여','이 사람은 어떻게 동기부여하면 좋을까요?'],['📅 시작 시기','언제 함께 시작하면 좋을까요?']],
+ company:[['📈 확장 시기','올해 사업을 확장해도 될까요?'],['👥 필요한 사람','우리 회사에 어떤 사람이 필요할까요?'],['💰 자금 흐름','회사 자금 흐름에서 조심할 점은?']]};
+function setQuickChips(kind){
+ const box=document.getElementById('quickChips');if(!box)return;
+ box.innerHTML=QUICK_SETS[kind].map(([label,q])=>`<button class="qchip" data-q="${esc(q)}">${label}</button>`).join('');
+ box.querySelectorAll('.qchip').forEach(b=>b.addEventListener('click',()=>quickAsk(b.dataset.q)));
+ document.getElementById('q').placeholder=kind==='company'?'예: 내년에 직원을 늘려도 될까요?':kind==='employer'?'예: 이 사람과 갈등이 생기면 어떻게 풀까요?':'예: 재물운을 더 자세히 알려주세요';
 }
 function quickAsk(text){
  document.getElementById('q').value=text;
@@ -1802,6 +1851,7 @@ function startFromProfile(p,personaId){
 }
 function renderSoloResult(A,mbtiVal,genderLabel,ownerLabel,personaId,profileId,mbtiDetail,mbtiJudgmentPattern){
  flushConvo(); // 홈을 거치지 않고 도사를 바꾼 경우에도 직전 대화 저장
+ setQuickChips('personal');
  currentProfileId=profileId||null;
  convoSessionId=currentProfileId?Date.now().toString(36)+Math.random().toString(36).slice(2,7):null;
  personaId=personaId||'general';
@@ -1953,7 +2003,8 @@ function BASE_RULES(todayStr,personaName){
 function submitMatch(){
  const err=document.getElementById('matchErr');err.style.display='none';
  if(!savedProfiles.length){err.textContent='먼저 홈에서 본인 사주를 등록해 주세요.';err.style.display='block';return;}
- if(document.getElementById('partnerForm').style.display!=='block'||!gender2){
+ const relSel=document.getElementById('relType').value,isCompany=relSel==='우리 회사';
+ if(document.getElementById('partnerForm').style.display!=='block'||(!gender2&&!isCompany)){
   togglePartnerForm();
   err.textContent='상대방 정보를 입력해 주세요.';err.style.display='block';return;
  }
@@ -1961,7 +2012,7 @@ function submitMatch(){
  fillFromProfile(selfP);
  const A=parsePerson('bdate','btime','timeUnknown','region',selfP.gender,'[나]',selfP.calType||'solar','isLeap');
  if(A.err){err.textContent=A.err;err.style.display='block';return;}
- const B=parsePerson('bdate2','btime2','timeUnknown2','region2',gender2,'[상대]',calType2,'isLeap2');
+ const B=parsePerson('bdate2','btime2','timeUnknown2','region2',isCompany?'M':gender2,isCompany?'[회사]':'[상대]',calType2,'isLeap2');
  if(B.err){err.textContent=B.err;err.style.display='block';return;}
 
  const nowY=A.nowY;
@@ -1972,24 +2023,33 @@ function submitMatch(){
  const todayStr=`${today.getFullYear()}년 ${today.getMonth()+1}월 ${today.getDate()}일`;
  const rel=document.getElementById('relType').value;
  const ra=A.r,rb=B.r,dA=ra.pillars[2],dB=rb.pillars[2],yA=ra.pillars[0],yB=rb.pillars[0];
+ const isEmployer=rel==='대표와 함께 일할 사람',mode=matchMode(rel);
+ const coName=(document.getElementById('companyName').value||'').trim()||'회사';
+ const nmA=(isCompany||isEmployer)?'대표':'나',nmB=isCompany?coName:isEmployer?'함께 일할 사람':'상대';
  const facts=[
-  `일간 관계: 나 ${SK[dA.stem]}(${SH[dA.stem]}) ↔ 상대 ${SK[dB.stem]}(${SH[dB.stem]}) → ${stemRel(dA.stem,dB.stem)}`,
-  `일지 관계: 나 ${BK[dA.branch]}(${BH[dA.branch]}) ↔ 상대 ${BK[dB.branch]}(${BH[dB.branch]}) → ${branchRel(dA.branch,dB.branch)}`,
-  `띠(년지) 관계: 나 ${BK[yA.branch]}(${BH[yA.branch]}) ↔ 상대 ${BK[yB.branch]}(${BH[yB.branch]}) → ${branchRel(yA.branch,yB.branch)}`,
+  `일간 관계: ${nmA} ${SK[dA.stem]}(${SH[dA.stem]}) ↔ ${nmB} ${SK[dB.stem]}(${SH[dB.stem]}) → ${stemRel(dA.stem,dB.stem)}`,
+  `일지 관계: ${nmA} ${BK[dA.branch]}(${BH[dA.branch]}) ↔ ${nmB} ${BK[dB.branch]}(${BH[dB.branch]}) → ${branchRel(dA.branch,dB.branch)}`,
+  `${isCompany?'창립년':'띠(년지)'} 관계: ${nmA} ${BK[yA.branch]}(${BH[yA.branch]}) ↔ ${nmB} ${BK[yB.branch]}(${BH[yB.branch]}) → ${branchRel(yA.branch,yB.branch)}`,
  ].join('\n');
+ // 회사 사주: 성별·나이·대운 없이 3기둥 + 오행 + 올해·내년 흐름(회사 일간 기준)
+ const companyBlock=()=>{const P=rb.pillars,ds=P[2].stem;
+  return `[회사] ${coName} — 창립일 기준 사주(시주 없음, 성별·대운 없음)
+사주: ${P.map(p=>`${p.label} ${gzk(p)}(${gz(p)}) [천간:${p.label==='일주'?'일간(회사)':sipseong(ds,p.stem)}/지지:${sipseong(ds,BMAIN[p.branch])}]`).join(', ')}
+오행 분포: ${rb.elemCount.map((c,i)=>`${EK[i]}${c}`).join(' ')}
+회사의 올해·내년 흐름: ${getSeunList(ds,nowY,nowY+1).map(g=>`${g.year}년 ${g.ganjiKr}(${g.ganjiHanja}) [천간:${g.stemSipseong} 지지:${g.branchSipseong}]`).join(', ')}`;};
 
  document.getElementById('summary').innerHTML=`
   <div class="pillars-card">
-   <div class="pillars-title">💑 ${selfP.label||'나'} ♥ 상대방 궁합</div>
+   <div class="pillars-title">${isCompany?`🏢 대표 × ${esc(coName)}`:mode==='biz'?`🤝 ${isEmployer?'대표 × 함께 일할 사람':`${selfP.label||'나'} × 상대방`}`:`💑 ${selfP.label||'나'} ♥ 상대방`} 궁합</div>
    <div class="pillars-grid" style="grid-template-columns:1fr 1fr">
-    <div class="pillar"><div class="pillar-label">나 · 일주</div>
+    <div class="pillar"><div class="pillar-label">${nmA} · 일주</div>
      <div class="pillar-circle ${ELCLASS[SE[dA.stem]]}">${SH[dA.stem]}</div>
      <div class="pillar-sub">${gzk(dA)}</div></div>
-    <div class="pillar"><div class="pillar-label">상대 · 일주</div>
+    <div class="pillar"><div class="pillar-label">${isCompany?'회사':nmB} · 일주</div>
      <div class="pillar-circle ${ELCLASS[SE[dB.stem]]}">${SH[dB.stem]}</div>
      <div class="pillar-sub">${gzk(dB)}</div></div>
    </div>
-   <div class="pillars-meta">${rel} 궁합 · 관심분야: ${matchFocus}</div>
+   <div class="pillars-meta">${isCompany?'창립일 사주':rel+' 궁합'} · 관심분야: ${matchFocus}</div>
   </div>`;
 
  const baseRules=BASE_RULES(todayStr);
@@ -1997,16 +2057,33 @@ function submitMatch(){
 [궁합 금지선 추가] 관계의 파탄을 단정하지 않는다("헤어지세요", "동업하면 망합니다" 금지). 충이나 극이 있어도 그것은 서로 다름의 지도이며, 다루는 법과 함께 전한다. 어느 한쪽을 험담하거나 우열을 가리지 않는다.
 
 ## 궁합 데이터 (관계: ${rel})
-${personBlock(A,'[나]')}
+${personBlock(A,(isCompany||isEmployer)?'[대표]':'[나]')}
 
-${personBlock(B,'[상대]')}
+${isCompany?companyBlock():personBlock(B,isEmployer?'[함께 일할 사람]':'[상대]')}
 
 [두 명식 사이의 합충 — 엔진 계산]
 ${facts}
 세운: ${seun.join(', ')}
 
 [첫 풀이 — 매우 중요] 첫 응답은 궁합 종합 풀이다. 관심 분야는 "${matchFocus}"이니 이 주제를 특히 비중있게 다뤄라. 아래 섹션을 라벨과 함께 차례로. 각 섹션 7~10문장, 손에 잡히는 상황과 실제 사례로 두텁게.
-${(rel==='사업 파트너'||rel==='직장 동료·상사')?
+${isCompany?
+`이번 풀이는 "회사 사주"다. ${coName}의 창립일을 회사가 태어난 날로 보고, 대표와 회사의 궁합까지 함께 본다. 창립일로 회사를 보는 것은 전통 명리의 정식 이론이라기보다 현장에서 널리 쓰는 참고법이므로, 단정 대신 "창립일 기운으로 보면"처럼 말한다. 시주가 없으니 시간 관련 내용은 말하지 않는다.
+「한 줄 요약」 이 회사를 한 문장으로.
+「회사의 타고난 기질」 창립일 사주의 오행 분포로 본 회사의 성격과 강점, 상대적으로 약한 부분을 실제 회사 운영 장면(영업, 관리, 신사업, 조직 분위기)으로.
+「돈이 들어오는 방식」 이 회사에 돈이 들어오기 쉬운 구조(꾸준한 거래형인지, 큰 건 위주인지)와 돈이 새기 쉬운 지점.
+「대표와 회사의 궁합」 대표의 사주와 회사 사주가 서로 살리는 관계인지, 부딪히는 관계인지. 대표가 회사를 키우는 쪽인지 회사가 대표를 받쳐주는 쪽인지, 부딪힌다면 어떻게 보완하는지.
+「올해와 내년 회사의 흐름」 회사의 올해·내년 흐름 데이터와 대표의 흐름을 나란히 놓고, 확장할 때와 지킬 때를 할 일 단위로.
+「대표에게 드리는 조언」 이 회사에 부족한 기운을 채워줄 사람(어떤 기질의 직원·파트너가 필요한지), 운영 방식에 대한 구체적 조언 3가지.`
+:isEmployer?
+`관계는 "대표 ↔ 함께 일할 사람" — 대표가 직원(또는 함께 일할 사람)과 어떻게 일하면 좋은지 보는 궁합이다.
+[채용 판정 금지 — 매우 중요] 이 풀이는 "뽑아라/뽑지 마라"를 정하는 도구가 아니라 "함께 일하는 법"을 알려주는 가이드다. 채용 여부·합격·불합격을 권하거나 단정하지 않고([단정 원칙]의 예외), 나이·성별·출신으로 사람을 판단하는 말도 하지 않는다. 맞지 않는 부분도 "이렇게 하면 함께 일할 수 있다"는 관리법으로 전한다.
+「한 줄 요약」 대표와 이 사람이 함께 일하는 모습을 한 문장으로.
+「일하는 궁합」 두 사람이 함께 일할 때 잘 맞는 점과 서로 답답해지는 점을 구체적 업무 장면으로.
+「이 사람에게 맞는 자리」 영업·관리·기획·기술·고객 응대 등 이 사람이 힘을 내는 역할과, 맡기면 소진되는 역할.
+「소통과 관리법」 대표가 어떻게 지시하고 피드백하고 칭찬하면 이 사람이 잘 움직이는지, 피해야 할 말과 방식.
+「오래 함께하려면」 이 사람이 안정 지향인지 독립 지향인지, 흔들리기 쉬운 시기와 그때 대표가 해줄 수 있는 것.
+「함께 시작하기 좋은 시기」 두 사람의 흐름을 나란히 놓고 입사·새 프로젝트를 시작하기 좋은 때.`
+:(rel==='사업 파트너'||rel==='직장 동료·상사')?
 `관계는 "${rel}" — 사업형 궁합이다.
 「한 줄 요약」 이 조합을 한 문장으로.
 「두 사람의 일하는 스타일」 각자 일할 때 어떤 사람인지 나란히, 구체적 업무 장면으로.
@@ -2023,7 +2100,8 @@ ${(rel==='연인'||rel==='부부'||rel==='결혼을 생각하는 상대')?`「�
 `:''}「이 관계를 위한 조언」 ${rel} 관계에 맞는 구체적 행동 2~3가지.`}
 전문 용어와 괄호 근거는 본문에 쓰지 않되, "두 분 사주를 나란히 보면 ~ 기운이 서로 ~해서"처럼 모든 판단이 두 사람의 사주에서 나왔음이 드러나게 [쉬운 사주 말]로 쓴다(이유를 물으면 그때 용어까지 설명). 마지막에 "무엇이 궁금하십니까" 하나로 마무리한다.`;
  flushConvo();currentProfileId=null;
- history=[{role:'user',content:'(두 사람의 명식을 나란히 내밀며 궁합을 청한다. 궁합 종합 풀이를 시작하라.)'}];
+ setQuickChips(isCompany?'company':isEmployer?'employer':'personal');
+ history=[{role:'user',content:isCompany?'(대표가 자신의 명식과 회사 창립일을 내밀며 회사 사주를 청한다. 회사 사주 풀이를 시작하라.)':'(두 사람의 명식을 나란히 내밀며 궁합을 청한다. 궁합 종합 풀이를 시작하라.)'}];
 
  switchTab('fortune');
  document.getElementById('setup').style.display='none';
