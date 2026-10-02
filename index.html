@@ -498,7 +498,8 @@ button.go:active{transform:scale(.98);opacity:.9}
         <span class="mp-badge me">본인</span>
         <div class="mp-name" id="matchSelfName">등록 필요</div>
         <div class="mp-date" id="matchSelfDate">-</div>
-        <div class="mp-link" onclick="switchTab('home')">변경하기 ↔</div>
+        <div class="mp-link" onclick="toggleMatchSelfPicker()">변경하기 ↔</div>
+        <select id="matchSelfSel" class="field" style="display:none;margin-top:8px;font-size:13px" onchange="pickMatchSelf(this.value)"></select>
       </div>
       <div class="mpcard dash">
         <span class="mp-badge other">상대방</span>
@@ -1013,6 +1014,22 @@ document.querySelectorAll('#matchFocusChips .chip').forEach(b=>{
   b.classList.add('on');matchFocus=b.dataset.v;
  });
 });
+// 궁합에서 '본인' 자리에 쓸 프로필 (기본: 본인 프로필). 홈으로 보내지 않고 그 자리에서 고른다.
+let matchSelfId=null;
+function matchSelfProfile(){return savedProfiles.find(p=>p.id===matchSelfId)||savedProfiles.find(p=>p.isSelf)||savedProfiles[0];}
+function renderMatchSelf(){
+ const p=matchSelfProfile();if(!p)return;
+ document.getElementById('matchSelfName').textContent=p.label||p.bdate;
+ document.getElementById('matchSelfDate').textContent=p.bdate;
+}
+function toggleMatchSelfPicker(){
+ const sel=document.getElementById('matchSelfSel');
+ if(!savedProfiles.length){switchTab('home');return;} // 등록된 사주가 없으면 등록하러 이동
+ sel.innerHTML=savedProfiles.map(p=>`<option value="${p.id}">${esc(p.label||p.bdate)}${p.isSelf?' (본인)':''}</option>`).join('');
+ sel.value=matchSelfProfile().id;
+ sel.style.display=sel.style.display==='none'?'block':'none';
+}
+function pickMatchSelf(id){matchSelfId=id;renderMatchSelf();document.getElementById('matchSelfSel').style.display='none';}
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let matchFocus='연애운';
 // 관계 종류별 관심 분야 칩과 입력칸 전환 (연애형 / 일·사업형 / 회사 사주)
@@ -1382,8 +1399,7 @@ async function loadProfiles(){
   const selfP=savedProfiles.find(p=>p.isSelf)||savedProfiles[0];
   sel.value=selfP.id;
   document.getElementById('homeGreeting').innerHTML=`오늘은<br><span class="accent">어떤 에너지</span>가 흐를까요?`;
-  document.getElementById('matchSelfName').textContent=selfP.label||selfP.bdate;
-  document.getElementById('matchSelfDate').textContent=selfP.bdate;
+  renderMatchSelf();
   renderTodayCard();
   await getUserTier();
   document.getElementById('personaRow').classList.toggle('locked',userTier==='free');
@@ -2008,7 +2024,7 @@ function submitMatch(){
   togglePartnerForm();
   err.textContent='상대방 정보를 입력해 주세요.';err.style.display='block';return;
  }
- const selfP=savedProfiles.find(p=>p.isSelf)||savedProfiles[0];
+ const selfP=matchSelfProfile();
  fillFromProfile(selfP);
  const A=parsePerson('bdate','btime','timeUnknown','region',selfP.gender,'[나]',selfP.calType||'solar','isLeap');
  if(A.err){err.textContent=A.err;err.style.display='block';return;}
