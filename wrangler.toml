@@ -1,0 +1,22 @@
+name = "jujudosa-api"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# 사용량 장부(사용자별)와 전체 지출 차단기 — Durable Object
+[[durable_objects.bindings]]
+name = "LEDGER"
+class_name = "UsageLedger"
+
+[[durable_objects.bindings]]
+name = "BUDGET"
+class_name = "BudgetLedger"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["UsageLedger", "BudgetLedger"]
+
+# 비밀값은 코드에 넣지 말고 아래 명령으로 등록:
+#   npx wrangler secret put ANTHROPIC_API_KEY
+#   npx wrangler secret put FIREBASE_SA_JSON    # Firebase 서비스 계정 JSON 파일 전체 내용 (Firestore 읽기 권한)
+#   npx wrangler secret put ADMIN_TOKEN         # /admin/* 호출용 임의의 긴 문자열
+#   npx wrangler secret put ALERT_WEBHOOK_URL   # (선택) 예산 초과 알림을 받을 Slack/Discord 웹훅 주소

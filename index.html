@@ -21,6 +21,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <script src="./korean-lunar-calendar.min.js"></script>
+<script src="./plans.js"></script>
 <style>
 :root{
   --bg:#F7F8FA; --card:#FFF; --text:#191F28; --sub:#8B95A1; --line:#E5E8EB;
@@ -618,7 +619,7 @@ button.go:active{transform:scale(.98);opacity:.9}
       <h2 class="sec">요금제</h2>
       <div class="setgroup">
         <button class="setrow" onclick="openSubscribeModal()">
-          <span class="sr-left"><span class="sr-ico"><img class="icon-img sr-ico-img" src="./icon-pricing.png"></span><span class="sr-label">구독 신청 / 업그레이드</span></span>
+          <span class="sr-left"><span class="sr-ico"><img class="icon-img sr-ico-img" src="./icon-pricing.png"></span><span class="sr-label">이용권 신청 / 업그레이드</span></span>
           <span class="sr-chev">›</span>
         </button>
         <a class="setrow" href="./pricing.html" style="text-decoration:none;color:inherit">
@@ -668,19 +669,12 @@ button.go:active{transform:scale(.98);opacity:.9}
 <div class="modalbg" id="subscribeModal" style="display:none">
   <div class="modalcard" style="max-width:400px">
     <div class="modalhead">
-      <span>구독 신청</span>
+      <span>이용권 신청</span>
       <button class="modalclose" onclick="closeSubscribeModal()">✕</button>
     </div>
-    <div class="modalsub">아직 카드 자동결제 준비 중이라, 계좌이체로 먼저 신청받고 있어요. 입금 확인되면 24시간 내로 등급을 올려드립니다.</div>
+    <div class="modalsub">아직 카드 결제 준비 중이라, 계좌이체로 먼저 신청받고 있어요. 입금 확인되면 24시간 내로 이용권을 시작해 드려요. 이용권은 시작일부터 30일 동안 사용할 수 있고, 1회 이용권·상담팩의 남은 횟수는 30일 뒤 소멸해요.</div>
 
-    <div class="plancard on" id="planLite" onclick="selectPlan('lite')">
-      <div><div class="pc-name">라이트</div><div class="pc-desc">하루 채팅 3회</div></div>
-      <div class="pc-price">4,900원<span style="font-size:11px;color:var(--sub);font-weight:600">/월</span></div>
-    </div>
-    <div class="plancard" id="planStandard" onclick="selectPlan('standard')">
-      <div><div class="pc-name">스탠다드</div><div class="pc-desc">하루 채팅 15회 · 전문 도사 6명 전체 이용</div></div>
-      <div class="pc-price">9,900원<span style="font-size:11px;color:var(--sub);font-weight:600">/월</span></div>
-    </div>
+    <div id="planList"></div>
 
     <div class="bankbox">
       <div class="bb-row"><span class="bb-label">은행</span><span class="bb-value">신한은행</span></div>
@@ -697,7 +691,7 @@ button.go:active{transform:scale(.98);opacity:.9}
     <div class="err" id="subErr"></div>
     <div id="subSuccess" style="display:none;text-align:center;font-size:13px;color:var(--primary);
       font-weight:700;margin-top:12px;line-height:1.6">
-      ✅ 신청 접수됐어요!<br>입금 확인 후 24시간 내로 등급이 올라갑니다.
+      ✅ 신청 접수됐어요!<br>입금 확인 후 24시간 내로 이용권이 시작됩니다.
     </div>
   </div>
 </div>
@@ -735,7 +729,7 @@ button.go:active{transform:scale(.98);opacity:.9}
         <div class="blur-line" style="width:88%"></div>
         <div class="blur-line" style="width:72%"></div>
       </div>
-      <div class="teaser-fade"><span>🔒 라이트 이상 구독 시 전체 확인</span></div>
+      <div class="teaser-fade"><span>🔒 구독 시 전체 확인</span></div>
     </div>
     <button class="go" onclick="openSubscribeModal()">✨ 업그레이드하고 전체 보기</button>
     <button class="go" id="teaserFallback" style="background:none;color:var(--sub);box-shadow:none;margin-top:6px">
@@ -1150,7 +1144,9 @@ async function getUserTier(){
  if(!currentUser)return 'free';
  try{
   const d=await db.collection('users').doc(currentUser.uid).get();
-  userTier=(d.exists&&d.data().tier)||'free';
+  const dd=d.exists?d.data():{};userTier=dd.tier||'free';
+  // 유료 이용권은 시작일부터 30일까지만 유효 (서버도 같은 기준으로 강제한다)
+  if(userTier!=='free'&&userTier!=='admin'&&dd.tierStartedAt&&dd.tierStartedAt.toMillis&&Date.now()>=dd.tierStartedAt.toMillis()+PASS_DAYS*86400000)userTier='free';
  }catch(e){userTier='free';}
  return userTier;
 }
@@ -1191,13 +1187,27 @@ function openTeaser(personaId,selfP){
 function closeTeaser(){document.getElementById('teaserModal').style.display='none';}
 
 /* ===== 구독 신청 (계좌이체) ===== */
-let selectedPlan='lite';
+let selectedPlan='basic';
+function planDesc(k){
+ const L=PLANS[k].limits,parts=[];
+ if(PLANS[k].combined)parts.push('도사 풀이 또는 궁합 중 1회');
+ else{parts.push('풀이 '+L.reading+'회');if(L.gunghap)parts.push('궁합 '+L.gunghap+'회');}
+ parts.push('상담 '+L.consult+'회');if(L.mbti)parts.push('정밀 MBTI '+L.mbti+'회');
+ return parts.join(' · ');
+}
+function renderPlanList(){
+ const rows=['once','basic','plus','pro'].map(k=>[k,PLANS[k].name,planDesc(k),PLANS[k].price,k==='once'?'':'/월'])
+  .concat([['pack',CONSULT_PACK.name,'상담 '+CONSULT_PACK.consult+'회 · 구매일로부터 '+CONSULT_PACK.validDays+'일','9,900','']]);
+ document.getElementById('planList').innerHTML=rows.map(([k,n,d,pr,per])=>
+  `<div class="plancard${k===selectedPlan?' on':''}" data-plan="${k}" onclick="selectPlan('${k}')"><div><div class="pc-name">${n}</div><div class="pc-desc">${d}</div></div>`+
+  `<div class="pc-price">${(+String(pr).replace(/,/g,'')).toLocaleString()}원<span style="font-size:11px;color:var(--sub);font-weight:600">${per}</span></div></div>`).join('');
+}
 function selectPlan(plan){
  selectedPlan=plan;
- document.getElementById('planLite').classList.toggle('on',plan==='lite');
- document.getElementById('planStandard').classList.toggle('on',plan==='standard');
+ document.querySelectorAll('#planList .plancard').forEach(el=>el.classList.toggle('on',el.dataset.plan===plan));
 }
 function openSubscribeModal(){
+ renderPlanList();
  document.getElementById('subErr').style.display='none';
  document.getElementById('subSuccess').style.display='none';
  document.getElementById('depositorName').value='';
@@ -1535,10 +1545,9 @@ ${personBlock(P,'')}
 오늘은 ${todayStr}이다.
 [형식] 존댓말. 3줄 이내. 마크다운 기호 금지. 단정적 불운 예언 금지. 구체적인 행동 조언 위주로 짧게. 십성 같은 전문 용어와 괄호 근거는 쓰지 않되, "사주에 물 기운이 강해서", "오늘 들어오는 불 기운이"처럼 이 사람의 사주와 오늘 기운에서 나온 말임이 드러나게 쓴다.`;
  try{
-  const res=await fetch('https://jujudosa-api.jinjjabg.workers.dev/',{
-   method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:200,system:sys,
-    messages:[{role:'user',content:'오늘의 운세를 알려주세요.'}]})});
+  const res=await aiFetch('daily',{max_tokens:200,system:sys,
+    messages:[{role:'user',content:'오늘의 운세를 알려주세요.'}]});
+  if(!res.ok){const ae=await aiError(res);return aiErrText(ae)||'오늘의 운세를 불러오지 못했습니다.';} // 실패 문구는 저장하지 않는다
   const data=await res.json();
   const txt=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim()
     ||'오늘의 운세를 불러오지 못했습니다.';
@@ -1547,7 +1556,7 @@ ${personBlock(P,'')}
   const idx=savedProfiles.findIndex(x=>x.id===docId);
   if(idx>-1){savedProfiles[idx].fortuneText=txt;savedProfiles[idx].fortuneDate=today;}
   return txt;
- }catch(e){console.error('운세 생성 실패',e);return '오늘의 운세를 불러오는 중 문제가 발생했습니다.';}
+ }catch(e){console.error('운세 생성 실패',e);return aiErrText(e)||'오늘의 운세를 불러오는 중 문제가 발생했습니다.';}
 }
 
 /* ===== 폼 상태 ===== */
@@ -1669,8 +1678,8 @@ const MBTI_DEEP_Q=[
 let mdProfileId=null,mdAnswers={},mdIndex=0,mdPicked=null;
 async function openMbtiDeepQuiz(profileId){
  await getUserTier();
- if(userTier==='free'){
-  alert('정밀 MBTI 분석은 라이트 이상 결제 회원 전용 기능이에요. 요금제를 먼저 확인해주세요.');
+ if(planLimit('mbti')<1){
+  alert('정밀 MBTI 분석은 월 이용권(5,900원 이상) 이용 중에만 쓸 수 있어요. 요금제를 먼저 확인해주세요.');
   return;
  }
  mdProfileId=profileId;mdAnswers={};
@@ -1758,10 +1767,9 @@ async function runMbtiDeepAnalysis(){
  "reportText": "사용자에게 보여줄 전체 리포트. 마크다운. 4개 축 분석과 근거, 인지기능 순위, 후보 TOP3와 반증 과정, 최종 결과를 포함해 상세하게 작성."
 }`;
  try{
-  const res=await fetch('https://jujudosa-api.jinjjabg.workers.dev/',{
-   method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:3000,system:sys,
-    messages:[{role:'user',content:qaText}]})});
+  const res=await aiFetch('mbti',{max_tokens:3000,system:sys,
+    messages:[{role:'user',content:qaText}]});
+  if(!res.ok)throw await aiError(res);
   const data=await res.json();
   let txt=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
   txt=txt.replace(/^```json\s*|```$/g,'').trim();
@@ -1772,6 +1780,7 @@ async function runMbtiDeepAnalysis(){
   showMdResult(result);
  }catch(e){
   console.error('MBTI 정밀분석 실패',e);
+  if(AI_FINAL_CODES.includes(e.code)){document.getElementById('mdLoading').innerHTML=aiErrText(e)+'<br><button class="go" style="margin-top:10px" onclick="closeMbtiDeepQuiz()">닫기</button>';return;}
   document.getElementById('mdLoading').innerHTML='분석 중 문제가 발생했어요. 답변은 저장되어 있으니 다시 시도해주세요.<br><button class="go" style="margin-top:10px" onclick="runMbtiDeepAnalysis()">다시 시도</button>';
  }
 }
@@ -1958,6 +1967,12 @@ ${mbtiSection}「일과 돈」 어떤 방식으로 일할 때 성과가 나는�
 「지난 흐름 돌아보기」 지나온 대운 2~3개를 나이대로 짚으며 그 시기에 있었을 법한 변화를 말한다.
 「지금과 앞으로」 현재 대운의 성격, 올해와 내년이 무엇을 하기 좋은 시기인지 할 일 단위로. 다음 대운이 언제 바뀌고 무엇이 달라지는지까지.
 `}마지막에 "무엇이 궁금하십니까" 하나로 마무리하고, 이후 대화는 이 풀이를 기초로 한다. ${followupRuleFinal}`;
+ // 후속 상담용 슬림 프롬프트: 첫 풀이 지시와 종합풀이 전문(최대 3,000자)을 빼고, 종합풀이는 요약(700자)만 참조
+ slimBase=buildSlimBase(persona)+'\n\n'+followupRuleFinal;
+ const refSrc=isSpecialist&&generalProfile&&generalProfile.readings&&generalProfile.readings.general;
+ slimRef=(refSrc&&refSrc.text)?'\n[상담자가 이미 본 종합 풀이 — 핵심 요약] '+(refSrc.digest||refSrc.text).slice(0,700)+'\n이 요약과 어긋나지 않게 답한다.':'';
+ curDigest='';digestSeq++;firstKind='reading';setChatLocked(false);
+ console.log('[프롬프트 길이] 첫 풀이',persona.length,'자 / 후속 상담(슬림)',slimSystem().length,'자');
  history=[{role:'user',content:'(상담자가 방에 들어와 절을 올리고 명식을 내민다. 종합 풀이를 시작하라.)'}];
 
  document.getElementById('setup').style.display='none';
@@ -1969,10 +1984,12 @@ ${mbtiSection}「일과 돈」 어떤 방식으로 일할 때 성과가 나는�
  const cachedReading=cachedProfile&&cachedProfile.readings&&cachedProfile.readings[personaId];
  if(cachedReading&&cachedReading.text){
   history.push({role:'assistant',content:cachedReading.text});
+  if(cachedReading.digest)curDigest=cachedReading.digest;
+  else{curDigest=cachedReading.text.slice(0,700);startDigest(cachedReading.text,profileId,personaId);} // 예전 풀이는 한 번만 digest 생성
   renderAccordion(cachedReading.text);
   if(pendingCategoryPrompt){
    const pr=pendingCategoryPrompt;pendingCategoryPrompt=null;
-   setTimeout(()=>{addMsg(pr,'me');pushUserMsg(pr);callDosa(2400);},300);
+   setTimeout(()=>{addMsg(pr,'me');pushUserMsg(pr);callDosa(2000);},300);
   }
  }else{
   pendingCacheProfileId=profileId;
@@ -2116,6 +2133,8 @@ ${(rel==='연인'||rel==='부부'||rel==='결혼을 생각하는 상대')?`「�
 `:''}「이 관계를 위한 조언」 ${rel} 관계에 맞는 구체적 행동 2~3가지.`}
 전문 용어와 괄호 근거는 본문에 쓰지 않되, "두 분 사주를 나란히 보면 ~ 기운이 서로 ~해서"처럼 모든 판단이 두 사람의 사주에서 나왔음이 드러나게 [쉬운 사주 말]로 쓴다(이유를 물으면 그때 용어까지 설명). 마지막에 "무엇이 궁금하십니까" 하나로 마무리한다.`;
  flushConvo();currentProfileId=null;
+ slimBase=buildSlimBase(persona)+GUNGHAP_FOLLOW;slimRef='';curDigest='';digestSeq++;firstKind='gunghap';
+ pendingCacheProfileId=null;pendingCachePersonaId=null;setChatLocked(false);
  setQuickChips(isCompany?'company':isEmployer?'employer':'personal');
  history=[{role:'user',content:isCompany?'(대표가 자신의 명식과 회사 창립일을 내밀며 회사 사주를 청한다. 회사 사주 풀이를 시작하라.)':'(두 사람의 명식을 나란히 내밀며 궁합을 청한다. 궁합 종합 풀이를 시작하라.)'}];
 
@@ -2192,10 +2211,9 @@ async function saveConvoSummary(profileId,transcript){
 - 기존 요약의 사실은 이번 대화에서 바뀐 게 명확할 때만 갱신하고, 그 외에는 지우지 않는다.
 - 인사·잡담·사주 풀이 문장 자체는 뺀다. 상담자에 대한 사실과, 어느 도사가 어떤 조언을 했는지만 남긴다.
 - 600자 이내, 짧은 문장의 나열. 마크다운 기호 금지. 요약문만 출력한다.`;
- const res=await fetch('https://jujudosa-api.jinjjabg.workers.dev/',{
-  method:'POST',headers:{'Content-Type':'application/json'},
-  body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:1200,system:sys,
-   messages:[{role:'user',content:`[기존 요약]\n${prev||'(없음)'}\n\n[이번 대화]\n${transcript.slice(-12000)}`}]})});
+ const res=await aiFetch('summary',{max_tokens:800,system:sys,
+   messages:[{role:'user',content:`[기존 요약]\n${prev||'(없음)'}\n\n[이번 대화]\n${transcript.slice(-12000)}`}]});
+ if(!res.ok)throw await aiError(res);
  const data=await res.json();
  const summary=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
  if(!summary)throw new Error(data.error?.message||'요약 응답 없음');
@@ -2223,7 +2241,7 @@ function goHome(){
  document.getElementById('chatArea').style.display='none';
  document.getElementById('log').innerHTML='';
  document.getElementById('cerr').style.display='none';
- history=[];persona='';
+ history=[];persona='';slimBase='';slimRef='';curDigest='';digestSeq++;
 }
 function addMsg(txt,cls){const log=document.getElementById('log');
  const m=document.createElement('div');m.className='msg '+cls;
@@ -2263,6 +2281,80 @@ function renderAccordion(text){
  log.appendChild(wrap);
  wrap.scrollIntoView({behavior:'smooth',block:'start'});
 }
+/* ===== AI 호출 (인증·한도·모델·토큰 상한은 Worker가 정한다) ===== */
+const AI_URL='https://jujudosa-api.jinjjabg.workers.dev/';
+async function aiFetch(kind,payload){
+ if(!currentUser){const e=new Error('login_required');e.code='login_required';throw e;}
+ const token=await currentUser.getIdToken();
+ return fetch(AI_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+  body:JSON.stringify(Object.assign({kind},payload))});
+}
+async function aiError(res){ // 서버 오류 응답 → code 가 붙은 Error
+ const data=await res.json().catch(()=>({}));
+ const code=typeof data.error==='string'?data.error:'';
+ const e=new Error(code||(data.error&&data.error.message)||('서버 응답 오류 ('+res.status+')'));
+ e.code=code;e.kind=data.kind;e.limit=data.limit;e.expired=!!data.expired;e.status=res.status;
+ return e;
+}
+const KIND_LABEL={consult:'상담',reading:'풀이',gunghap:'궁합',mbti:'정밀 MBTI 분석',daily:'오늘의 운세'};
+const AI_FINAL_CODES=['login_required','unauthorized','quota','free_budget','budget'];
+function aiErrText(e){
+ switch(e.code){
+  case 'login_required':return '도사님과 이야기하려면 로그인이 필요해요. 설정 탭에서 로그인해 주세요.';
+  case 'unauthorized':return '로그인 정보를 확인하지 못했어요. 다시 로그인해 주세요.';
+  case 'quota':return e.expired
+   ?'이용 기간(30일)이 끝났어요. 이용권을 다시 신청하시면 이어서 이용할 수 있어요. 이전 상담 기록은 계속 볼 수 있어요.'
+   :e.kind==='consult'
+   ?'상담 이용 한도에 도달했어요. 이전 상담 기록은 계속 볼 수 있어요. 상담팩(30일)으로 상담을 더 이어가실 수 있습니다.'
+   :(KIND_LABEL[e.kind]||'이용')+' 한도에 도달했어요. 요금제 안내에서 한도를 확인해 주세요.';
+  case 'free_budget':return '오늘 무료 체험이 마감됐어요. 내일 다시 이용해 주세요.';
+  case 'budget':return '지금은 도사님이 잠시 쉬고 계세요. 내일 다시 찾아주세요.';
+ }
+ return '';
+}
+function planLimit(k){ // plans.js 의 한도 (서버와 같은 상수)
+ if(userTier==='admin')return 999;
+ const t=PLAN_LEGACY[userTier]||userTier;
+ return ((PLANS[t]||PLANS.free).limits[k])||0;
+}
+function setChatLocked(on,msg){ // 한도 도달: 입력창만 잠그고 기록 열람은 그대로
+ const q=document.getElementById('q');if(!q)return;
+ if(on&&!q.disabled)q.dataset.ph=q.placeholder;
+ q.disabled=on;
+ const b=q.parentElement.querySelector('button');if(b)b.disabled=on;
+ if(on)q.placeholder=msg||'이번 달 한도에 도달했어요';
+ else if(q.dataset.ph)q.placeholder=q.dataset.ph;
+}
+
+/* ===== 후속 상담용 슬림 시스템 프롬프트 + 첫 풀이 digest ===== */
+let firstKind='reading',slimBase='',slimRef='',curDigest='',digestSeq=0;
+const SLIM_LIMIT='\n[분량 상한 — 최우선] 이번 답변은 공백 포함 1,800자 안에서 끝맺음까지 완결한다. 위의 문단 수 규칙보다 이 상한이 우선하며, 마지막 문단은 반드시 마무리해 중간에 끊기지 않게 한다.';
+const GUNGHAP_FOLLOW='\n[후속 상담] 위 궁합 풀이를 이어가는 질문이다. 질문에 먼저 바로 답하고, 근거는 두 사람의 명식 데이터에서 가져온다. [단정 원칙]을 따르되 관계의 파탄이나 한쪽의 험담은 단정하지 않는다.';
+const DIGEST_SYS='너는 사주 상담 기록 정리 담당이다. 아래 [첫 풀이]에서 이후 상담 중 도사가 다시 인용할 핵심 판단만 600~800자로 뽑는다. 반드시 포함: 한 줄 요약, 약한 고리(조심할 점), 시기별 핵심 판단(대운·올해·내년), 구체적 수치·나이·연도. 숫자·나이·연도·고유명사는 바꾸거나 누락하지 않는다. 풀이 문장을 베끼지 말고 판단만 짧은 문장으로 나열한다. 마크다운 기호 금지. 요약문만 출력한다.';
+function buildSlimBase(p){ // 첫 풀이 지시·종합풀이 전문 참조를 뺀 나머지(규칙·명식·MBTI·기억·말투)
+ const i=p.indexOf('[첫 풀이 — 매우 중요]');let t=i>-1?p.slice(0,i):p;
+ const g=t.indexOf('[상담자가 이미 본 종합 풀이');if(g>-1)t=t.slice(0,g);
+ return t.trim();
+}
+function slimSystem(){
+ return slimBase+slimRef+(curDigest?'\n[첫 풀이 핵심 — 상담 중 인용용] '+curDigest+'\n위는 이 상담자에게 이미 전한 첫 풀이의 핵심 판단이다. 필요하면 "처음에 말씀드렸듯"처럼 자연스럽게 다시 불러와 잇되, 같은 내용을 되풀이하지 않는다.':'')+SLIM_LIMIT;
+}
+async function startDigest(text,pid,pkey){
+ const seq=++digestSeq;
+ try{
+  const res=await aiFetch('digest',{max_tokens:800,system:DIGEST_SYS,messages:[{role:'user',content:'[첫 풀이]\n'+text.slice(0,20000)}]});
+  if(!res.ok)throw await aiError(res);
+  const data=await res.json();
+  const d=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
+  if(!d)return;
+  if(seq===digestSeq)curDigest=d;
+  if(pid&&pkey&&currentUser){
+   await db.collection('users').doc(currentUser.uid).collection('profiles').doc(pid).set({readings:{[pkey]:{digest:d}}},{merge:true});
+   const sp=savedProfiles.find(x=>x.id===pid);
+   if(sp){sp.readings=sp.readings||{};sp.readings[pkey]=Object.assign(sp.readings[pkey]||{},{digest:d});}
+  }
+ }catch(e){console.warn('digest 생성 실패',e.message||e);}
+}
 let useCache=true;
 async function callDosa(maxTok,isFirst,retryCount){
  retryCount=retryCount||0;
@@ -2275,17 +2367,13 @@ async function callDosa(maxTok,isFirst,retryCount){
  bubble.appendChild(row);bubble.appendChild(body);
  let started=false,fullText='',lastStreamScroll=0;
  try{
-  const res=await fetch('https://jujudosa-api.jinjjabg.workers.dev/',{
-   method:'POST',headers:{'Content-Type':'application/json'},
-   // 프롬프트 캐싱: 매번 같은 지시문(system)은 명시적 캐시 지점으로, 늘어나는 대화는 자동 캐싱으로
-   // 5분 안에 이어지는 질문은 앞부분을 약 1/10 가격으로 읽는다.
-   body:JSON.stringify(Object.assign({model:'claude-sonnet-4-6',max_tokens:maxTok||1500,
-    system:useCache?[{type:'text',text:persona,cache_control:{type:'ephemeral'}}]:persona,
-    messages:history,stream:true},useCache?{cache_control:{type:'ephemeral'}}:{}))});
-  if(!res.ok||!res.body){
-   const data=await res.json().catch(()=>({}));
-   throw new Error(data.error?.message||('서버 응답 오류 ('+res.status+')'));
-  }
+  // 첫 풀이는 전체 프롬프트, 후속 상담은 슬림 프롬프트(첫 풀이 지시 제외 + digest). 모델·상한은 Worker가 정한다.
+  const sysText=(isFirst||!slimBase)?persona:slimSystem();
+  // 프롬프트 캐싱: 매번 같은 지시문(system)은 명시적 캐시 지점으로, 늘어나는 대화는 자동 캐싱으로
+  const res=await aiFetch(isFirst?firstKind:'consult',Object.assign({max_tokens:Math.min(maxTok||1500,isFirst?7600:2000),
+    system:useCache?[{type:'text',text:sysText,cache_control:{type:'ephemeral'}}]:sysText,
+    messages:history,stream:true},useCache?{cache_control:{type:'ephemeral'}}:{}));
+  if(!res.ok||!res.body)throw await aiError(res);
   const reader=res.body.getReader();
   const decoder=new TextDecoder();
   let buf='';
@@ -2326,6 +2414,7 @@ async function callDosa(maxTok,isFirst,retryCount){
   stashConvo();
   if(isFirst){
    bubble.remove();renderAccordion(fullText);
+   const dPid=pendingCacheProfileId,dKey=pendingCachePersonaId;
    if(pendingCacheProfileId&&pendingCachePersonaId&&currentUser){
     const pid=pendingCacheProfileId,pkey=pendingCachePersonaId;
     pendingCacheProfileId=null;pendingCachePersonaId=null;
@@ -2336,14 +2425,15 @@ async function callDosa(maxTok,isFirst,retryCount){
      const idx=savedProfiles.findIndex(x=>x.id===pid);
      if(idx>-1){
       if(!savedProfiles[idx].readings)savedProfiles[idx].readings={};
-      savedProfiles[idx].readings[pkey]={text:fullText,date:today};
+      savedProfiles[idx].readings[pkey]=Object.assign(savedProfiles[idx].readings[pkey]||{},{text:fullText,date:today});
      }
     }catch(e){console.error('풀이 캐시 저장 실패',e);}
    }
+   startDigest(fullText,dPid,dKey); // 후속 상담에 고정 주입할 핵심 요약 (백그라운드)
   }
   if(pendingCategoryPrompt){
    const p=pendingCategoryPrompt;pendingCategoryPrompt=null;
-   setTimeout(()=>{addMsg(p,'me');pushUserMsg(p);callDosa(2400);},300);
+   setTimeout(()=>{addMsg(p,'me');pushUserMsg(p);callDosa(2000);},300);
   }
  }catch(e){
   th.remove();bubble.remove();
@@ -2351,10 +2441,15 @@ async function callDosa(maxTok,isFirst,retryCount){
   // 발생하는 일시적 오류(Request not allowed 등). 자동으로 최대 3회 재시도하고, 그래도 안 되면 한글 안내와 "다시 불러오기" 버튼을 보여준다.
   const msg=e.message||'';
   console.warn('도사 응답 실패',msg);
+  if(AI_FINAL_CODES.includes(e.code)){ // 로그인·한도·예산: 재시도하지 않고 안내 (기록은 계속 볼 수 있다)
+   const ce=document.getElementById('cerr');ce.textContent=aiErrText(e);ce.style.display='block';
+   if(e.code==='quota'&&!isFirst)setChatLocked(true,e.expired?'이용 기간이 끝났어요':'상담 한도에 도달했어요');
+   return;
+  }
   // 캐싱 옵션이 거부되면(안전장치) 캐싱 없이 즉시 다시 요청
   if(useCache&&/cache_control|cache control/i.test(msg)){useCache=false;callDosa(maxTok,isFirst,retryCount);return;}
   const busy=/overloaded|529|429|rate.?limit/i.test(msg);
-  const transient=busy||/request not allowed|forbidden|525|502|503|504|failed to fetch|networkerror|network error|load failed/i.test(msg);
+  const transient=busy||/request not allowed|forbidden|525|502|503|504|failed to fetch|networkerror|network error|load failed|tier_unavailable|upstream_unreachable/i.test(msg);
   if(transient&&retryCount<3){
    setTimeout(()=>callDosa(maxTok,isFirst,retryCount+1),[1000,2500,4000][retryCount]);
    return;
@@ -2373,43 +2468,10 @@ async function callDosa(maxTok,isFirst,retryCount){
   cerr.style.display='block';
  }
 }
-async function checkChatLimit(){
- if(!currentUser) return true;
- const ref=db.collection('users').doc(currentUser.uid);
- try{
-  const snap=await ref.get();
-  const d=snap.exists?snap.data():{};
-  const tier=d.tier||'free';
-  userTier=tier;
-  const today=new Date().toISOString().slice(0,10);
-  if(tier==='free'){
-   const used=d.chatUsed||0;
-   if(used>=3){
-    addMsg('무료 체험 채팅 3회를 모두 사용하셨습니다. 라이트 요금제(4,900원/월)로 업그레이드하시면 매일 채팅을 이어가실 수 있어요.','dosa');
-    return false;
-   }
-   await ref.set({chatUsed:used+1},{merge:true});
-   return true;
-  }
-  if(tier==='admin')return true; // 운영자 테스트용: Firebase 콘솔에서 tier를 admin으로 지정하면 한도 없음
-  const cap=tier==='lite'?3:15;
-  const dailyCount=(d.dailyDate===today)?(d.dailyCount||0):0;
-  if(dailyCount>=cap){
-   addMsg(tier==='lite'
-     ?'오늘의 채팅 3회를 모두 사용하셨어요. 내일 다시 이어가실 수 있습니다.'
-     :'오늘 대화가 많으셨네요. 내일 다시 이어가실 수 있습니다.','dosa');
-   return false;
-  }
-  await ref.set({dailyDate:today,dailyCount:dailyCount+1},{merge:true});
-  return true;
- }catch(e){console.error('사용량 확인 실패',e);return true;}
-}
-async function send(){
- const q=document.getElementById('q');const t=q.value.trim();if(!t)return;
+async function send(){ // 이용 한도는 서버(Worker)가 강제한다 — 초과 시 429 → callDosa 가 안내하고 입력창을 잠근다
+ const q=document.getElementById('q');const t=q.value.trim();if(!t||q.disabled)return;
  document.getElementById('cerr').style.display='none';
- const ok=await checkChatLimit();
- if(!ok){q.value='';return;}
- addMsg(t,'me');pushUserMsg(t);q.value='';callDosa(2400);
+ addMsg(t,'me');pushUserMsg(t);q.value='';callDosa(2000);
 }
 
 if('serviceWorker' in navigator){

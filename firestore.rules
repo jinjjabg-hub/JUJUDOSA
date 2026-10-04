@@ -4,7 +4,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ===== 계정 문서 (등급·사용 횟수·구독 신청) =====
-    // 등급(tier)은 관리자만 Firebase 콘솔에서 변경. 고객은 사용 횟수를 줄이거나 초기화할 수 없음.
+    // 등급(tier)과 이용 시작일(tierStartedAt)은 관리자(콘솔·Worker)만 변경. 고객은 사용 횟수를 줄이거나 초기화할 수 없음.
     match /users/{userId} {
       function isOwner() { return request.auth != null && request.auth.uid == userId; }
       function oldData() { return resource == null ? {} : resource.data; }
@@ -16,6 +16,9 @@ service cloud.firestore {
       }
       function tierUnchanged() {
         return newData().get('tier', 'free') == oldData().get('tier', 'free');
+      }
+      function startUnchanged() {
+        return newData().get('tierStartedAt', null) == oldData().get('tierStartedAt', null);
       }
       function chatUsedOk() {
         return newData().get('chatUsed', 0) >= oldData().get('chatUsed', 0);
@@ -29,7 +32,7 @@ service cloud.firestore {
       }
 
       allow read: if isOwner();
-      allow create, update: if isOwner() && tierUnchanged() && chatUsedOk() && dailyOk();
+      allow create, update: if isOwner() && tierUnchanged() && startUnchanged() && chatUsedOk() && dailyOk();
       allow delete: if false;
     }
 

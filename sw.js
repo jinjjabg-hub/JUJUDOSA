@@ -1,7 +1,8 @@
-const CACHE_NAME = 'jujudosa-shell-v2';
+const CACHE_NAME = 'jujudosa-shell-v3';
 const SHELL_FILES = [
   './',
   './index.html',
+  './plans.js',
   './manifest.json',
   './logo.png',
   './avatar.png',
