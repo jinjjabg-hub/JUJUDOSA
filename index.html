@@ -619,7 +619,7 @@ button.go:active{transform:scale(.98);opacity:.9}
       <h2 class="sec">요금제</h2>
       <div class="setgroup">
         <button class="setrow" onclick="openSubscribeModal()">
-          <span class="sr-left"><span class="sr-ico"><img class="icon-img sr-ico-img" src="./icon-pricing.png"></span><span class="sr-label">구독 신청 / 업그레이드</span></span>
+          <span class="sr-left"><span class="sr-ico"><img class="icon-img sr-ico-img" src="./icon-pricing.png"></span><span class="sr-label">이용권 신청 / 업그레이드</span></span>
           <span class="sr-chev">›</span>
         </button>
         <a class="setrow" href="./pricing.html" style="text-decoration:none;color:inherit">
@@ -669,10 +669,10 @@ button.go:active{transform:scale(.98);opacity:.9}
 <div class="modalbg" id="subscribeModal" style="display:none">
   <div class="modalcard" style="max-width:400px">
     <div class="modalhead">
-      <span>구독 신청</span>
+      <span>이용권 신청</span>
       <button class="modalclose" onclick="closeSubscribeModal()">✕</button>
     </div>
-    <div class="modalsub">아직 카드 자동결제 준비 중이라, 계좌이체로 먼저 신청받고 있어요. 입금 확인되면 24시간 내로 등급을 올려드립니다.</div>
+    <div class="modalsub">아직 카드 결제 준비 중이라, 계좌이체로 먼저 신청받고 있어요. 입금 확인되면 24시간 내로 이용권을 시작해 드려요. 모든 이용권은 시작일부터 30일 동안만 사용할 수 있고 자동 갱신되지 않아요.</div>
 
     <div id="planList"></div>
 
@@ -691,7 +691,7 @@ button.go:active{transform:scale(.98);opacity:.9}
     <div class="err" id="subErr"></div>
     <div id="subSuccess" style="display:none;text-align:center;font-size:13px;color:var(--primary);
       font-weight:700;margin-top:12px;line-height:1.6">
-      ✅ 신청 접수됐어요!<br>입금 확인 후 24시간 내로 등급이 올라갑니다.
+      ✅ 신청 접수됐어요!<br>입금 확인 후 24시간 내로 이용권이 시작됩니다.
     </div>
   </div>
 </div>
@@ -1144,7 +1144,9 @@ async function getUserTier(){
  if(!currentUser)return 'free';
  try{
   const d=await db.collection('users').doc(currentUser.uid).get();
-  userTier=(d.exists&&d.data().tier)||'free';
+  const dd=d.exists?d.data():{};userTier=dd.tier||'free';
+  // 유료 이용권은 시작일부터 30일까지만 유효 (서버도 같은 기준으로 강제한다)
+  if(userTier!=='free'&&userTier!=='admin'&&dd.tierStartedAt&&dd.tierStartedAt.toMillis&&Date.now()>=dd.tierStartedAt.toMillis()+PASS_DAYS*86400000)userTier='free';
  }catch(e){userTier='free';}
  return userTier;
 }
@@ -1194,7 +1196,7 @@ function planDesc(k){
  return parts.join(' · ');
 }
 function renderPlanList(){
- const rows=['once','basic','plus','pro'].map(k=>[k,PLANS[k].name,planDesc(k),PLANS[k].price,k==='once'?'':'/월'])
+ const rows=['once','basic','plus','pro'].map(k=>[k,PLANS[k].name,planDesc(k),PLANS[k].price,'/30일'])
   .concat([['pack',CONSULT_PACK.name,'상담 '+CONSULT_PACK.consult+'회 · 구매일로부터 '+CONSULT_PACK.validDays+'일','9,900','']]);
  document.getElementById('planList').innerHTML=rows.map(([k,n,d,pr,per])=>
   `<div class="plancard${k===selectedPlan?' on':''}" data-plan="${k}" onclick="selectPlan('${k}')"><div><div class="pc-name">${n}</div><div class="pc-desc">${d}</div></div>`+
@@ -1677,7 +1679,7 @@ let mdProfileId=null,mdAnswers={},mdIndex=0,mdPicked=null;
 async function openMbtiDeepQuiz(profileId){
  await getUserTier();
  if(planLimit('mbti')<1){
-  alert('정밀 MBTI 분석은 월 구독 회원 전용 기능이에요. 요금제를 먼저 확인해주세요.');
+  alert('정밀 MBTI 분석은 30일 이용권(5,900원 이상) 이용 중에만 쓸 수 있어요. 요금제를 먼저 확인해주세요.');
   return;
  }
  mdProfileId=profileId;mdAnswers={};
@@ -2291,7 +2293,7 @@ async function aiError(res){ // 서버 오류 응답 → code 가 붙은 Error
  const data=await res.json().catch(()=>({}));
  const code=typeof data.error==='string'?data.error:'';
  const e=new Error(code||(data.error&&data.error.message)||('서버 응답 오류 ('+res.status+')'));
- e.code=code;e.kind=data.kind;e.limit=data.limit;e.status=res.status;
+ e.code=code;e.kind=data.kind;e.limit=data.limit;e.expired=!!data.expired;e.status=res.status;
  return e;
 }
 const KIND_LABEL={consult:'상담',reading:'풀이',gunghap:'궁합',mbti:'정밀 MBTI 분석',daily:'오늘의 운세'};
@@ -2300,9 +2302,11 @@ function aiErrText(e){
  switch(e.code){
   case 'login_required':return '도사님과 이야기하려면 로그인이 필요해요. 설정 탭에서 로그인해 주세요.';
   case 'unauthorized':return '로그인 정보를 확인하지 못했어요. 다시 로그인해 주세요.';
-  case 'quota':return e.kind==='consult'
-   ?'이번 달 이용 한도에 도달했어요. 이전 상담 기록은 계속 볼 수 있어요. 상담팩으로 상담을 더 이어가실 수 있습니다.'
-   :'이번 달 '+(KIND_LABEL[e.kind]||'이용')+' 한도에 도달했어요. 요금제 안내에서 한도를 확인해 주세요.';
+  case 'quota':return e.expired
+   ?'이용 기간(30일)이 끝났어요. 새 이용권을 신청하시면 이어서 이용할 수 있어요. 이전 상담 기록은 계속 볼 수 있어요.'
+   :e.kind==='consult'
+   ?'상담 이용 한도에 도달했어요. 이전 상담 기록은 계속 볼 수 있어요. 상담팩(30일)으로 상담을 더 이어가실 수 있습니다.'
+   :(KIND_LABEL[e.kind]||'이용')+' 한도에 도달했어요. 요금제 안내에서 한도를 확인해 주세요.';
   case 'free_budget':return '오늘 무료 체험이 마감됐어요. 내일 다시 이용해 주세요.';
   case 'budget':return '지금은 도사님이 잠시 쉬고 계세요. 내일 다시 찾아주세요.';
  }
@@ -2439,7 +2443,7 @@ async function callDosa(maxTok,isFirst,retryCount){
   console.warn('도사 응답 실패',msg);
   if(AI_FINAL_CODES.includes(e.code)){ // 로그인·한도·예산: 재시도하지 않고 안내 (기록은 계속 볼 수 있다)
    const ce=document.getElementById('cerr');ce.textContent=aiErrText(e);ce.style.display='block';
-   if(e.code==='quota'&&!isFirst)setChatLocked(true,'이번 달 상담 한도에 도달했어요');
+   if(e.code==='quota'&&!isFirst)setChatLocked(true,e.expired?'이용 기간이 끝났어요':'상담 한도에 도달했어요');
    return;
   }
   // 캐싱 옵션이 거부되면(안전장치) 캐싱 없이 즉시 다시 요청

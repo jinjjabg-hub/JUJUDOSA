@@ -1,7 +1,7 @@
 // pricing.html 의 요금제 카드를 plans.js(서버 강제와 같은 상수)에서 생성한다.
 // 사용: plans.js 를 고친 뒤 `node build-pricing.js`
 const fs = require('fs');
-const { PLANS, CONSULT_PACK } = require('./plans.js');
+const { PASS_DAYS, PLANS, CONSULT_PACK } = require('./plans.js');
 const won = (n) => n.toLocaleString('en-US') + '원';
 
 function items(k) {
@@ -21,12 +21,12 @@ const card = (cls, name, price, per, lis) =>
 
 const cards = [
   card('', '무료', '0원', '', items('free')),
-  card('', PLANS.once.name, won(PLANS.once.price), '/ 1회', items('once')),
-  ...['basic', 'plus', 'pro'].map((k) => card(PLANS[k].hi ? ' hi' : '', PLANS[k].name + '원', won(PLANS[k].price), '/ 월', items(k))),
+  card('', PLANS.once.name, won(PLANS.once.price), '/ ' + PASS_DAYS + '일', items('once')),
+  ...['basic', 'plus', 'pro'].map((k) => card(PLANS[k].hi ? ' hi' : '', PLANS[k].name + '원', won(PLANS[k].price), '/ ' + PASS_DAYS + '일', items(k))),
   card('', CONSULT_PACK.name, won(CONSULT_PACK.price), '', [
     'AI 사주 상담 ' + CONSULT_PACK.consult + '회',
-    '구매일로부터 ' + CONSULT_PACK.validDays + '일 사용 (월 초기화 없음)',
-    '구독 월 한도를 먼저 쓰고, 소진 후 팩에서 차감',
+    '구매일로부터 ' + CONSULT_PACK.validDays + '일 안에 사용 (이후 소멸)',
+    '30일 이용권의 상담 횟수를 먼저 쓰고, 소진 후 팩에서 차감',
   ]),
 ].join('\n');
 

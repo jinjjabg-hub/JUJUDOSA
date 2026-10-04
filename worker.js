@@ -8,7 +8,7 @@
  *   ANTHROPIC_API_KEY, FIREBASE_SA_JSON(서비스 계정 JSON 전체), ADMIN_TOKEN, ALERT_WEBHOOK_URL(선택)
  */
 import plans from './plans.js';
-const { PLANS, PLAN_LEGACY, CONSULT_PACK, INTERNAL_DAILY } = plans;
+const { PASS_DAYS, PLANS, PLAN_LEGACY, CONSULT_PACK, INTERNAL_DAILY } = plans;
 
 /* ===================== config (숫자·매핑은 전부 여기) ===================== */
 const CONFIG = {
@@ -161,22 +161,39 @@ async function getSaToken(env) {
 const tierCache = new Map(); // uid → {tier, exp}
 async function getTier(env, uid) {
   const c = tierCache.get(uid);
-  if (c && Date.now() < c.exp) return c.tier;
+  if (c && Date.now() < c.exp) return c.info;
   const token = await getSaToken(env);
   const res = await fetch('https://firestore.googleapis.com/v1/projects/' + CONFIG.PROJECT_ID + '/databases/(default)/documents/users/' + encodeURIComponent(uid), {
     headers: { Authorization: 'Bearer ' + token },
   });
-  let tier = 'free';
+  let tier = 'free', startedAt = null;
   if (res.status === 200) {
     const doc = await res.json();
-    tier = (doc.fields && doc.fields.tier && doc.fields.tier.stringValue) || 'free';
+    const f = doc.fields || {};
+    tier = (f.tier && f.tier.stringValue) || 'free';
+    if (f.tierStartedAt && f.tierStartedAt.timestampValue) startedAt = Date.parse(f.tierStartedAt.timestampValue);
   } else if (res.status !== 404) {
     throw new Error('firestore ' + res.status);
   }
   tier = PLAN_LEGACY[tier] || tier;
   if (tier !== 'admin' && !PLANS[tier]) tier = 'free';
-  tierCache.set(uid, { tier, exp: Date.now() + CONFIG.TIER_CACHE_MS });
-  return tier;
+  // 유료 등급인데 시작일이 없으면(콘솔에서 tier만 바꾼 경우) 지금을 시작일로 기록한다 → 그날부터 30일
+  if (tier !== 'free' && tier !== 'admin' && !startedAt) {
+    startedAt = Date.now();
+    await patchUser(env, uid, { tierStartedAt: { timestampValue: new Date(startedAt).toISOString() } });
+  }
+  const info = { tier, startedAt };
+  tierCache.set(uid, { info, exp: Date.now() + CONFIG.TIER_CACHE_MS });
+  return info;
+}
+async function patchUser(env, uid, fields) { // users/{uid} 의 지정 필드만 갱신 (서비스 계정)
+  const token = await getSaToken(env);
+  const mask = Object.keys(fields).map((k) => 'updateMask.fieldPaths=' + encodeURIComponent(k)).join('&');
+  const res = await fetch('https://firestore.googleapis.com/v1/projects/' + CONFIG.PROJECT_ID + '/databases/(default)/documents/users/' + encodeURIComponent(uid) + '?' + mask, {
+    method: 'PATCH', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }),
+  });
+  if (!res.ok) throw new Error('firestore patch ' + res.status);
+  tierCache.delete(uid);
 }
 
 /* ===================== 요청 정리 (모델·토큰·히스토리·길이) ===================== */
@@ -245,10 +262,11 @@ async function sendAlert(env, text) {
 export class UsageLedger {
   constructor(state) { this.state = state; }
 
-  async load() {
-    const S = (await this.state.storage.get('S')) || { month: '', used: {}, packs: [], pending: {}, day: '', internal: {} };
-    const m = monthKey(), d = dayKey(), now = Date.now();
-    if (S.month !== m) { S.month = m; S.used = {}; }
+  async load(windowKey) {
+    const S = (await this.state.storage.get('S')) || { window: '', used: {}, packs: [], pending: {}, day: '', internal: {} };
+    const d = dayKey(), now = Date.now();
+    // 이용 기간이 바뀌면(새 이용권 시작·무료 월 초기화) 사용량을 0으로
+    if (windowKey && S.window !== windowKey) { S.window = windowKey; S.used = {}; } // window 없는 호출(관리자 조회·팩 지급)은 사용량을 건드리지 않는다
     if (S.day !== d) { S.day = d; S.internal = {}; }
     for (const id of Object.keys(S.pending)) if (now - S.pending[id].ts > CONFIG.PENDING_TTL_MS) delete S.pending[id];
     const validMs = CONSULT_PACK.validDays * 86400000;
@@ -259,7 +277,7 @@ export class UsageLedger {
 
   async fetch(request) {
     const req = await request.json();
-    const S = await this.load();
+    const S = await this.load(req.window || '');
     let result;
 
     if (req.op === 'reserve') {
@@ -309,7 +327,7 @@ export class UsageLedger {
       await this.state.storage.put('S', S);
       result = { ok: true, packs: S.packs };
     } else if (req.op === 'status') {
-      result = { month: S.month, used: S.used, packs: S.packs, internal: S.internal };
+      result = { window: S.window, used: S.used, packs: S.packs, internal: S.internal };
     } else {
       result = { ok: false, error: 'bad op' };
     }
@@ -391,6 +409,13 @@ async function handleAdmin(request, env, url) {
     if (!b.uid || typeof b.uid !== 'string') return json({ error: 'uid required' }, 400);
     return json(await call(ledgerOf(env, b.uid), { op: 'grantPack', count: b.count }), 200);
   }
+  // 이용권 시작: 결제 확인 후 호출 → tier 와 시작일(지금)을 기록. 시작일부터 30일간 유효
+  if (url.pathname === '/admin/set-pass' && request.method === 'POST') {
+    const b = await request.json();
+    if (!b.uid || typeof b.uid !== 'string' || !(b.tier === 'free' || PLANS[b.tier])) return json({ error: 'uid and valid tier required' }, 400);
+    await patchUser(env, b.uid, { tier: { stringValue: b.tier }, tierStartedAt: { timestampValue: new Date(b.startedAt || Date.now()).toISOString() } });
+    return json({ ok: true, tier: b.tier, validDays: PASS_DAYS }, 200);
+  }
   if (url.pathname === '/admin/usage' && request.method === 'GET') {
     const uid = url.searchParams.get('uid');
     if (!uid) return json({ error: 'uid required' }, 400);
@@ -428,12 +453,16 @@ export default {
     try { upstream = sanitize(body, kind); } catch (e) { return json({ error: 'bad_request', detail: e.message }, 400, cors); }
 
     // 3) 요금제(서버에서 읽음)
-    let tier;
-    try { tier = await getTier(env, uid); } catch (e) {
+    let info;
+    try { info = await getTier(env, uid); } catch (e) {
       console.error('tier lookup failed', e.message);
       return json({ error: 'tier_unavailable' }, 503, cors);
     }
+    // 유료 이용권은 시작일부터 30일까지만 유효 — 지나면 무료 등급으로 취급한다
+    let tier = info.tier, expired = false;
+    if (tier !== 'free' && tier !== 'admin' && Date.now() >= info.startedAt + PASS_DAYS * 86400000) { tier = 'free'; expired = true; }
     const plan = tier === 'admin' ? null : PLANS[tier];
+    const windowKey = tier === 'free' ? 'm:' + monthKey() : tier === 'admin' ? 'admin' : 'p:' + tier + ':' + info.startedAt;
 
     // 4) 전체 지출 차단기
     const gate = await call(budgetOf(env), {
@@ -445,15 +474,15 @@ export default {
     // 5) 한도 예약 (성공 후에 확정 차감 — 동시 요청도 원자적으로 막는다)
     const ledger = ledgerOf(env, uid);
     const rsv = await call(ledger, {
-      op: 'reserve', kind, unlimited: tier === 'admin',
+      op: 'reserve', kind, window: windowKey, unlimited: tier === 'admin',
       limits: plan && plan.limits, combined: plan && plan.combined,
     });
-    if (!rsv.ok) return json({ error: 'quota', kind, limit: rsv.limit }, 429, cors);
+    if (!rsv.ok) return json(Object.assign({ error: 'quota', kind, limit: rsv.limit }, expired ? { expired: true } : {}), 429, cors);
 
-    const release = () => call(ledger, { op: 'release', resId: rsv.resId }).catch(() => {});
+    const release = () => call(ledger, { op: 'release', resId: rsv.resId, window: windowKey }).catch(() => {});
     const finish = async (usage, stopReason, success) => {
       const cost = costKrw(upstream.model, usage);
-      if (success) await call(ledger, { op: 'commit', resId: rsv.resId }); else await release();
+      if (success) await call(ledger, { op: 'commit', resId: rsv.resId, window: windowKey }); else await release();
       if (usage) {
         const rec = await call(budgetOf(env), {
           op: 'record', kind, tier, costKrw: cost, usage, stopReason,
