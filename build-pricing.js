@@ -6,7 +6,7 @@ const won = (n) => n.toLocaleString('en-US') + '원';
 
 function items(k) {
   const L = PLANS[k].limits, out = [];
-  if (PLANS[k].combined) out.push('도사 1명 풀이 또는 궁합 1회 (택 1)');
+  if (PLANS[k].combined) out.push('도사 1명 풀이 또는 궁합 1회 (택 1)', '구매일로부터 ' + PASS_DAYS + '일 안에 사용 (지나면 소멸)');
   else {
     out.push('종합 풀이 ' + L.reading + '회' + (k === 'free' ? ' (본인)' : ' (본인+' + (L.reading - 1) + '인)'));
     if (L.gunghap) out.push('궁합 풀이 ' + L.gunghap + '회');
@@ -21,12 +21,12 @@ const card = (cls, name, price, per, lis) =>
 
 const cards = [
   card('', '무료', '0원', '', items('free')),
-  card('', PLANS.once.name, won(PLANS.once.price), '/ ' + PASS_DAYS + '일', items('once')),
-  ...['basic', 'plus', 'pro'].map((k) => card(PLANS[k].hi ? ' hi' : '', PLANS[k].name + '원', won(PLANS[k].price), '/ ' + PASS_DAYS + '일', items(k))),
+  card('', PLANS.once.name, won(PLANS.once.price), '/ 1회', items('once')),
+  ...['basic', 'plus', 'pro'].map((k) => card(PLANS[k].hi ? ' hi' : '', PLANS[k].name + '원', won(PLANS[k].price), '/ 월', items(k))),
   card('', CONSULT_PACK.name, won(CONSULT_PACK.price), '', [
     'AI 사주 상담 ' + CONSULT_PACK.consult + '회',
-    '구매일로부터 ' + CONSULT_PACK.validDays + '일 안에 사용 (이후 소멸)',
-    '30일 이용권의 상담 횟수를 먼저 쓰고, 소진 후 팩에서 차감',
+    '구매일로부터 ' + CONSULT_PACK.validDays + '일 안에 사용 (지나면 남은 횟수 소멸)',
+    '월 이용권의 상담 횟수를 먼저 쓰고, 소진 후 팩에서 차감',
   ]),
 ].join('\n');
 

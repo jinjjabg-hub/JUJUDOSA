@@ -672,7 +672,7 @@ button.go:active{transform:scale(.98);opacity:.9}
       <span>이용권 신청</span>
       <button class="modalclose" onclick="closeSubscribeModal()">✕</button>
     </div>
-    <div class="modalsub">아직 카드 결제 준비 중이라, 계좌이체로 먼저 신청받고 있어요. 입금 확인되면 24시간 내로 이용권을 시작해 드려요. 모든 이용권은 시작일부터 30일 동안만 사용할 수 있고 자동 갱신되지 않아요.</div>
+    <div class="modalsub">아직 카드 결제 준비 중이라, 계좌이체로 먼저 신청받고 있어요. 입금 확인되면 24시간 내로 이용권을 시작해 드려요. 이용권은 시작일부터 30일 동안 사용할 수 있고, 1회 이용권·상담팩의 남은 횟수는 30일 뒤 소멸해요.</div>
 
     <div id="planList"></div>
 
@@ -1196,7 +1196,7 @@ function planDesc(k){
  return parts.join(' · ');
 }
 function renderPlanList(){
- const rows=['once','basic','plus','pro'].map(k=>[k,PLANS[k].name,planDesc(k),PLANS[k].price,'/30일'])
+ const rows=['once','basic','plus','pro'].map(k=>[k,PLANS[k].name,planDesc(k),PLANS[k].price,k==='once'?'':'/월'])
   .concat([['pack',CONSULT_PACK.name,'상담 '+CONSULT_PACK.consult+'회 · 구매일로부터 '+CONSULT_PACK.validDays+'일','9,900','']]);
  document.getElementById('planList').innerHTML=rows.map(([k,n,d,pr,per])=>
   `<div class="plancard${k===selectedPlan?' on':''}" data-plan="${k}" onclick="selectPlan('${k}')"><div><div class="pc-name">${n}</div><div class="pc-desc">${d}</div></div>`+
@@ -1679,7 +1679,7 @@ let mdProfileId=null,mdAnswers={},mdIndex=0,mdPicked=null;
 async function openMbtiDeepQuiz(profileId){
  await getUserTier();
  if(planLimit('mbti')<1){
-  alert('정밀 MBTI 분석은 30일 이용권(5,900원 이상) 이용 중에만 쓸 수 있어요. 요금제를 먼저 확인해주세요.');
+  alert('정밀 MBTI 분석은 월 이용권(5,900원 이상) 이용 중에만 쓸 수 있어요. 요금제를 먼저 확인해주세요.');
   return;
  }
  mdProfileId=profileId;mdAnswers={};
@@ -2303,7 +2303,7 @@ function aiErrText(e){
   case 'login_required':return '도사님과 이야기하려면 로그인이 필요해요. 설정 탭에서 로그인해 주세요.';
   case 'unauthorized':return '로그인 정보를 확인하지 못했어요. 다시 로그인해 주세요.';
   case 'quota':return e.expired
-   ?'이용 기간(30일)이 끝났어요. 새 이용권을 신청하시면 이어서 이용할 수 있어요. 이전 상담 기록은 계속 볼 수 있어요.'
+   ?'이용 기간(30일)이 끝났어요. 이용권을 다시 신청하시면 이어서 이용할 수 있어요. 이전 상담 기록은 계속 볼 수 있어요.'
    :e.kind==='consult'
    ?'상담 이용 한도에 도달했어요. 이전 상담 기록은 계속 볼 수 있어요. 상담팩(30일)으로 상담을 더 이어가실 수 있습니다.'
    :(KIND_LABEL[e.kind]||'이용')+' 한도에 도달했어요. 요금제 안내에서 한도를 확인해 주세요.';
