@@ -1,6 +1,8 @@
 name = "jujudosa-api"
 main = "worker.js"
 compatibility_date = "2025-01-01"
+workers_dev = true
+preview_urls = false
 
 # 브라우저에서 호출을 허용할 주소(쉼표 구분). 코드의 기본값(github.io)에 더해짐
 [vars]
