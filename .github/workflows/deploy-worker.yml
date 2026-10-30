@@ -1,0 +1,27 @@
+# main 에 서버 코드가 바뀌면 Cloudflare Worker(jujudosa-api)에 자동 배포한다.
+# 필요한 GitHub Secrets: CLOUDFLARE_API_TOKEN(jujudosa-api 전용 배포 토큰), CLOUDFLARE_ACCOUNT_ID
+# 비밀값(ANTHROPIC_API_KEY, FIREBASE_SA_JSON, ADMIN_TOKEN, PORTONE_API_SECRET)은 Cloudflare에 저장돼 있고 배포해도 유지된다.
+name: Deploy worker (jujudosa-api)
+
+on:
+  push:
+    branches: ["main"]
+    paths: ["worker.js", "plans.js", "wrangler.toml", ".github/workflows/deploy-worker.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-worker
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Cloudflare Worker 배포
+        run: npx --yes wrangler@3 deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
