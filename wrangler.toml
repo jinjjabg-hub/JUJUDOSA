@@ -1,10 +1,8 @@
 name = "jujudosa-api"
 main = "worker.js"
 compatibility_date = "2025-01-01"
-
-# 브라우저에서 호출을 허용할 주소(쉼표 구분). 코드의 기본값(github.io)에 더해짐
-[vars]
-EXTRA_ORIGINS = "https://juju.bizmy.net"
+workers_dev = true
+preview_urls = false
 
 # 사용량 장부(사용자별)와 전체 지출 차단기 — Durable Object
 [[durable_objects.bindings]]
@@ -24,5 +22,3 @@ new_sqlite_classes = ["UsageLedger", "BudgetLedger"]
 #   npx wrangler secret put FIREBASE_SA_JSON    # Firebase 서비스 계정 JSON 파일 전체 내용 (Firestore 읽기 권한)
 #   npx wrangler secret put ADMIN_TOKEN         # /admin/* 호출용 임의의 긴 문자열
 #   npx wrangler secret put ALERT_WEBHOOK_URL   # (선택) 예산 초과 알림을 받을 Slack/Discord 웹훅 주소
-#   npx wrangler secret put PORTONE_API_SECRET  # 카드 결제 확인용 포트원 V2 API Secret
-# 배포: main 에 worker.js / plans.js / wrangler.toml 이 바뀌면 GitHub Actions 가 자동 배포(.github/workflows/deploy-worker.yml)
