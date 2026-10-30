@@ -424,9 +424,27 @@ async function handleAdmin(request, env, url) {
   return json({ error: 'not found' }, 404);
 }
 
+/* 상태 확인(GET /health): 설정값의 내용은 내보내지 않고 있음/없음·정상 여부만 알려준다 */
+async function health(env) {
+  const r = {
+    anthropic_key: !!env.ANTHROPIC_API_KEY,
+    firebase_sa_json: !!env.FIREBASE_SA_JSON,
+    firebase_sa_ok: false,
+    durable_objects: !!(env.LEDGER && env.BUDGET),
+    admin_token: !!env.ADMIN_TOKEN,
+  };
+  if (r.firebase_sa_json) {
+    try { await getSaToken(env); r.firebase_sa_ok = true; }
+    catch (e) { r.firebase_sa_error = String(e.message || e).slice(0, 80); }
+  }
+  r.ok = r.anthropic_key && r.firebase_sa_ok && r.durable_objects;
+  return json(r, r.ok ? 200 : 503, { 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    if (request.method === 'GET' && url.pathname === '/health') return health(env);
     if (url.pathname.startsWith('/admin/')) return handleAdmin(request, env, url);
 
     const cors = corsFor(request, env);
@@ -456,7 +474,7 @@ export default {
     let info;
     try { info = await getTier(env, uid); } catch (e) {
       console.error('tier lookup failed', e.message);
-      return json({ error: 'tier_unavailable' }, 503, cors);
+      return json({ error: 'tier_unavailable', detail: String(e.message || e).slice(0, 80) }, 503, cors);
     }
     // 유료 이용권은 시작일부터 30일까지만 유효 — 지나면 무료 등급으로 취급한다
     let tier = info.tier, expired = false;
