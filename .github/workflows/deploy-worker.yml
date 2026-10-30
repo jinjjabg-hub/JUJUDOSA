@@ -21,7 +21,11 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - name: Cloudflare Worker 배포
-        run: npx --yes wrangler@4 deploy
+        # 이 저장소 전용 토큰(jujudosa-api 만 배포 가능)은 계정 workers.dev 설정 조회 권한이 없어서
+        # 업로드(=배포 완료) 뒤 마지막 확인 단계에서 오류가 난다. 업로드 성공 여부로 판단한다.
+        run: |
+          npx --yes wrangler@4 deploy 2>&1 | tee deploy.log || true
+          grep -q "Uploaded jujudosa-api" deploy.log
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
