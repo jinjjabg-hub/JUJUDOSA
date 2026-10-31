@@ -14,6 +14,9 @@ const { PASS_DAYS, PLANS, PLAN_LEGACY, CONSULT_PACK, INTERNAL_DAILY } = plans;
 const CONFIG = {
   PROJECT_ID: 'jujudosa',
   ALLOWED_ORIGINS: ['https://jinjjabg-hub.github.io'], // env.EXTRA_ORIGINS(쉼표 구분)로 개발용 추가 가능
+  // 풀이는 계산된 데이터로 글을 쓰는 작업이라 긴 사전 추론이 필요 없다. 기본값(적응형 추론)은 글자가 나오기 전에
+  // 오래 생각해서 화면이 "살피는 중"에 머물고, 추론 토큰이 max_tokens·요금에 포함된다. → 끈다.
+  THINKING_OFF_MODELS: ['claude-sonnet-5-5'],
   ENABLE_CACHE: true,           // 실측 캐시 적중률이 낮으면(대략 40% 미만) false
   USD_KRW: 1400,                // 원가 추정용 환율
 
@@ -50,6 +53,7 @@ const CONFIG = {
   SAMPLE_CAP: 500,               // kind별 원가 샘플 보관 수 (출시 게이트 p90 계산용)
 };
 
+let variantStart = 0; // 거부된 요청 방식을 건너뛰기 위한 기억(서버 인스턴스 단위)
 const AI_KINDS = Object.keys(CONFIG.MODEL_BY_KIND);
 const COUNTED_KINDS = ['consult', 'reading', 'gunghap', 'mbti', 'daily']; // 요금제 한도 대상
 const INTERNAL_KINDS = ['summary', 'digest'];                             // 1인 1일 남용 방지 한도만
@@ -235,6 +239,7 @@ function sanitize(body, kind) {
   if (!msgs.length || msgs[msgs.length - 1].role !== 'user') throw new Error('last message must be user');
   if (msgs.reduce((n, m) => n + m.content.length, 0) > CONFIG.INPUT_CHARS.messages) throw new Error('messages too long');
   out.messages = msgs;
+  if (CONFIG.THINKING_OFF_MODELS.includes(out.model)) out.thinking = { type: 'between_tools' }; // 도구가 없으므로 사실상 추론 없음
 
   if (CONFIG.ENABLE_CACHE && body.cache_control && body.cache_control.type === 'ephemeral') out.cache_control = { type: 'ephemeral' };
   return out;
@@ -514,11 +519,26 @@ export default {
     // 6) Anthropic 호출
     let res;
     try {
-      res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify(upstream),
-      });
+      // 추론 끄기 설정을 AI가 거부(400)하면 → 추론 최소(effort low) → 설정 없음 순으로 한 번씩 다시 시도한다.
+      // 거부된 방식은 이 서버 인스턴스가 기억해 다음 요청부터 건너뛴다. (그 밖의 오류는 그대로 전달)
+      const variants = [upstream];
+      if (upstream.thinking) {
+        const low = Object.assign({}, upstream); delete low.thinking; low.output_config = { effort: 'low' };
+        const plain = Object.assign({}, upstream); delete plain.thinking;
+        variants.push(low, plain);
+      }
+      for (let i = Math.min(variantStart, variants.length - 1); i < variants.length; i++) {
+        res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+          body: JSON.stringify(variants[i]),
+        });
+        if (res.status !== 400 || i === variants.length - 1) break;
+        const why = await res.clone().text();
+        if (!/thinking|effort|output_config/i.test(why)) break;
+        console.warn('anthropic rejected request variant', i, why.slice(0, 200));
+        variantStart = i + 1;
+      }
     } catch (e) {
       await release();
       return json({ error: 'upstream_unreachable' }, 502, cors);
