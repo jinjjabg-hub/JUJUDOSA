@@ -5,7 +5,8 @@
  *  4) 차단기: 일일 무료 예산 / 일일 전체 예산 초과 시 차단 + 알림
  *
  * 필요한 설정은 wrangler.toml 과 아래 secrets 참고:
- *   ANTHROPIC_API_KEY, FIREBASE_SA_JSON(서비스 계정 JSON 전체), ADMIN_TOKEN, ALERT_WEBHOOK_URL(선택)
+ *   ANTHROPIC_API_KEY, FIREBASE_SA_JSON(서비스 계정 JSON 전체), ADMIN_TOKEN, ALERT_WEBHOOK_URL(선택),
+ *   PORTONE_API_SECRET(카드 결제 확인용 포트원 V2 API Secret)
  */
 import plans from './plans.js';
 const { PASS_DAYS, PLANS, PLAN_LEGACY, CONSULT_PACK, INTERNAL_DAILY } = plans;
@@ -406,6 +407,60 @@ const ledgerOf = (env, uid) => env.LEDGER.get(env.LEDGER.idFromName(uid));
 const budgetOf = (env) => env.BUDGET.get(env.BUDGET.idFromName('global'));
 const call = async (stub, body) => (await stub.fetch('https://do/', { method: 'POST', body: JSON.stringify(body) })).json();
 
+/* ===================== 카드 결제 확인 (포트원 V2) =====================
+ * 브라우저가 보낸 값은 믿지 않고, 포트원에 결제 건을 직접 조회해서
+ * 결제완료 + 금액 일치 + 같은 계정 + 같은 상품일 때만 이용권/상담팩을 적용한다.
+ * 같은 결제를 두 번 반영하지 않도록 payments/{paymentId} 기록을 "없을 때만" 만든다.
+ * 필요한 secret: PORTONE_API_SECRET (선택: PORTONE_STORE_ID) */
+const PORTONE_API = 'https://api.portone.io';
+const PORTONE_STORE_ID_DEFAULT = 'store-81501bc3-d46a-4bbf-8c19-c1d2265dfa2e';
+function payErr(code, message, status) { const e = new Error(message); e.code = code; e.status = status || 400; return e; }
+function productPrice(k) { return k === 'pack' ? CONSULT_PACK.price : (PLANS[k] && PLANS[k].price); }
+async function fsReq(env, path, init) {
+  const token = await getSaToken(env);
+  return fetch('https://firestore.googleapis.com/v1/projects/' + CONFIG.PROJECT_ID + '/databases/(default)/documents/' + path,
+    Object.assign({}, init || {}, { headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' } }));
+}
+async function payConfirm(env, uid, paymentId) {
+  const m = /^jj_(once|basic|plus|pro|pack)_([A-Za-z0-9]{12,32})$/.exec(paymentId || '');
+  if (!m) throw payErr('bad_payment_id', '주문번호 형식 오류');
+  const product = m[1], price = productPrice(product);
+  if (!price) throw payErr('bad_product', '없는 상품');
+  if (!env.PORTONE_API_SECRET) throw payErr('pay_not_ready', '결제 설정이 아직 안 됐어요', 503);
+  const storeId = env.PORTONE_STORE_ID || PORTONE_STORE_ID_DEFAULT;
+  const r = await fetch(PORTONE_API + '/payments/' + encodeURIComponent(paymentId) + '?storeId=' + encodeURIComponent(storeId),
+    { headers: { Authorization: 'PortOne ' + env.PORTONE_API_SECRET } });
+  const p = await r.json().catch(() => ({}));
+  if (r.status === 404) throw payErr('payment_not_found', '결제 내역을 찾을 수 없어요', 404);
+  if (!r.ok) throw payErr('portone_error', p.message || ('결제 확인 실패 ' + r.status), 502);
+  if (p.status !== 'PAID') throw payErr('not_paid', '결제가 완료되지 않았어요');
+  if (p.storeId && p.storeId !== storeId) throw payErr('store_mismatch', '다른 상점의 결제예요');
+  if (Number(p.amount && p.amount.total) !== price || (p.currency && p.currency !== 'KRW')) throw payErr('amount_mismatch', '금액 불일치');
+  let cd = {}; try { cd = typeof p.customData === 'string' ? JSON.parse(p.customData) : (p.customData || {}); } catch (e) {}
+  if (cd.uid !== uid || cd.product !== product) throw payErr('owner_mismatch', '다른 계정의 결제예요', 403);
+  // 테스트 채널 결제(실제 돈이 안 나감)는 관리자 계정만 반영 → 일반 회원이 테스트 카드로 이용권을 받는 일을 막음
+  if (p.channel && p.channel.type === 'TEST') {
+    const info = await getTier(env, uid);
+    if (info.tier !== 'admin') throw payErr('test_payment', '테스트 결제는 이용권으로 바꿀 수 없어요', 403);
+  }
+  const rec = { fields: { uid: { stringValue: uid }, product: { stringValue: product }, amount: { integerValue: String(price) },
+    pgTxId: { stringValue: String(p.pgTxId || '') }, test: { booleanValue: !!(p.channel && p.channel.type === 'TEST') },
+    paidAt: { timestampValue: p.paidAt || new Date().toISOString() }, applied: { booleanValue: false } } };
+  const cr = await fsReq(env, 'payments?documentId=' + encodeURIComponent(paymentId), { method: 'POST', body: JSON.stringify(rec) });
+  if (!cr.ok) {
+    if (cr.status !== 409) throw payErr('record_failed', '결제 기록 실패', 500);
+    const ex = await (await fsReq(env, 'payments/' + encodeURIComponent(paymentId))).json();
+    if (ex.fields && ex.fields.applied && ex.fields.applied.booleanValue) return { ok: true, duplicate: true, product };
+    // 방금 다른 요청이 처리 중이면 기다림(이중 반영 방지). 1분 넘게 미반영이면 이어서 반영
+    if (Date.now() - Date.parse(ex.createTime || 0) < 60000) return { ok: true, pending: true, product };
+  }
+  if (product === 'pack') await call(ledgerOf(env, uid), { op: 'grantPack', count: CONSULT_PACK.consult });
+  else await patchUser(env, uid, { tier: { stringValue: product }, tierStartedAt: { timestampValue: new Date().toISOString() } });
+  await fsReq(env, 'payments/' + encodeURIComponent(paymentId) + '?updateMask.fieldPaths=applied',
+    { method: 'PATCH', body: JSON.stringify({ fields: { applied: { booleanValue: true } } }) });
+  return { ok: true, product, validDays: PASS_DAYS };
+}
+
 async function handleAdmin(request, env, url) {
   if (!timingSafeEqual(request.headers.get('X-Admin-Token') || '', env.ADMIN_TOKEN || '')) return json({ error: 'unauthorized' }, 401);
   if (url.pathname === '/admin/stats' && request.method === 'GET') return json(await call(budgetOf(env), { op: 'stats' }), 200);
@@ -462,6 +517,13 @@ export default {
     const auth = request.headers.get('Authorization') || '';
     const uid = auth.startsWith('Bearer ') ? await verifyIdToken(auth.slice(7)).catch(() => null) : null;
     if (!uid) return json({ error: 'unauthorized' }, 401, cors);
+
+    // 카드 결제 확인 (AI 요청과 같은 로그인 토큰 사용)
+    if (url.pathname === '/pay/confirm') {
+      let b; try { b = await request.json(); } catch (e) { return json({ error: 'bad_request' }, 400, cors); }
+      try { return json(await payConfirm(env, uid, b && b.paymentId), 200, cors); }
+      catch (e) { console.error('pay confirm', e.code, e.message); return json({ error: e.code || 'pay_failed', message: e.message }, e.status || 500, cors); }
+    }
 
     // 2) 요청 정리
     let raw, body;
