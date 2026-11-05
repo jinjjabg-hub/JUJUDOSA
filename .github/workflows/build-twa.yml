@@ -17,7 +17,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
       contents: write
@@ -40,8 +40,19 @@ jobs:
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli@1.27.0
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Prepare Android SDK (runner SDK + bin layout for Bubblewrap)
+        run: |
+          SDK=/usr/local/lib/android/sdk
+          sudo chown -R "$USER" "$SDK"
+          CT=$(ls -d "$SDK"/cmdline-tools/*/ | sort -V | tail -1)
+          echo "cmdline-tools: $CT"
+          cp -r "$CT/bin" "$SDK/bin"
+          cp -r "$CT/lib" "$SDK/lib"
+          yes | "$SDK/bin/sdkmanager" --sdk_root="$SDK" --licenses > /dev/null || true
+          echo "DIAG platforms:"; ls "$SDK/platforms"
+          echo "DIAG build-tools:"; ls "$SDK/build-tools"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
 
       - name: Configure Bubblewrap
         run: |
