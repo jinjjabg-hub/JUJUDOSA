@@ -40,19 +40,17 @@ jobs:
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli@1.27.0
 
-      - name: Install Android SDK command-line tools
+      - name: Prepare Android SDK (runner SDK + bin layout for Bubblewrap)
         run: |
-          SDK="$HOME/android-sdk"
-          mkdir -p "$SDK"
-          curl -fsSL -o /tmp/cmdtools.zip https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip
-          unzip -q /tmp/cmdtools.zip -d /tmp/cmdtools
-          cp -r /tmp/cmdtools/cmdline-tools/* "$SDK"/
+          SDK=/usr/local/lib/android/sdk
+          sudo chown -R "$USER" "$SDK"
+          CT=$(ls -d "$SDK"/cmdline-tools/*/ | sort -V | tail -1)
+          echo "cmdline-tools: $CT"
+          cp -r "$CT/bin" "$SDK/bin"
+          cp -r "$CT/lib" "$SDK/lib"
           yes | "$SDK/bin/sdkmanager" --sdk_root="$SDK" --licenses > /dev/null || true
-          "$SDK/bin/sdkmanager" --sdk_root="$SDK" --install "platforms;android-36" "platform-tools"
-          echo "--- installed:"; "$SDK/bin/sdkmanager" --sdk_root="$SDK" --list_installed; ls "$SDK/platforms"
-          echo "DIAG platforms:"; ls -la "$SDK/platforms" "$SDK/platforms/android-36" | head -30
-          echo "DIAG licenses:"; ls "$SDK/licenses" || true
-          echo "DIAG pkgxml:"; head -c 600 "$SDK/platforms/android-36/package.xml" || echo "NO package.xml"
+          echo "DIAG platforms:"; ls "$SDK/platforms"
+          echo "DIAG build-tools:"; ls "$SDK/build-tools"
           echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
           echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
 
