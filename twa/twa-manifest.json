@@ -1,0 +1,48 @@
+{
+  "packageId": "com.tm.jujudosa",
+  "host": "juju.bizmy.net",
+  "name": "주주도사",
+  "launcherName": "주주도사",
+  "display": "standalone",
+  "themeColor": "#5D5FEF",
+  "themeColorDark": "#5D5FEF",
+  "navigationColor": "#5D5FEF",
+  "navigationColorDark": "#5D5FEF",
+  "navigationDividerColor": "#5D5FEF",
+  "navigationDividerColorDark": "#5D5FEF",
+  "backgroundColor": "#F7F8FA",
+  "enableNotifications": false,
+  "startUrl": "/index.html",
+  "iconUrl": "https://juju.bizmy.net/icon-512.png",
+  "maskableIconUrl": "https://juju.bizmy.net/icon-512-maskable.png",
+  "monochromeIconUrl": "https://juju.bizmy.net/icon-192.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "jujudosa"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://juju.bizmy.net/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {
+    "locationDelegation": {
+      "enabled": false
+    },
+    "playBilling": {
+      "enabled": false
+    }
+  },
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://juju.bizmy.net/",
+  "minSdkVersion": 24,
+  "orientation": "default",
+  "launchHandlerClientMode": ""
+}
