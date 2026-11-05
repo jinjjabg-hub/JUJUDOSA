@@ -1,0 +1,7 @@
+# Android signing
+twa/android.keystore
+twa/keystore-base64.txt
+twa/*.apk
+twa/*.aab
+twa/app/
+twa/build/
