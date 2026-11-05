@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.tm.jujudosa",
+    "sha256_cert_fingerprints": ["0F:2E:FD:28:65:84:39:F6:11:0E:D1:23:E6:48:E7:87:32:CB:DF:C9:60:9E:D3:B9:B5:3B:C5:E6:3E:FB:5C:F9"]
+  }
+}]
