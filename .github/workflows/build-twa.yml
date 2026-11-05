@@ -48,7 +48,8 @@ jobs:
           unzip -q /tmp/cmdtools.zip -d /tmp/cmdtools
           cp -r /tmp/cmdtools/cmdline-tools/* "$SDK"/
           yes | "$SDK/bin/sdkmanager" --sdk_root="$SDK" --licenses > /dev/null || true
-          "$SDK/bin/sdkmanager" --sdk_root="$SDK" "platforms;android-36" "platform-tools" > /dev/null
+          "$SDK/bin/sdkmanager" --sdk_root="$SDK" --install "platforms;android-36" "platform-tools" 2>&1 | tail -15
+          echo "--- installed:"; "$SDK/bin/sdkmanager" --sdk_root="$SDK" --list_installed 2>&1 | tail -15; ls "$SDK/platforms" || true
           echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
           echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
 
