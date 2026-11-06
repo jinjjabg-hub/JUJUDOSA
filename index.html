@@ -648,6 +648,10 @@ button.go:active{transform:scale(.98);opacity:.9}
       <button class="setrow" style="background:var(--card);border-radius:16px;justify-content:center" onclick="logout()">
         <span class="sr-left" style="color:var(--sub)"><span class="sr-ico"><img class="icon-img sr-ico-img" src="./icon-logout.png"></span><span class="sr-label">로그아웃</span></span>
       </button>
+
+      <button class="setrow" style="background:var(--card);border-radius:16px;justify-content:center;margin-top:10px" onclick="deleteAccount()">
+        <span class="sr-left" style="color:var(--sub)"><span class="sr-label">계정 삭제</span></span>
+      </button>
     </div>
 
     <div class="setfoot">
@@ -1363,6 +1367,47 @@ function loginKakao(){
  auth.signInWithPopup(provider).catch(e=>{alert('로그인에 실패했습니다: '+e.message);});
 }
 function logout(){auth.signOut();}
+
+/* ===== 계정 삭제 (Google Play 계정 삭제 정책) =====
+   - 본인 확인(재로그인) 후 사주 프로필·귀인지도·신청 정보를 지우고 로그인 계정을 삭제한다.
+   - users/{uid} 문서(등급·사용 횟수)는 보안 규칙상 삭제 불가라 남지만 개인 식별 정보는 지운다.
+   - 결제 관련 기록은 전자상거래법에 따라 보관된다(개인정보처리방침 3항). */
+async function deleteAccount(){
+ if(!currentUser)return;
+ if(!confirm('계정과 저장된 사주 프로필, 귀인지도 등 모든 정보를 삭제할까요?\n삭제 후에는 되돌릴 수 없어요.\n(결제 관련 기록은 법령에 따라 일정 기간 보관돼요.)'))return;
+ const u=currentUser;
+ try{
+  const pid=((u.providerData&&u.providerData[0])||{}).providerId||'';
+  if(pid==='password'){
+   const pw=prompt('본인 확인을 위해 비밀번호를 입력해 주세요.');
+   if(!pw)return;
+   await u.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(u.email,pw));
+  }else{
+   await u.reauthenticateWithPopup(new firebase.auth.OAuthProvider('oidc.kakao'));
+  }
+  const uref=db.collection('users').doc(u.uid);
+  const profs=await uref.collection('profiles').get();
+  for(const p of profs.docs){
+   const prog=await p.ref.collection('mbtiProgress').get();
+   for(const d of prog.docs)await d.ref.delete();
+   await p.ref.delete();
+  }
+  const maps=await uref.collection('gwiinMaps').get();
+  for(const m of maps.docs){
+   const ents=await m.ref.collection('entries').get();
+   for(const d of ents.docs)await d.ref.delete();
+   await m.ref.delete();
+  }
+  await uref.set({upgradeRequest:firebase.firestore.FieldValue.delete()},{merge:true}).catch(()=>{});
+  await u.delete();
+  alert('계정이 삭제되었어요. 이용해 주셔서 감사합니다.');
+ }catch(e){
+  console.error('계정 삭제 실패',e);
+  if(e&&(e.code==='auth/popup-closed-by-user'||e.code==='auth/cancelled-popup-request'))return;
+  if(e&&(e.code==='auth/wrong-password'||e.code==='auth/invalid-credential')){alert('비밀번호가 올바르지 않아요.');return;}
+  alert('계정 삭제 중 문제가 발생했어요. 잠시 후 다시 시도하거나 jinjjabg@gmail.com 으로 삭제를 요청해 주세요.');
+ }
+}
 
 /* ===== 이메일/비밀번호 로그인 & 회원가입 (PG사 심사용 — 카카오 외 로그인 수단) ===== */
 function emailAuthErrMsg(e){
