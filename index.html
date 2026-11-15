@@ -320,7 +320,7 @@ button.go:active{transform:scale(.98);opacity:.9}
   <div class="topbar-inner">
     <div class="brand"><img src="./logo.png" alt="주주도사" style="width:22px;height:22px;object-fit:contain">주주도사</div>
     <div class="top-actions">
-      <button class="iconbtn" title="알림">🔔</button>
+      <button class="iconbtn" id="bellBtn" title="매일 아침 알림 받기" onclick="togglePush()">🔕</button>
       <button class="avatarbtn" id="avatarBtn" onclick="switchTab('settings')">주</button>
     </div>
   </div>
@@ -347,7 +347,9 @@ button.go:active{transform:scale(.98);opacity:.9}
 
     <div class="card" id="todayCardHome" style="display:none">
       <div class="tf-title"><img class="icon-img tf-ico-img" src="./icon-star.png"><span>오늘의 운세</span></div>
+      <div id="tfIljin" style="font-size:13.5px;line-height:1.65;font-weight:700;color:var(--primary);background:var(--primary-tint);border-radius:12px;padding:10px 12px;margin-bottom:10px;display:none"></div>
       <div id="tfBodyHome">불러오는 중…</div>
+      <div class="tf-more" id="pushHint" style="display:none" onclick="togglePush()">🔔 매일 아침 8시에 알림 받기</div>
       <div class="tf-more" id="tfSetSelfHome" style="display:none" onclick="setAsSelf()">★ 이 프로필을 본인으로 설정</div>
     </div>
 
@@ -1502,6 +1504,7 @@ async function deleteAccount(){
    await m.ref.delete();
   }
   await uref.set({upgradeRequest:firebase.firestore.FieldValue.delete()},{merge:true}).catch(()=>{});
+  await pushCleanup();
   await u.delete();
   alert('계정이 삭제되었어요. 이용해 주셔서 감사합니다.');
  }catch(e){
@@ -1691,6 +1694,27 @@ async function deleteProfile(id){
   renderProfilesModalList();
  }catch(e){console.error('프로필 삭제 실패',e);alert('삭제 중 문제가 발생했어요.');}
 }
+
+/* ===== 오늘의 일진 한 줄 (코드 계산 · 무료 · 매일 바뀜) =====
+   목적: 무료 회원도 매일 새로 볼 내용이 있어야 아침 알림이 의미가 있다. 오늘 일진의 천간과 내 일간의 관계로 만든다. */
+const ILJIN_LINES={
+ '비견':'나와 같은 기운의 날입니다. 미뤄둔 일을 내 속도로 밀고 가기 좋습니다.',
+ '겁재':'사람이 드나드는 날입니다. 함께하는 일은 순조롭고, 지갑은 한 번 더 살피실 때입니다.',
+ '식신':'손이 잘 풀리는 날입니다. 만들고 정리하는 일에 힘이 실립니다.',
+ '상관':'말에 힘이 실리는 날입니다. 제안하기 좋으나, 날 선 표현은 한 번 고르실 때입니다.',
+ '편재':'바깥에서 기회가 보이는 날입니다. 사람을 만나고 움직이면 얻는 것이 있습니다.',
+ '정재':'차분히 챙기는 날입니다. 계산과 정리, 약속한 일을 마무리하기 좋습니다.',
+ '편관':'긴장이 따르는 날입니다. 급한 일부터 하나씩 하시고, 무리한 약속은 미루셔도 됩니다.',
+ '정관':'격식이 통하는 날입니다. 공식적인 자리와 보고, 약속에 유리합니다.',
+ '편인':'생각이 깊어지는 날입니다. 혼자 궁리하고 배우는 일에 맞고, 큰 결정은 내일로 미뤄도 좋습니다.',
+ '정인':'도움이 들어오는 날입니다. 묻고 배우면 답이 오니, 윗사람의 말에 귀 기울여 보시지요.'
+};
+function iljinLine(dayS){
+ const k=new Date(Date.now()+9*3600000); // 한국 날짜
+ const y=k.getUTCFullYear(),mo=k.getUTCMonth()+1,d=k.getUTCDate();
+ const t=computeSaju({y,mo,d,h:12,mi:0,useLon:false}).pillars[2];
+ return `${mo}월 ${d}일 ${SK[t.stem]}${BK[t.branch]}(${SH[t.stem]}${BH[t.branch]})일 — ${ILJIN_LINES[sipseong(dayS,t.stem)]}`;
+}
 function renderTodayCard(){
  const card=document.getElementById('todayCardHome');
  if(!savedProfiles.length){card.style.display='none';return;}
@@ -1701,6 +1725,9 @@ function renderTodayCard(){
 async function loadFortuneFor(id){
  const p=savedProfiles.find(x=>x.id===id);if(!p)return;
  document.getElementById('tfBodyHome').textContent='불러오는 중…';
+ {const ij=document.getElementById('tfIljin');
+  try{const S=parseSajuFromData(p.bdate,p.btime,p.gender,parseFloat(p.region)||126.98,p.calType,p.isLeap);
+   ij.textContent=iljinLine(S.r.pillars[2].stem);ij.style.display='block';}catch(e){ij.style.display='none';}}
  const setSelfBtn=document.getElementById('tfSetSelfHome');
  setSelfBtn.style.display=p.isSelf?'none':'block';
  setSelfBtn.dataset.pid=id;
@@ -2566,6 +2593,62 @@ async function aiFetch(kind,payload){
  return fetch(AI_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
   body:JSON.stringify(Object.assign({kind},payload))});
 }
+
+/* ===== 매일 아침 알림 (웹 푸시) =====
+   목적: 매일 08:00 에 알림을 보내 다시 찾아올 이유를 만든다. 서버는 내용 없는 신호만 보내고 문구는 sw.js 가 띄운다. */
+const PUSH_URL=AI_URL+'push/';
+function toast(msg){
+ let t=document.getElementById('jjToast');
+ if(!t){t=document.createElement('div');t.id='jjToast';
+  t.style.cssText='position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:#191F28;color:#fff;font-size:13px;line-height:1.5;padding:11px 18px;border-radius:16px;z-index:999;max-width:84%;text-align:center;transition:opacity .25s;pointer-events:none';
+  document.body.appendChild(t);}
+ t.textContent=msg;t.style.opacity='1';clearTimeout(t._h);t._h=setTimeout(()=>{t.style.opacity='0';},3200);
+}
+function pushSupported(){return 'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;}
+async function pushSub(){
+ try{const reg=await navigator.serviceWorker.getRegistration();return reg?await reg.pushManager.getSubscription():null;}catch(e){return null;}
+}
+async function refreshBell(){
+ const on=pushSupported()&&!!(await pushSub());
+ const b=document.getElementById('bellBtn');
+ if(b){b.textContent=on?'🔔':'🔕';b.title=on?'매일 아침 알림 켜짐 (누르면 끔)':'매일 아침 알림 받기';}
+ const h=document.getElementById('pushHint');if(h)h.style.display=on?'none':'block';
+}
+async function pushCall(path,endpoint){
+ const token=await currentUser.getIdToken();
+ const r=await fetch(PUSH_URL+path,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({endpoint})});
+ if(!r.ok)throw new Error('server '+r.status);
+}
+async function togglePush(){
+ if(!pushSupported()){
+  toast(/iPhone|iPad/.test(navigator.userAgent)?'아이폰은 공유 버튼 → "홈 화면에 추가"로 설치한 뒤 알림을 켤 수 있어요.':'이 브라우저에서는 알림을 받을 수 없어요.');return;}
+ if(!currentUser){toast('로그인하면 매일 아침 알림을 받을 수 있어요.');switchTab('settings');return;}
+ try{
+  const cur=await pushSub();
+  if(cur){
+   await pushCall('unsubscribe',cur.endpoint).catch(()=>{});
+   await cur.unsubscribe();
+   track('push_off');toast('매일 아침 알림을 껐어요.');
+  }else{
+   const perm=await Notification.requestPermission();
+   if(perm!=='granted'){track('push_denied');toast('알림이 차단돼 있어요. 브라우저 설정에서 이 사이트의 알림을 허용해 주세요.');return;}
+   const k=await (await fetch(PUSH_URL+'key')).json();
+   const raw=atob(k.key.replace(/-/g,'+').replace(/_/g,'/'));
+   const keyBytes=Uint8Array.from(raw,c=>c.charCodeAt(0));
+   const reg=await navigator.serviceWorker.ready;
+   const sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:keyBytes});
+   try{await pushCall('subscribe',sub.endpoint);}catch(e){await sub.unsubscribe().catch(()=>{});throw e;}
+   track('push_on');toast('매일 아침 8시에 오늘의 흐름을 알려드릴게요.');
+  }
+ }catch(e){console.warn('알림 설정 실패',e);toast('알림 설정에 실패했어요. 잠시 후 다시 시도해 주세요.');}
+ refreshBell();
+}
+async function pushCleanup(){ // 계정 삭제 시 이 기기의 구독 해지
+ try{const cur=await pushSub();if(cur){await pushCall('unsubscribe',cur.endpoint).catch(()=>{});await cur.unsubscribe();}}catch(e){}
+}
+try{if(new URLSearchParams(location.search).get('from')==='push'){track('push_open');history.replaceState(null,'',location.pathname);}}catch(e){}
+window.addEventListener('load',()=>{setTimeout(refreshBell,1500);});
+
 async function aiError(res){ // 서버 오류 응답 → code 가 붙은 Error
  const data=await res.json().catch(()=>({}));
  const code=typeof data.error==='string'?data.error:'';

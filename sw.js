@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jujudosa-shell-v4';
+const CACHE_NAME = 'jujudosa-shell-v5';
 const SHELL_FILES = [
   './',
   './index.html',
@@ -16,6 +16,22 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_FILES)).catch(() => {})
   );
   self.skipWaiting();
+});
+
+// 매일 아침 알림: 서버는 내용 없는 신호만 보내고, 문구는 여기서 고정으로 띄운다.
+self.addEventListener('push', (event) => {
+  event.waitUntil(self.registration.showNotification('주주도사', {
+    body: '오늘의 흐름이 도착했습니다. 오늘 일진을 살펴보시지요.',
+    icon: './icon-192.png', badge: './icon-192.png', tag: 'jujudosa-daily', renotify: false
+  }));
+});
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = new URL('./index.html?from=push', self.registration.scope).href;
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+    for (const c of list) { if ('focus' in c) { if ('navigate' in c) c.navigate(target).catch(() => {}); return c.focus(); } }
+    return self.clients.openWindow(target);
+  }));
 });
 
 self.addEventListener('activate', (event) => {

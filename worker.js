@@ -89,7 +89,7 @@ function allowedOrigins(env) {
 function corsFor(request, env) {
   const origin = request.headers.get('Origin');
   const h = {
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Vary': 'Origin',
   };
@@ -402,7 +402,103 @@ export class BudgetLedger {
   }
 }
 
+/* ===================== Durable Object: 매일 아침 알림 (웹 푸시) =====================
+ * 목적: 매일 08:00(KST)에 "오늘의 흐름" 알림을 보내 다시 찾아올 이유를 만든다.
+ *  - 내용 없는 푸시를 보낸다(문구는 앱의 sw.js 가 고정 문구로 표시) → 암호화가 필요 없고 개인정보가 푸시 서버를 지나지 않는다.
+ *  - 서명 키(VAPID)는 처음 쓸 때 스스로 만들어 보관한다 → 별도 설정이 필요 없다.
+ *  - 발송 예약은 Durable Object 알람으로 스스로 건다(크론 설정 불필요). 한 번에 BATCH 건씩 나눠 보낸다.
+ */
+const PUSH = {
+  HOUR_KST: 8, BATCH: 40, TTL: 12 * 3600, SUBJECT: 'https://juju.bizmy.net',
+  // 알려진 브라우저 푸시 서버만 허용 (임의 주소로 요청을 보내게 하는 악용 방지)
+  HOSTS: [/^fcm\.googleapis\.com$/, /^updates\.push\.services\.mozilla\.com$/, /\.notify\.windows\.com$/, /\.push\.apple\.com$/],
+};
+function pushEndpointOk(u) {
+  try { const x = new URL(u); return u.length <= 1000 && x.protocol === 'https:' && PUSH.HOSTS.some((r) => r.test(x.hostname)); }
+  catch (e) { return false; }
+}
+function nextPushTime() { // 다음 08:00 KST 의 실제 시각(ms)
+  const k = kstNow();
+  const t = Date.UTC(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate(), PUSH.HOUR_KST) - 9 * 3600 * 1000;
+  return t > Date.now() + 60 * 1000 ? t : t + 86400 * 1000;
+}
+async function vapidJwt(key, aud) {
+  const head = bytesToB64u(enc.encode(JSON.stringify({ typ: 'JWT', alg: 'ES256' })));
+  const body = bytesToB64u(enc.encode(JSON.stringify({ aud, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: PUSH.SUBJECT })));
+  const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, key, enc.encode(head + '.' + body));
+  return head + '.' + body + '.' + bytesToB64u(sig);
+}
+export class PushRegistry {
+  constructor(state) { this.state = state; }
+  async keys() {
+    let k = await this.state.storage.get('vapid');
+    if (!k) {
+      const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+      k = { priv: await crypto.subtle.exportKey('jwk', kp.privateKey), pub: bytesToB64u(await crypto.subtle.exportKey('raw', kp.publicKey)) };
+      await this.state.storage.put('vapid', k);
+    }
+    return k;
+  }
+  async fetch(request) {
+    const req = await request.json();
+    const st = this.state.storage;
+    if (req.op === 'key') return json({ key: (await this.keys()).pub }, 200);
+    if (req.op === 'add' || req.op === 'remove') {
+      const id = 's:' + bytesToB64u(await crypto.subtle.digest('SHA-256', enc.encode(req.endpoint)));
+      if (req.op === 'add') {
+        await st.put(id, { endpoint: req.endpoint, uid: req.uid, at: Date.now() });
+        if ((await st.getAlarm()) == null) await st.setAlarm(nextPushTime());
+      } else {
+        const cur = await st.get(id);
+        if (cur && cur.uid === req.uid) await st.delete(id); // 본인 것만 해지
+      }
+      return json({ ok: true }, 200);
+    }
+    if (req.op === 'stats') {
+      return json({ subscribers: (await st.list({ prefix: 's:' })).size, nextSendAt: await st.getAlarm(), last: (await st.get('last')) || null }, 200);
+    }
+    if (req.op === 'sendNow') { // 관리자 시험 발송: 처음부터 한 묶음
+      await st.delete('cursor');
+      const more = await this.sendBatch();
+      if (more) await st.setAlarm(Date.now() + 5000);
+      return json({ ok: true, more, last: await st.get('last') }, 200);
+    }
+    return json({ error: 'bad op' }, 400);
+  }
+  async alarm() {
+    let more = false;
+    try { more = await this.sendBatch(); } catch (e) { console.error('push send', e && e.message); }
+    await this.state.storage.setAlarm(more ? Date.now() + 5000 : nextPushTime());
+  }
+  async sendBatch() { // 반환값: 보낼 대상이 더 남았는지
+    const st = this.state.storage;
+    const cursor = await st.get('cursor');
+    const page = await st.list(Object.assign({ prefix: 's:', limit: PUSH.BATCH }, cursor ? { startAfter: cursor } : {}));
+    if (!page.size) { await st.delete('cursor'); return false; }
+    const k = await this.keys();
+    const key = await crypto.subtle.importKey('jwk', k.priv, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+    const jwts = {};
+    for (const s of page.values()) { const aud = new URL(s.endpoint).origin; if (!jwts[aud]) jwts[aud] = await vapidJwt(key, aud); }
+    let sent = 0, failed = 0, lastId = null; const dead = [];
+    await Promise.all([...page].map(async ([id, s]) => {
+      try {
+        const r = await fetch(s.endpoint, { method: 'POST', headers: {
+          Authorization: 'vapid t=' + jwts[new URL(s.endpoint).origin] + ', k=' + k.pub, TTL: String(PUSH.TTL), Urgency: 'normal' } });
+        if (r.status === 404 || r.status === 410) dead.push(id); // 해지·만료된 구독은 정리
+        else if (r.ok) sent++; else failed++;
+      } catch (e) { failed++; }
+    }));
+    for (const id of page.keys()) lastId = id;
+    if (dead.length) await st.delete(dead);
+    const prev = cursor ? ((await st.get('last')) || {}) : {};
+    await st.put('last', { day: dayKey(), sent: (prev.sent || 0) + sent, failed: (prev.failed || 0) + failed, removed: (prev.removed || 0) + dead.length });
+    if (page.size === PUSH.BATCH) { await st.put('cursor', lastId); return true; }
+    await st.delete('cursor'); return false;
+  }
+}
+
 /* ===================== 요청 처리 ===================== */
+const pushOf = (env) => env.PUSH.get(env.PUSH.idFromName('global'));
 const ledgerOf = (env, uid) => env.LEDGER.get(env.LEDGER.idFromName(uid));
 const budgetOf = (env) => env.BUDGET.get(env.BUDGET.idFromName('global'));
 const call = async (stub, body) => (await stub.fetch('https://do/', { method: 'POST', body: JSON.stringify(body) })).json();
@@ -476,6 +572,9 @@ async function handleAdmin(request, env, url) {
     await patchUser(env, b.uid, { tier: { stringValue: b.tier }, tierStartedAt: { timestampValue: new Date(b.startedAt || Date.now()).toISOString() } });
     return json({ ok: true, tier: b.tier, validDays: PASS_DAYS }, 200);
   }
+  // 알림: 구독자 수·다음 발송 시각·마지막 발송 결과 / 시험 발송
+  if (url.pathname === '/admin/push-stats' && request.method === 'GET') return json(await call(pushOf(env), { op: 'stats' }), 200);
+  if (url.pathname === '/admin/push-test' && request.method === 'POST') return json(await call(pushOf(env), { op: 'sendNow' }), 200);
   if (url.pathname === '/admin/usage' && request.method === 'GET') {
     const uid = url.searchParams.get('uid');
     if (!uid) return json({ error: 'uid required' }, 400);
@@ -509,6 +608,8 @@ export default {
 
     const cors = corsFor(request, env);
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
+    // 알림 구독에 쓰는 공개 키 (비밀 아님)
+    if (request.method === 'GET' && url.pathname === '/push/key') return json(await call(pushOf(env), { op: 'key' }), 200, cors);
     if (request.method !== 'POST') return new Response('Method not allowed', { status: 405, headers: cors });
     const origin = request.headers.get('Origin');
     if (origin && !cors['Access-Control-Allow-Origin']) return json({ error: 'forbidden origin' }, 403, cors);
@@ -523,6 +624,13 @@ export default {
       let b; try { b = await request.json(); } catch (e) { return json({ error: 'bad_request' }, 400, cors); }
       try { return json(await payConfirm(env, uid, b && b.paymentId), 200, cors); }
       catch (e) { console.error('pay confirm', e.code, e.message); return json({ error: e.code || 'pay_failed', message: e.message }, e.status || 500, cors); }
+    }
+
+    // 매일 아침 알림 구독·해지
+    if (url.pathname === '/push/subscribe' || url.pathname === '/push/unsubscribe') {
+      let b; try { b = await request.json(); } catch (e) { return json({ error: 'bad_request' }, 400, cors); }
+      if (!b || typeof b.endpoint !== 'string' || !pushEndpointOk(b.endpoint)) return json({ error: 'bad_endpoint' }, 400, cors);
+      return json(await call(pushOf(env), { op: url.pathname === '/push/subscribe' ? 'add' : 'remove', endpoint: b.endpoint, uid }), 200, cors);
     }
 
     // 2) 요청 정리
