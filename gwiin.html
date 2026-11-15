@@ -18,6 +18,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <script src="./korean-lunar-calendar.min.js"></script>
+<script src="./track.js"></script>
 <script defer src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js" crossorigin="anonymous"></script>
 <style>
 :root{
@@ -322,6 +323,7 @@ async function submitGuest(){
    relKey:rel.relKey,relName:rel.relName,score:rel.score,element:rel.element,desc:rel.desc,
    createdAt:firebase.firestore.FieldValue.serverTimestamp()});
  }catch(e){console.error('참여 저장 실패',e);}
+ track('gwiin_guest_join',{rel:rel.relKey});
  drawGuestResult(rel,name);
 }
 function drawGuestResult(rel,myName){
@@ -368,7 +370,7 @@ function drawGuestResult(rel,myName){
   <div class="card">
    <h2>사주도 궁금하다면</h2>
    <div class="sub">주주도사가 명식을 읽고 성격·일·관계·흐름까지 풀어드려요. 처음 3번은 무료예요.</div>
-   <button class="go ghost" onclick="location.href='./index.html'">주주도사에게 사주 묻기</button>
+   <button class="go ghost" onclick="track('gwiin_to_app',{from:'guest'});location.href='./index.html'">주주도사에게 사주 묻기</button>
   </div>`;
  window.scrollTo(0,0);
 }
@@ -456,6 +458,7 @@ async function createMap(){
   const ref=await db.collection('users').doc(currentUser.uid).collection('gwiinMaps')
    .add({ownerName:name,bdate:dateStr,calType:cal,isLeap:false,
     createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+  track('gwiin_map_create');
   const snap=await ref.get();
   drawOwnerMap(ref.id,snap.data());
  }catch(e){console.error('지도 생성 실패',e);err.textContent='지도를 만들지 못했어요. 잠시 후 다시 시도해 주세요.';err.style.display='block';}
@@ -539,7 +542,7 @@ async function drawOwnerMap(mapId,data){
   <div class="card">
    <h2>지도에서 생긴 궁금증, 도사에게</h2>
    <div class="sub">이 사람과는 왜 이렇게 부딪히는지, 어떻게 지내면 좋을지 — 주주도사가 사주로 짚어드려요.</div>
-   <button class="go ghost" onclick="location.href='./index.html'">주주도사에게 물어보기</button>
+   <button class="go ghost" onclick="track('gwiin_to_app',{from:'owner'});location.href='./index.html'">주주도사에게 물어보기</button>
   </div>
 
   <div class="card">
@@ -561,6 +564,7 @@ function shareKakao(){
  if(!currentOwnerMap)return;
  const{data,shareUrl}=currentOwnerMap;
  if(!kakaoReady()){copyShare(shareUrl);return;}
+ track('gwiin_share',{method:'kakao'});
  try{
   Kakao.Share.sendDefault({
    objectType:'feed',
@@ -590,6 +594,7 @@ async function deleteEntry(entryId){
  }catch(e){console.error('참여자 삭제 실패',e);toast('삭제하지 못했어요. 잠시 후 다시 시도해 주세요.');}
 }
 function copyShare(url){
+ track('gwiin_share',{method:navigator.share?'system':'copy'});
  if(navigator.share){
   navigator.share({title:'내 귀인지도',text:'내가 너에게 어떤 사람인지 봐줘',url}).catch(()=>{});
   return;

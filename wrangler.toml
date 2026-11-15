@@ -17,9 +17,17 @@ class_name = "UsageLedger"
 name = "BUDGET"
 class_name = "BudgetLedger"
 
+[[durable_objects.bindings]]
+name = "PUSH"
+class_name = "PushRegistry"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["UsageLedger", "BudgetLedger"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["PushRegistry"]
 
 # 비밀값은 코드에 넣지 말고 아래 명령으로 등록:
 #   npx wrangler secret put ANTHROPIC_API_KEY

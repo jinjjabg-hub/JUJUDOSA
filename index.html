@@ -22,6 +22,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <script src="./korean-lunar-calendar.min.js"></script>
 <script src="./plans.js"></script>
+<script src="./track.js"></script>
 <script src="https://cdn.portone.io/v2/browser-sdk.js"></script>
 <style>
 :root{
@@ -319,7 +320,7 @@ button.go:active{transform:scale(.98);opacity:.9}
   <div class="topbar-inner">
     <div class="brand"><img src="./logo.png" alt="주주도사" style="width:22px;height:22px;object-fit:contain">주주도사</div>
     <div class="top-actions">
-      <button class="iconbtn" title="알림">🔔</button>
+      <button class="iconbtn" id="bellBtn" title="매일 아침 알림 받기" onclick="togglePush()">🔕</button>
       <button class="avatarbtn" id="avatarBtn" onclick="switchTab('settings')">주</button>
     </div>
   </div>
@@ -330,7 +331,7 @@ button.go:active{transform:scale(.98);opacity:.9}
   <!-- ===================== 홈 ===================== -->
   <section class="view active" id="view-home">
     <div id="loginBannerHome" class="loginbanner" style="display:none">
-      <div class="lb-text">카카오로 로그인하면<br>사주를 저장하고 매일 확인할 수 있어요.</div>
+      <div class="lb-text">카카오로 로그인하면<br>사주를 저장하고 매일 확인할 수 있어요.<br><span style="font-weight:600;text-decoration:underline;cursor:pointer" onclick="openRegisterFresh()">로그인 없이 내 사주 먼저 보기 →</span></div>
       <button onclick="loginKakao()">카카오 로그인</button>
       <div style="font-size:12px;color:var(--sub);text-decoration:underline;cursor:pointer;margin-top:6px" onclick="switchTab('settings')">이메일로 로그인하기</div>
     </div>
@@ -346,7 +347,9 @@ button.go:active{transform:scale(.98);opacity:.9}
 
     <div class="card" id="todayCardHome" style="display:none">
       <div class="tf-title"><img class="icon-img tf-ico-img" src="./icon-star.png"><span>오늘의 운세</span></div>
+      <div id="tfIljin" style="font-size:13.5px;line-height:1.65;font-weight:700;color:var(--primary);background:var(--primary-tint);border-radius:12px;padding:10px 12px;margin-bottom:10px;display:none"></div>
       <div id="tfBodyHome">불러오는 중…</div>
+      <div class="tf-more" id="pushHint" style="display:none" onclick="togglePush()">🔔 매일 아침 8시에 알림 받기</div>
       <div class="tf-more" id="tfSetSelfHome" style="display:none" onclick="setAsSelf()">★ 이 프로필을 본인으로 설정</div>
     </div>
 
@@ -357,6 +360,14 @@ button.go:active{transform:scale(.98);opacity:.9}
           <div class="hb-sub">생일만 있으면 무료 · 친구 불러 관계 지도 만들기</div>
         </div>
         <span class="hb-ico"><img class="icon-img hb-ico-img" src="./icon-star.png"></span>
+      </button>
+
+      <button class="hero-btn g-full" onclick="openNewYear()">
+        <div>
+          <div class="hb-title">2027 신년운세<span class="hb-badge">한 줄 총평 무료</span></div>
+          <div class="hb-sub">내년 열두 달의 흐름을 달마다 짚어드립니다</div>
+        </div>
+        <span class="hb-ico"><img class="icon-img hb-ico-img" src="./icon-fortune.png"></span>
       </button>
 
       <button class="hero-btn g-full" onclick="openFortuneTab()">
@@ -726,6 +737,17 @@ button.go:active{transform:scale(.98);opacity:.9}
   </div>
 </div>
 
+<div class="modalbg" id="nyModal" style="display:none" onclick="if(event.target===this)closeNewYear()">
+  <div class="teasercard">
+    <img class="teaser-avatar" src="./avatar.png" alt="주주도사">
+    <div class="teaser-name">2027 신년운세</div>
+    <div class="teaser-tag">한 줄 총평 · 무료</div>
+    <div style="font-size:14.5px;line-height:1.75;text-align:left;margin:14px 0 18px" id="nyLine"></div>
+    <button onclick="startNewYear()" style="width:100%;background:var(--primary);color:#fff;border:none;border-radius:14px;padding:15px;font-size:15px;font-weight:800;cursor:pointer">월별 상세 풀이 보기</button>
+    <div style="font-size:12px;color:var(--sub);line-height:1.6;margin-top:10px">풀이 1회가 사용됩니다 · 한 번 받은 풀이는 다시 볼 때 차감되지 않아요</div>
+    <div style="font-size:13px;color:var(--sub);text-decoration:underline;cursor:pointer;margin-top:14px" onclick="closeNewYear()">닫기</div>
+  </div>
+</div>
 <div class="modalbg" id="teaserModal" style="display:none">
   <div class="teasercard">
     <img class="teaser-avatar" id="teaserAvatar" src="">
@@ -985,6 +1007,50 @@ function buildLuckBlock(r,gender,nowY){
   `연애운 판별(올해 ${nowY}년): ${love(thisYear)}`,
   `(위 판별값은 엔진 계산 결과다. 그대로 근거로 쓰되, 본문에서는 [용어 숨김]에 따라 일상어로 말한다.)`
  ].join('\n');}
+
+/* ===================== 신년운세 (해마다 NY_YEAR 만 바꾸면 된다) =====================
+   - 한 줄 총평: 세운 천간과 일간의 관계(십성)로 코드가 만든다 → 무료, AI 호출 없음
+   - 월별 상세: 12개 달의 간지·재운·연애운 판별을 코드가 계산해 AI에 넘긴다 → 풀이 1회 차감(kind=reading) */
+const NY_YEAR=2027,NY_ID='newyear'+NY_YEAR;
+const NY_LINES={
+ '비견':'나와 같은 기운이 들어오는 해입니다. 뜻한 바를 밀고 가기 좋고, 함께 뛰는 사람도 겨루는 사람도 늘어납니다.',
+ '겁재':'사람이 모이고 판이 커지는 해입니다. 함께하면 힘이 되지만, 돈과 몫의 경계는 미리 분명히 해두실 때입니다.',
+ '식신':'그동안 쌓은 것을 꺼내 쓰는 해입니다. 꾸준히 만들고 내놓는 일에 결실이 붙습니다.',
+ '상관':'표현과 변화의 기운이 강한 해입니다. 새 시도를 하기 좋고, 말과 문서는 한 번 더 살피실 때입니다.',
+ '편재':'움직이는 만큼 기회가 보이는 해입니다. 판을 넓히기 좋으나, 벌인 일의 마무리가 결과를 가릅니다.',
+ '정재':'성실하게 쌓은 것이 숫자로 돌아오는 해입니다. 무리한 확장보다 관리와 정리에 힘이 실립니다.',
+ '편관':'책임과 압박이 함께 오는 해입니다. 버거운 만큼 자리가 단단해지니, 몸을 살피며 가실 때입니다.',
+ '정관':'자리와 역할이 분명해지는 해입니다. 인정받을 기회가 오고, 약속과 규칙을 지킬수록 유리합니다.',
+ '편인':'생각이 깊어지고 방향을 다시 잡는 해입니다. 배우고 준비하기 좋으며, 큰 결정은 서두르지 않으실 때입니다.',
+ '정인':'도움과 배움이 들어오는 해입니다. 윗사람·문서·자격의 운이 따르니 기반을 다지기 좋습니다.'
+};
+function nyOneLine(dayS){
+ const g=getSeunList(dayS,NY_YEAR,NY_YEAR)[0];
+ return `${NY_YEAR}년 ${g.ganjiKr}(${g.ganjiHanja})년은 ${NY_LINES[g.stemSipseong]}`;
+}
+// 양력 1~12월의 절기월 간지. 1월은 입춘 전이라 전년도 세운의 축월, 2~12월은 그해 인월~자월.
+function nyMonths(){
+ const out=[];
+ for(let m=1;m<=12;m++){
+  const sy=m===1?NY_YEAR-1:NY_YEAR,ys=((sy-4)%10+10)%10,mIdx=m===1?11:m-2;
+  out.push({month:m,...ganjiInfo(((ys%5)*2+2+mIdx)%10,(mIdx+2)%12)});
+ }
+ return out;
+}
+function buildNewYearBlock(r,gender){
+ const P=r.pillars,dayS=P[2].stem,yn=b=>b?'있음':'없음';
+ const tag=g=>`${g.ganjiKr}(${g.ganjiHanja}) [천간:${g.stemSipseong} 지지:${g.branchSipseong}]`;
+ const jae=g=>{const j=judgeJaewoon(P,g);return `재운(횡재수=${yn(j.hoengjae)}, 노력형=${yn(j.nolyeok)})`;};
+ const love=g=>{const y=judgeYeonaeun(P,gender,g);return `연애운(새 인연=${yn(y.saeInYeon)}, 기존관계 발전=${yn(y.giJonBalJeon)})`;};
+ const yr=getSeunList(dayS,NY_YEAR,NY_YEAR)[0];
+ return [
+  `[${NY_YEAR}년 신년운세 데이터 — 엔진 계산값]`,
+  `${NY_YEAR}년 세운: ${tag(yr)} / ${jae(yr)} / ${love(yr)}`,
+  `월별 흐름 (양력 달 이름, 실제 경계는 매달 초 절기. 1월은 입춘 전이라 ${NY_YEAR-1}년 기운의 끝자락):`,
+  ...nyMonths().map(g=>{const w=withSipseong(g,dayS);return `${g.month}월 ${tag(w)} / ${jae(w)} / ${love(w)}`;}),
+  `(월별 풀이는 반드시 위 12줄의 글자와 판별값에서만 출발한다. 여기에 없는 달의 간지를 지어내지 않는다.)`
+ ].join('\n');
+}
 window.jujuDebug=function(bdate,btime,gender,lonDeg,cal,isLeap){
  const S=parseSajuFromData(bdate,btime,gender,lonDeg,cal,isLeap);
  if(!S){console.warn('생년월일 형식: YYYYMMDD 또는 YYYY-MM-DD');return null;}
@@ -992,6 +1058,7 @@ window.jujuDebug=function(bdate,btime,gender,lonDeg,cal,isLeap){
 
 /* ===================== 탭 전환 ===================== */
 function switchTab(name){
+ track('tab_view',{tab:name});
  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
  document.getElementById('view-'+name).classList.add('active');
  document.querySelectorAll('.navitem').forEach(n=>n.classList.toggle('on',n.dataset.tab===name));
@@ -1071,6 +1138,9 @@ let pendingCategoryPrompt=null;
 /* ===== 7 도사 페르소나 ===== */
 const PERSONAS={
  general:{name:'주주도사',avatar:'./avatar.png',tag:'종합',focus:null,free:true},
+ [NY_ID]:{name:'주주도사',avatar:'./avatar.png',tag:NY_YEAR+' 신년운세',category:NY_YEAR+'년 운세',event:true,
+  intro:NY_YEAR+'년 한 해의 날씨를 달마다 미리 짚어드립니다. 좋은 달에는 무엇을 벌이고, 흐린 달에는 무엇을 챙길지 봅니다.',
+  tone:'말투는 평소 주주도사 그대로 정중하고 무게 있다. 좋은 달과 흐린 달을 가리지 않고 말하되, 흐린 달은 반드시 대처법과 함께 전한다.'},
  jaecheon:{name:'재천도사',avatar:'./persona-jaecheon.png',tag:'재물운',category:'재물운',icon:'./icon-wealth.png',
   intro:'돈 얘기는 돌려 말하지 않는, 냉정하고 실전적인 도사입니다. 사주는 두루 보되, 재물의 흐름만큼은 누구보다 깊게 파고듭니다.',
   tone:'말투는 냉정하고 실전적이다. 돈 얘기를 돌려 말하지 않는다. 위로보다 팩트와 판단을 먼저 준다. 문장이 짧고 단호하다.',
@@ -1110,6 +1180,13 @@ const PERSONAS={
 };
 // 전문 도사 첫 풀이: 종합 풀이와 겹치는 파트는 쓰지 않고, 자기 분야만 소제목 5개(각 9~11문장, 합계 약 50문장)로 깊게 쓴다.
 const SPECIALIST_SECTIONS={
+ [NY_ID]:[
+  [NY_YEAR+'년 총평','[신년운세 데이터]의 세운 글자가 이 명식에 어떤 해인지 한 해 전체의 성격을 짚는다. 지금 지나는 대운과 겹쳐 보았을 때 이 해가 벌이는 해인지 다지는 해인지 분명히 결론 낸다. 여기서 "올해"가 아니라 반드시 '+NY_YEAR+'년을 말한다.'],
+  ['상반기 월별 흐름','1월부터 6월까지 여섯 달을 각각 "1월 —"처럼 달 이름으로 시작해 달마다 2~3문장씩 쓴다. 그 달 글자가 가져오는 분위기와 그 달에 하기 좋은 일 한 가지를 짚는다. 문장 수 지시보다 여섯 달을 빠짐없이 쓰는 것이 우선이다.'],
+  ['하반기 월별 흐름','7월부터 12월까지 여섯 달을 같은 방식으로 달마다 2~3문장씩 쓴다. 여섯 달을 빠짐없이 쓴다.'],
+  ['일과 돈','월별 재운 판별값을 근거로 '+NY_YEAR+'년에 돈과 일의 기회가 몰리는 달과 지키는 것이 나은 달을 가려 말하고, 계약·확장·이직 같은 큰 움직임을 두기 좋은 시기를 달 단위로 짚는다. 구체적 투자 대상은 말하지 않는다.'],
+  ['사람과 관계','월별 연애운 판별값을 근거로 새 인연이나 관계 진전의 기운이 드는 달, 말과 감정을 살펴야 할 달을 짚는다. 가족·동료 관계에서 이 해에 반복될 만한 장면도 한 가지 든다.'],
+  ['기회의 달, 살필 달','한 해에서 가장 힘이 실리는 달 2~3개와 속도를 늦추고 몸과 마음을 살필 달 2~3개를 이유와 함께 꼽고, '+NY_YEAR+'년을 위해 지금부터 준비할 일 세 가지를 할 일 단위로 제안한다.']],
  jaecheon:[
   ['돈 버는 체질','정재(꾸준한 고정 수입형)와 편재(변동 크고 규모 큰 수입형) 중 어느 쪽이 강한지 진단하고 실제 수입 형태로 번역한다. 마지막에 "사업가 체질에 가깝다" 또는 "직장인 체질에 가깝다" 중 하나로 분명히 결론 내리고, 근거를 정관·편관 비중으로 한 문장 덧붙이되 본문에서는 "규칙과 조직 안에서 크는 기질" / "직접 승부를 거는 기질"처럼 일상어로 말한다.'],
   ['돈이 들어오는 길','능력을 돈으로 바꾸는 통로(식상생재)가 살아있는지, 번 돈이 신뢰·지위로 이어지는지(재생관)를 실제 일의 형태(어떤 일, 어떤 방식, 누구와)로 짚는다.'],
@@ -1158,6 +1235,7 @@ async function getUserTier(){
   // 유료 이용권은 시작일부터 30일까지만 유효 (서버도 같은 기준으로 강제한다)
   if(userTier!=='free'&&userTier!=='admin'&&dd.tierStartedAt&&dd.tierStartedAt.toMillis&&Date.now()>=dd.tierStartedAt.toMillis()+PASS_DAYS*86400000)userTier='free';
  }catch(e){userTier='free';}
+ trackUser({tier:userTier});
  return userTier;
 }
 async function openPersona(personaId){
@@ -1179,7 +1257,26 @@ async function openPersona(personaId){
  switchTab('fortune');
  startFromProfile(selfP,personaId);
 }
+
+/* ===== 신년운세 진입 ===== */
+function nySelf(){return savedProfiles.find(p=>p.isSelf)||savedProfiles[0];}
+function openNewYear(){
+ track('newyear_open',{logged_in:!!currentUser});
+ if(!currentUser||!savedProfiles.length){openRegisterFresh();return;} // 사주가 없으면 먼저 입력 (로그인 전에는 맛보기에 한 줄 총평이 나온다)
+ const selfP=nySelf();
+ if(selfP.readings&&selfP.readings[NY_ID]&&selfP.readings[NY_ID].text){switchTab('fortune');startFromProfile(selfP,NY_ID);return;} // 이미 받은 풀이는 차감 없이 다시 보기
+ const S=parseSajuFromData(selfP.bdate,selfP.btime,selfP.gender,parseFloat(selfP.region)||126.98,selfP.calType,selfP.isLeap);
+ if(!S){switchTab('fortune');return;}
+ document.getElementById('nyLine').textContent=nyOneLine(S.r.pillars[2].stem);
+ document.getElementById('nyModal').style.display='flex';
+}
+function closeNewYear(){document.getElementById('nyModal').style.display='none';}
+function startNewYear(){
+ closeNewYear();track('newyear_start');
+ switchTab('fortune');startFromProfile(nySelf(),NY_ID);
+}
 function openTeaser(personaId,selfP){
+ track('teaser_open',{persona:personaId});
  const P=PERSONAS[personaId];
  const A=parsePersonLocal(selfP);
  const teaserText=A?P.teaser(A):`${P.tag}을 깊게 보는 도사입니다.`;
@@ -1217,6 +1314,7 @@ function selectPlan(plan){
  document.querySelectorAll('#planList .plancard').forEach(el=>el.classList.toggle('on',el.dataset.plan===plan));
 }
 function openSubscribeModal(){
+ track('begin_checkout',{tier:userTier});
  renderPlanList();
  document.getElementById('subErr').style.display='none';
  document.getElementById('subSuccess').style.display='none';
@@ -1250,6 +1348,7 @@ async function payByCard(){
  const rnd=(window.crypto&&crypto.randomUUID?crypto.randomUUID().replace(/-/g,''):(Date.now().toString(36)+Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2))).slice(0,24);
  const paymentId='jj_'+k+'_'+rnd; // KCP 주문번호 40자 제한 → 33자 이내
  const btn=document.getElementById('cardPayBtn');btn.disabled=true;
+ track('card_pay_start',{plan:k,value:price});
  try{
   const r=await PortOne.requestPayment({
    storeId:PORTONE_STORE_ID,channelKey:PORTONE_CHANNEL_KEY,
@@ -1265,6 +1364,7 @@ async function payByCard(){
 async function finishCardPay(paymentId,code,message,pgCode){
  if(code){
   if(pgCode==='3017'){subMsg('팝업이 차단됐어요. 주소창 오른쪽에서 이 사이트의 팝업을 허용한 뒤 다시 시도해 주세요.');return false;}
+  track('pay_fail',{reason:code==='USER_CANCEL'||/취소/.test(message||'')?'cancel':'pg_error'});
   subMsg(code==='USER_CANCEL'||/취소/.test(message||'')?'결제를 취소했어요.':'결제에 실패했어요: '+(message||code));return false;
  }
  if(!paymentId||!currentUser)return false;
@@ -1274,9 +1374,11 @@ async function finishCardPay(paymentId,code,message,pgCode){
   const res=await fetch(PAY_CONFIRM_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({paymentId})});
   const d=await res.json().catch(()=>({}));
   if(!res.ok||!d.ok)throw new Error(d.message||d.error||('서버 응답 오류 ('+res.status+')'));
+  {const pr=d.product==='pack'?CONSULT_PACK.price:((PLANS[d.product]||{}).price||0);
+   track('purchase',{plan:String(d.product||''),value:pr,currency:'KRW',method:'card'});}
   subMsg(d.product==='pack'?'✅ 결제 완료! 상담 '+CONSULT_PACK.consult+'회가 추가됐어요.':'✅ 결제 완료! 이용권이 지금부터 '+PASS_DAYS+'일 동안 시작됐어요.',true);
   return true;
- }catch(e){subMsg('결제 확인 실패: '+e.message+' — 결제가 됐다면 문의해 주세요.');return false;}
+ }catch(e){track('pay_fail',{reason:'confirm_error'});subMsg('결제 확인 실패: '+e.message+' — 결제가 됐다면 문의해 주세요.');return false;}
 }
 // 모바일 결제창에서 돌아왔을 때 (?pay=portone&paymentId=…[&code=…])
 let _cardPayReturnDone=false;
@@ -1312,6 +1414,7 @@ async function submitSubscribeRequest(){
     status:'pending'
    }
   },{merge:true});
+  track('bank_request',{plan:selectedPlan});
   document.getElementById('depositorName').style.display='none';
   document.getElementById('bankSubmitBtn').style.display='none';
   document.getElementById('subSuccess').style.display='block';
@@ -1364,7 +1467,9 @@ function quickAsk(text){
 /* ===== 카카오 로그인 & 사주 프로필 저장 ===== */
 function loginKakao(){
  const provider=new firebase.auth.OAuthProvider('oidc.kakao');
- auth.signInWithPopup(provider).catch(e=>{alert('로그인에 실패했습니다: '+e.message);});
+ auth.signInWithPopup(provider)
+  .then(r=>{track(r&&r.additionalUserInfo&&r.additionalUserInfo.isNewUser?'sign_up':'login',{method:'kakao'});})
+  .catch(e=>{alert('로그인에 실패했습니다: '+e.message);});
 }
 function logout(){auth.signOut();}
 
@@ -1399,6 +1504,7 @@ async function deleteAccount(){
    await m.ref.delete();
   }
   await uref.set({upgradeRequest:firebase.firestore.FieldValue.delete()},{merge:true}).catch(()=>{});
+  await pushCleanup();
   await u.delete();
   alert('계정이 삭제되었어요. 이용해 주셔서 감사합니다.');
  }catch(e){
@@ -1432,7 +1538,7 @@ function emailAuthSubmit(){
  const btn=document.getElementById('emailAuthBtn');
  btn.disabled=true;
  auth.signInWithEmailAndPassword(email,pw)
-  .then(()=>{btn.disabled=false;})
+  .then(()=>{btn.disabled=false;track('login',{method:'email'});})
   .catch(e=>{btn.disabled=false;err.textContent=emailAuthErrMsg(e);err.style.display='block';});
 }
 function emailAuthReset(){
@@ -1464,7 +1570,7 @@ function emailSignupSubmit(){
  const btn=document.getElementById('signupBtn');
  btn.disabled=true;
  auth.createUserWithEmailAndPassword(email,pw)
-  .then(()=>{btn.disabled=false;closeSignupModal();})
+  .then(()=>{btn.disabled=false;track('sign_up',{method:'email'});closeSignupModal();})
   .catch(e=>{btn.disabled=false;err.textContent=emailAuthErrMsg(e);err.style.display='block';});
 }
 auth.onAuthStateChanged(u=>{
@@ -1479,6 +1585,7 @@ auth.onAuthStateChanged(u=>{
   document.getElementById('avatarBtn').textContent=(u.displayName||'주').slice(0,1);
   loadProfiles();
   handleCardPayReturn();
+  if(pendingGuestSolo){pendingGuestSolo=false;switchTab('fortune');submitSolo();} // 맛보기에서 로그인한 경우 → 바로 종합 풀이
  }else{
   homeBanner.style.display='flex';
   pillWrap.style.display='none';
@@ -1499,6 +1606,7 @@ async function saveProfile(label,bd,bt,g,region,mbti,cal,leap){
   await col.add({label,bdate:bd,btime:bt,gender:g,region,mbti:mbti||'',
    calType:cal||'solar',isLeap:!!leap,isSelf:isFirst,
    savedAt:firebase.firestore.FieldValue.serverTimestamp()});
+  track('profile_save',{first:isFirst});
   loadProfiles();
  }catch(e){console.error('프로필 저장 실패',e);}
 }
@@ -1586,6 +1694,27 @@ async function deleteProfile(id){
   renderProfilesModalList();
  }catch(e){console.error('프로필 삭제 실패',e);alert('삭제 중 문제가 발생했어요.');}
 }
+
+/* ===== 오늘의 일진 한 줄 (코드 계산 · 무료 · 매일 바뀜) =====
+   목적: 무료 회원도 매일 새로 볼 내용이 있어야 아침 알림이 의미가 있다. 오늘 일진의 천간과 내 일간의 관계로 만든다. */
+const ILJIN_LINES={
+ '비견':'나와 같은 기운의 날입니다. 미뤄둔 일을 내 속도로 밀고 가기 좋습니다.',
+ '겁재':'사람이 드나드는 날입니다. 함께하는 일은 순조롭고, 지갑은 한 번 더 살피실 때입니다.',
+ '식신':'손이 잘 풀리는 날입니다. 만들고 정리하는 일에 힘이 실립니다.',
+ '상관':'말에 힘이 실리는 날입니다. 제안하기 좋으나, 날 선 표현은 한 번 고르실 때입니다.',
+ '편재':'바깥에서 기회가 보이는 날입니다. 사람을 만나고 움직이면 얻는 것이 있습니다.',
+ '정재':'차분히 챙기는 날입니다. 계산과 정리, 약속한 일을 마무리하기 좋습니다.',
+ '편관':'긴장이 따르는 날입니다. 급한 일부터 하나씩 하시고, 무리한 약속은 미루셔도 됩니다.',
+ '정관':'격식이 통하는 날입니다. 공식적인 자리와 보고, 약속에 유리합니다.',
+ '편인':'생각이 깊어지는 날입니다. 혼자 궁리하고 배우는 일에 맞고, 큰 결정은 내일로 미뤄도 좋습니다.',
+ '정인':'도움이 들어오는 날입니다. 묻고 배우면 답이 오니, 윗사람의 말에 귀 기울여 보시지요.'
+};
+function iljinLine(dayS){
+ const k=new Date(Date.now()+9*3600000); // 한국 날짜
+ const y=k.getUTCFullYear(),mo=k.getUTCMonth()+1,d=k.getUTCDate();
+ const t=computeSaju({y,mo,d,h:12,mi:0,useLon:false}).pillars[2];
+ return `${mo}월 ${d}일 ${SK[t.stem]}${BK[t.branch]}(${SH[t.stem]}${BH[t.branch]})일 — ${ILJIN_LINES[sipseong(dayS,t.stem)]}`;
+}
 function renderTodayCard(){
  const card=document.getElementById('todayCardHome');
  if(!savedProfiles.length){card.style.display='none';return;}
@@ -1596,6 +1725,9 @@ function renderTodayCard(){
 async function loadFortuneFor(id){
  const p=savedProfiles.find(x=>x.id===id);if(!p)return;
  document.getElementById('tfBodyHome').textContent='불러오는 중…';
+ {const ij=document.getElementById('tfIljin');
+  try{const S=parseSajuFromData(p.bdate,p.btime,p.gender,parseFloat(p.region)||126.98,p.calType,p.isLeap);
+   ij.textContent=iljinLine(S.r.pillars[2].stem);ij.style.display='block';}catch(e){ij.style.display='none';}}
  const setSelfBtn=document.getElementById('tfSetSelfHome');
  setSelfBtn.style.display=p.isSelf?'none':'block';
  setSelfBtn.dataset.pid=id;
@@ -2005,6 +2137,7 @@ function renderSoloResult(A,mbtiVal,genderLabel,ownerLabel,personaId,profileId,m
  try{debugLuckEngine(A.r,A.gender,nowY,ownerLabel);}catch(e){console.warn(e);} // 2단계 검증용 콘솔 출력
  let luckBlock=`세운: ${seun.join(', ')}`;
  try{luckBlock=buildLuckBlock(A.r,A.gender,nowY);}catch(e){console.warn(e);}
+ if(personaId===NY_ID){try{luckBlock+='\n'+buildNewYearBlock(A.r,A.gender);}catch(e){console.warn(e);}} // 신년운세: 12개 달 데이터 추가
  const today=new Date();
  const todayStr=`${today.getFullYear()}년 ${today.getMonth()+1}월 ${today.getDate()}일`;
  const hourWarn=(r.corrections&&r.corrections.hourNear)?
@@ -2044,7 +2177,7 @@ function renderSoloResult(A,mbtiVal,genderLabel,ownerLabel,personaId,profileId,m
 [이 사람의 판단·결정 패턴] ${mbtiJudgmentPattern}`:''}
 이 자료는 사용자가 20문항 정밀검사를 거쳐 얻은 실제 분석 결과다. MBTI 관련 언급뿐 아니라, 상담자가 고민이나 결정을 망설이는 이야기를 꺼낼 때도 [고민 판별 지시]에 따라 이 판단 패턴을 근거로 활용한다.`:'';
  const isSpecialist=personaId!=='general'&&!!SPECIALIST_SECTIONS[personaId];
- const field=({dadok:'마음과 회복',cheonmyeong:'인생의 큰 흐름'})[personaId]||P.tag; // 첫 풀이에서 부를 분야 이름
+ const field=({dadok:'마음과 회복',cheonmyeong:'인생의 큰 흐름',[NY_ID]:NY_YEAR+'년 신년운세'})[personaId]||P.tag; // 첫 풀이에서 부를 분야 이름
  const focusNote=isSpecialist?
   `\n[페르소나 지시 — 매우 중요] 너는 지금 "${P.name}"로서 상담한다. 전문 분야는 "${field}"이다. [말투] ${P.tone} 인사말이나 자기소개에서 네가 ${P.name}임을 은근히 드러내도 좋다.`
  :(personaId!=='general'&&P.focus)?
@@ -2054,7 +2187,7 @@ function renderSoloResult(A,mbtiVal,genderLabel,ownerLabel,personaId,profileId,m
  const generalRefBlock=(isSpecialist&&generalText)?`
 [상담자가 이미 본 종합 풀이 — 참고용] ${generalText.slice(0,3000)}
 위 종합 풀이의 핵심 판단과 어긋나지 않게 쓰되, 같은 내용을 되풀이하지 말고 네 분야에서 한층 깊이 들어간다.`:'';
- const specialistList=Object.keys(PERSONAS).filter(k=>k!=='general')
+ const specialistList=Object.keys(PERSONAS).filter(k=>k!=='general'&&!PERSONAS[k].event)
   .map(k=>`${PERSONAS[k].tag}→${PERSONAS[k].name}`).join(', ');
  const followupRule=personaId==='general'
   ?`[이후 대화 분량 — 주주도사 전용] 후속 질문에도 성의 있게 답하되, 특정 전문 분야(${specialistList}) 질문이면 2~4문장으로 핵심만 짧게 답하고 거기서 멈춘다. 정관·편관, 정재·편재처럼 전문 도사가 다루는 세부 구조 진단은 먼저 꺼내지 않는다. 대신 담당 도사를 자연스럽게 한 문장으로 안내한다. 예: "이 부분은 재천도사가 돈이 들어오는 방식까지 훨씬 깊게 봐드려요." 전문 분야가 아닌 일반적인 질문(성격, 오늘 기분, 풀이 내용 확인 등)에는 기존처럼 6~9문단으로 두텁게 답해도 된다.`
@@ -2108,10 +2241,63 @@ ${mbtiSection}「일과 돈」 어떤 방식으로 일할 때 성과가 나는�
    setTimeout(()=>{addMsg(pr,'me');pushUserMsg(pr);callDosa(2000);},300);
   }
  }else{
+  if(!currentUser){renderGuestTaster(A);return;} // 로그인 전: AI 호출 없이 코드 계산만으로 맛보기
   pendingCacheProfileId=profileId;
   pendingCachePersonaId=personaId;
   callDosa(7600,true);
  }
+}
+
+/* ===== 로그인 전 맛보기 (AI 비용 0원) =====
+   목적: 처음 온 사람이 로그인 전에 "내 사주가 실제로 계산된다"는 것을 먼저 보게 한다.
+   만세력·일간·오행·현재 대운은 전부 코드 계산이라 서버 호출이 없다. 로그인하면 입력값 그대로 종합 풀이로 이어진다. */
+const DAY_STEM_TASTE=[
+ ['큰 나무','곧게 위로 뻗는 큰 나무의 기운입니다. 방향을 정하면 굽히지 않고 밀고 가는 힘이 있습니다.'],
+ ['덩굴과 화초','부드럽게 휘어지며 끝내 자리를 잡는 기운입니다. 사람과 환경에 맞춰 길을 찾아내는 힘이 있습니다.'],
+ ['태양','숨기지 못하고 환하게 드러나는 기운입니다. 사람을 모으고 분위기를 여는 힘이 있습니다.'],
+ ['등불','가까운 곳을 오래 밝히는 기운입니다. 한 사람, 한 가지 일에 정성을 들이는 힘이 있습니다.'],
+ ['큰 산','쉽게 움직이지 않는 기운입니다. 주변이 흔들릴 때 중심을 잡아주는 힘이 있습니다.'],
+ ['논밭','무엇이든 받아 길러내는 기운입니다. 사람과 일을 차분히 가꾸는 힘이 있습니다.'],
+ ['무쇠와 원석','단단하고 결단이 빠른 기운입니다. 맺고 끊는 것이 분명하고, 다듬어질수록 쓰임이 커집니다.'],
+ ['보석','예리하고 섬세한 기운입니다. 작은 차이를 알아보고 완성도를 높이는 힘이 있습니다.'],
+ ['큰 강','넓게 흐르며 많은 것을 품는 기운입니다. 생각의 폭이 넓고 흐름을 읽는 힘이 있습니다.'],
+ ['비와 이슬','조용히 스며드는 기운입니다. 드러나지 않게 상황을 살피고 필요한 곳을 적시는 힘이 있습니다.']
+];
+let pendingGuestSolo=false;
+function renderGuestTaster(A){
+ const r=A.r,ds=r.pillars[2].stem,T=DAY_STEM_TASTE[ds],ec=r.elemCount;
+ const mx=Math.max(...ec),mn=Math.min(...ec);
+ const most=EK.filter((_,i)=>ec[i]===mx).join('·'),least=EK.filter((_,i)=>ec[i]===mn).join('·');
+ const elemLine=mx===mn?'오행이 고르게 놓인 명식입니다.'
+  :`오행 가운데 ${most}의 기운이 가장 많고(${mx}개), ${least}의 기운은 ${mn===0?'보이지 않습니다':'가장 적습니다('+mn+'개)'}.`;
+ const c=A.cur;
+ const daeunLine=c?`지금은 ${c.ageStart}~${c.ageEnd}세 대운, ${SK[c.stem]}${BK[c.branch]}(${SH[c.stem]}${BH[c.branch]})의 시기를 지나고 계십니다.`
+  :'태어난 시간을 알면 10년 단위의 큰 흐름(대운)까지 볼 수 있습니다.';
+ const row=(t,b)=>`<div style="margin-top:14px"><div style="font-size:12px;font-weight:800;color:var(--primary)">${t}</div><div style="font-size:14px;line-height:1.7;margin-top:4px">${b}</div></div>`;
+ const box=document.createElement('div');
+ box.innerHTML=`
+  <div class="pillars-card">
+   <div class="pillars-title">맛보기 풀이</div>
+   ${row('타고난 기운 · '+SK[ds]+'('+SH[ds]+') — '+T[0],T[1])}
+   ${row('오행의 균형',elemLine)}
+   ${row('지금의 큰 흐름',daeunLine)}
+   ${row(NY_YEAR+' 신년운세 한 줄',nyOneLine(ds))}
+  </div>
+  <div class="pillars-card" style="background:var(--primary-tint);box-shadow:none;text-align:center">
+   <div style="font-size:15px;font-weight:800">여기까지는 글자만 읽은 것입니다</div>
+   <div style="font-size:13px;color:var(--sub);line-height:1.7;margin-top:6px">타고난 성격 · 강점과 조심할 점 · 일과 돈 · 사람과 관계 · 건강 · 지난 흐름 · 지금과 앞으로<br>이 명식 그대로, 도사님의 종합 풀이로 이어집니다.</div>
+   <button onclick="tasterLogin()" style="width:100%;margin-top:14px;background:#FEE500;color:#191600;border:none;border-radius:14px;padding:15px;font-size:15px;font-weight:800;cursor:pointer">카카오로 로그인하고 무료 종합 풀이 받기</button>
+   <div style="font-size:12px;color:var(--sub);margin-top:8px">무료 · 종합 풀이 ${PLANS.free.limits.reading}회 + 상담 ${PLANS.free.limits.consult}회</div>
+   <div style="font-size:12px;color:var(--sub);text-decoration:underline;cursor:pointer;margin-top:10px" onclick="tasterLogin('email')">이메일로 로그인하기</div>
+  </div>`;
+ document.getElementById('summary').appendChild(box);
+ document.getElementById('chatArea').style.display='none';
+ pendingGuestSolo=true; // 로그인되면 입력해 둔 정보로 종합 풀이를 바로 시작한다 (onAuthStateChanged)
+ track('taster_view');
+}
+function tasterLogin(method){
+ track('taster_login_click',{method:method||'kakao'});
+ if(method==='email')switchTab('settings');else loginKakao();
 }
 
 function BASE_RULES(todayStr,personaName){
@@ -2357,6 +2543,7 @@ function goHome(){
  document.getElementById('chatArea').style.display='none';
  document.getElementById('log').innerHTML='';
  document.getElementById('cerr').style.display='none';
+ pendingGuestSolo=false;
  history=[];persona='';slimBase='';slimRef='';curDigest='';digestSeq++;
 }
 function addMsg(txt,cls){const log=document.getElementById('log');
@@ -2400,16 +2587,75 @@ function renderAccordion(text){
 /* ===== AI 호출 (인증·한도·모델·토큰 상한은 Worker가 정한다) ===== */
 const AI_URL='https://jujudosa-api.jinjjabg.workers.dev/';
 async function aiFetch(kind,payload){
- if(!currentUser){const e=new Error('login_required');e.code='login_required';throw e;}
+ if(!currentUser){track('login_wall',{kind});const e=new Error('login_required');e.code='login_required';throw e;}
+ if(kind!=='summary'&&kind!=='digest')track('ai_request',{kind});
  const token=await currentUser.getIdToken();
  return fetch(AI_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
   body:JSON.stringify(Object.assign({kind},payload))});
 }
+
+/* ===== 매일 아침 알림 (웹 푸시) =====
+   목적: 매일 08:00 에 알림을 보내 다시 찾아올 이유를 만든다. 서버는 내용 없는 신호만 보내고 문구는 sw.js 가 띄운다. */
+const PUSH_URL=AI_URL+'push/';
+function toast(msg){
+ let t=document.getElementById('jjToast');
+ if(!t){t=document.createElement('div');t.id='jjToast';
+  t.style.cssText='position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:#191F28;color:#fff;font-size:13px;line-height:1.5;padding:11px 18px;border-radius:16px;z-index:999;max-width:84%;text-align:center;transition:opacity .25s;pointer-events:none';
+  document.body.appendChild(t);}
+ t.textContent=msg;t.style.opacity='1';clearTimeout(t._h);t._h=setTimeout(()=>{t.style.opacity='0';},3200);
+}
+function pushSupported(){return 'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;}
+async function pushSub(){
+ try{const reg=await navigator.serviceWorker.getRegistration();return reg?await reg.pushManager.getSubscription():null;}catch(e){return null;}
+}
+async function refreshBell(){
+ const on=pushSupported()&&!!(await pushSub());
+ const b=document.getElementById('bellBtn');
+ if(b){b.textContent=on?'🔔':'🔕';b.title=on?'매일 아침 알림 켜짐 (누르면 끔)':'매일 아침 알림 받기';}
+ const h=document.getElementById('pushHint');if(h)h.style.display=on?'none':'block';
+}
+async function pushCall(path,endpoint){
+ const token=await currentUser.getIdToken();
+ const r=await fetch(PUSH_URL+path,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({endpoint})});
+ if(!r.ok)throw new Error('server '+r.status);
+}
+async function togglePush(){
+ if(!pushSupported()){
+  toast(/iPhone|iPad/.test(navigator.userAgent)?'아이폰은 공유 버튼 → "홈 화면에 추가"로 설치한 뒤 알림을 켤 수 있어요.':'이 브라우저에서는 알림을 받을 수 없어요.');return;}
+ if(!currentUser){toast('로그인하면 매일 아침 알림을 받을 수 있어요.');switchTab('settings');return;}
+ try{
+  const cur=await pushSub();
+  if(cur){
+   await pushCall('unsubscribe',cur.endpoint).catch(()=>{});
+   await cur.unsubscribe();
+   track('push_off');toast('매일 아침 알림을 껐어요.');
+  }else{
+   const perm=await Notification.requestPermission();
+   if(perm!=='granted'){track('push_denied');toast('알림이 차단돼 있어요. 브라우저 설정에서 이 사이트의 알림을 허용해 주세요.');return;}
+   const k=await (await fetch(PUSH_URL+'key')).json();
+   const raw=atob(k.key.replace(/-/g,'+').replace(/_/g,'/'));
+   const keyBytes=Uint8Array.from(raw,c=>c.charCodeAt(0));
+   const reg=await navigator.serviceWorker.ready;
+   const sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:keyBytes});
+   try{await pushCall('subscribe',sub.endpoint);}catch(e){await sub.unsubscribe().catch(()=>{});throw e;}
+   track('push_on');toast('매일 아침 8시에 오늘의 흐름을 알려드릴게요.');
+  }
+ }catch(e){console.warn('알림 설정 실패',e);toast('알림 설정에 실패했어요. 잠시 후 다시 시도해 주세요.');}
+ refreshBell();
+}
+async function pushCleanup(){ // 계정 삭제 시 이 기기의 구독 해지
+ try{const cur=await pushSub();if(cur){await pushCall('unsubscribe',cur.endpoint).catch(()=>{});await cur.unsubscribe();}}catch(e){}
+}
+try{if(new URLSearchParams(location.search).get('from')==='push'){track('push_open');history.replaceState(null,'',location.pathname);}}catch(e){}
+window.addEventListener('load',()=>{setTimeout(refreshBell,1500);});
+
 async function aiError(res){ // 서버 오류 응답 → code 가 붙은 Error
  const data=await res.json().catch(()=>({}));
  const code=typeof data.error==='string'?data.error:'';
  const e=new Error(code||(data.error&&data.error.message)||('서버 응답 오류 ('+res.status+')'));
  e.code=code;e.detail=data.detail||'';e.kind=data.kind;e.limit=data.limit;e.expired=!!data.expired;e.status=res.status;
+ if(code==='quota')track('limit_hit',{kind:String(data.kind||''),expired:!!data.expired,tier:userTier});
+ else track('ai_error',{code:code||('http_'+res.status)});
  return e;
 }
 const KIND_LABEL={consult:'상담',reading:'풀이',gunghap:'궁합',mbti:'정밀 MBTI 분석',daily:'오늘의 운세'};
@@ -2527,6 +2773,7 @@ async function callDosa(maxTok,isFirst,retryCount){
    document.getElementById('cerr').style.display='block';return;
   }
   history.push({role:'assistant',content:fullText});
+  track('ai_done',{kind:isFirst?firstKind:'consult',persona:currentPersonaId});
   stashConvo();
   if(isFirst){
    bubble.remove();renderAccordion(fullText);
