@@ -22,6 +22,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <script src="./korean-lunar-calendar.min.js"></script>
 <script src="./plans.js"></script>
+<script src="./track.js"></script>
 <script src="https://cdn.portone.io/v2/browser-sdk.js"></script>
 <style>
 :root{
@@ -992,6 +993,7 @@ window.jujuDebug=function(bdate,btime,gender,lonDeg,cal,isLeap){
 
 /* ===================== 탭 전환 ===================== */
 function switchTab(name){
+ track('tab_view',{tab:name});
  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
  document.getElementById('view-'+name).classList.add('active');
  document.querySelectorAll('.navitem').forEach(n=>n.classList.toggle('on',n.dataset.tab===name));
@@ -1158,6 +1160,7 @@ async function getUserTier(){
   // 유료 이용권은 시작일부터 30일까지만 유효 (서버도 같은 기준으로 강제한다)
   if(userTier!=='free'&&userTier!=='admin'&&dd.tierStartedAt&&dd.tierStartedAt.toMillis&&Date.now()>=dd.tierStartedAt.toMillis()+PASS_DAYS*86400000)userTier='free';
  }catch(e){userTier='free';}
+ trackUser({tier:userTier});
  return userTier;
 }
 async function openPersona(personaId){
@@ -1180,6 +1183,7 @@ async function openPersona(personaId){
  startFromProfile(selfP,personaId);
 }
 function openTeaser(personaId,selfP){
+ track('teaser_open',{persona:personaId});
  const P=PERSONAS[personaId];
  const A=parsePersonLocal(selfP);
  const teaserText=A?P.teaser(A):`${P.tag}을 깊게 보는 도사입니다.`;
@@ -1217,6 +1221,7 @@ function selectPlan(plan){
  document.querySelectorAll('#planList .plancard').forEach(el=>el.classList.toggle('on',el.dataset.plan===plan));
 }
 function openSubscribeModal(){
+ track('begin_checkout',{tier:userTier});
  renderPlanList();
  document.getElementById('subErr').style.display='none';
  document.getElementById('subSuccess').style.display='none';
@@ -1250,6 +1255,7 @@ async function payByCard(){
  const rnd=(window.crypto&&crypto.randomUUID?crypto.randomUUID().replace(/-/g,''):(Date.now().toString(36)+Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2))).slice(0,24);
  const paymentId='jj_'+k+'_'+rnd; // KCP 주문번호 40자 제한 → 33자 이내
  const btn=document.getElementById('cardPayBtn');btn.disabled=true;
+ track('card_pay_start',{plan:k,value:price});
  try{
   const r=await PortOne.requestPayment({
    storeId:PORTONE_STORE_ID,channelKey:PORTONE_CHANNEL_KEY,
@@ -1265,6 +1271,7 @@ async function payByCard(){
 async function finishCardPay(paymentId,code,message,pgCode){
  if(code){
   if(pgCode==='3017'){subMsg('팝업이 차단됐어요. 주소창 오른쪽에서 이 사이트의 팝업을 허용한 뒤 다시 시도해 주세요.');return false;}
+  track('pay_fail',{reason:code==='USER_CANCEL'||/취소/.test(message||'')?'cancel':'pg_error'});
   subMsg(code==='USER_CANCEL'||/취소/.test(message||'')?'결제를 취소했어요.':'결제에 실패했어요: '+(message||code));return false;
  }
  if(!paymentId||!currentUser)return false;
@@ -1274,9 +1281,11 @@ async function finishCardPay(paymentId,code,message,pgCode){
   const res=await fetch(PAY_CONFIRM_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({paymentId})});
   const d=await res.json().catch(()=>({}));
   if(!res.ok||!d.ok)throw new Error(d.message||d.error||('서버 응답 오류 ('+res.status+')'));
+  {const pr=d.product==='pack'?CONSULT_PACK.price:((PLANS[d.product]||{}).price||0);
+   track('purchase',{plan:String(d.product||''),value:pr,currency:'KRW',method:'card'});}
   subMsg(d.product==='pack'?'✅ 결제 완료! 상담 '+CONSULT_PACK.consult+'회가 추가됐어요.':'✅ 결제 완료! 이용권이 지금부터 '+PASS_DAYS+'일 동안 시작됐어요.',true);
   return true;
- }catch(e){subMsg('결제 확인 실패: '+e.message+' — 결제가 됐다면 문의해 주세요.');return false;}
+ }catch(e){track('pay_fail',{reason:'confirm_error'});subMsg('결제 확인 실패: '+e.message+' — 결제가 됐다면 문의해 주세요.');return false;}
 }
 // 모바일 결제창에서 돌아왔을 때 (?pay=portone&paymentId=…[&code=…])
 let _cardPayReturnDone=false;
@@ -1312,6 +1321,7 @@ async function submitSubscribeRequest(){
     status:'pending'
    }
   },{merge:true});
+  track('bank_request',{plan:selectedPlan});
   document.getElementById('depositorName').style.display='none';
   document.getElementById('bankSubmitBtn').style.display='none';
   document.getElementById('subSuccess').style.display='block';
@@ -1364,7 +1374,9 @@ function quickAsk(text){
 /* ===== 카카오 로그인 & 사주 프로필 저장 ===== */
 function loginKakao(){
  const provider=new firebase.auth.OAuthProvider('oidc.kakao');
- auth.signInWithPopup(provider).catch(e=>{alert('로그인에 실패했습니다: '+e.message);});
+ auth.signInWithPopup(provider)
+  .then(r=>{track(r&&r.additionalUserInfo&&r.additionalUserInfo.isNewUser?'sign_up':'login',{method:'kakao'});})
+  .catch(e=>{alert('로그인에 실패했습니다: '+e.message);});
 }
 function logout(){auth.signOut();}
 
@@ -1432,7 +1444,7 @@ function emailAuthSubmit(){
  const btn=document.getElementById('emailAuthBtn');
  btn.disabled=true;
  auth.signInWithEmailAndPassword(email,pw)
-  .then(()=>{btn.disabled=false;})
+  .then(()=>{btn.disabled=false;track('login',{method:'email'});})
   .catch(e=>{btn.disabled=false;err.textContent=emailAuthErrMsg(e);err.style.display='block';});
 }
 function emailAuthReset(){
@@ -1464,7 +1476,7 @@ function emailSignupSubmit(){
  const btn=document.getElementById('signupBtn');
  btn.disabled=true;
  auth.createUserWithEmailAndPassword(email,pw)
-  .then(()=>{btn.disabled=false;closeSignupModal();})
+  .then(()=>{btn.disabled=false;track('sign_up',{method:'email'});closeSignupModal();})
   .catch(e=>{btn.disabled=false;err.textContent=emailAuthErrMsg(e);err.style.display='block';});
 }
 auth.onAuthStateChanged(u=>{
@@ -1499,6 +1511,7 @@ async function saveProfile(label,bd,bt,g,region,mbti,cal,leap){
   await col.add({label,bdate:bd,btime:bt,gender:g,region,mbti:mbti||'',
    calType:cal||'solar',isLeap:!!leap,isSelf:isFirst,
    savedAt:firebase.firestore.FieldValue.serverTimestamp()});
+  track('profile_save',{first:isFirst});
   loadProfiles();
  }catch(e){console.error('프로필 저장 실패',e);}
 }
@@ -2400,7 +2413,8 @@ function renderAccordion(text){
 /* ===== AI 호출 (인증·한도·모델·토큰 상한은 Worker가 정한다) ===== */
 const AI_URL='https://jujudosa-api.jinjjabg.workers.dev/';
 async function aiFetch(kind,payload){
- if(!currentUser){const e=new Error('login_required');e.code='login_required';throw e;}
+ if(!currentUser){track('login_wall',{kind});const e=new Error('login_required');e.code='login_required';throw e;}
+ if(kind!=='summary'&&kind!=='digest')track('ai_request',{kind});
  const token=await currentUser.getIdToken();
  return fetch(AI_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
   body:JSON.stringify(Object.assign({kind},payload))});
@@ -2410,6 +2424,8 @@ async function aiError(res){ // 서버 오류 응답 → code 가 붙은 Error
  const code=typeof data.error==='string'?data.error:'';
  const e=new Error(code||(data.error&&data.error.message)||('서버 응답 오류 ('+res.status+')'));
  e.code=code;e.detail=data.detail||'';e.kind=data.kind;e.limit=data.limit;e.expired=!!data.expired;e.status=res.status;
+ if(code==='quota')track('limit_hit',{kind:String(data.kind||''),expired:!!data.expired,tier:userTier});
+ else track('ai_error',{code:code||('http_'+res.status)});
  return e;
 }
 const KIND_LABEL={consult:'상담',reading:'풀이',gunghap:'궁합',mbti:'정밀 MBTI 분석',daily:'오늘의 운세'};
@@ -2527,6 +2543,7 @@ async function callDosa(maxTok,isFirst,retryCount){
    document.getElementById('cerr').style.display='block';return;
   }
   history.push({role:'assistant',content:fullText});
+  track('ai_done',{kind:isFirst?firstKind:'consult',persona:currentPersonaId});
   stashConvo();
   if(isFirst){
    bubble.remove();renderAccordion(fullText);

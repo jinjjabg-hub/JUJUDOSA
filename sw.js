@@ -1,8 +1,9 @@
-const CACHE_NAME = 'jujudosa-shell-v3';
+const CACHE_NAME = 'jujudosa-shell-v4';
 const SHELL_FILES = [
   './',
   './index.html',
   './plans.js',
+  './track.js',
   './manifest.json',
   './logo.png',
   './avatar.png',
@@ -37,9 +38,11 @@ self.addEventListener('fetch', (event) => {
   const isShellAsset = url.origin === self.location.origin;
   if (!isShellAsset) return; // let Firebase/Worker/API calls pass straight through
 
+  // .js(요금제 plans.js·측정 track.js 등)도 네트워크 우선: 값을 바꾸면 다음 접속에 바로 반영되게 한다.
   const isHTML = req.mode === 'navigate' ||
     url.pathname.endsWith('/') ||
-    url.pathname.endsWith('index.html');
+    url.pathname.endsWith('index.html') ||
+    url.pathname.endsWith('.js');
 
   if (isHTML) {
     event.respondWith(
