@@ -331,7 +331,7 @@ button.go:active{transform:scale(.98);opacity:.9}
   <!-- ===================== 홈 ===================== -->
   <section class="view active" id="view-home">
     <div id="loginBannerHome" class="loginbanner" style="display:none">
-      <div class="lb-text">카카오로 로그인하면<br>사주를 저장하고 매일 확인할 수 있어요.</div>
+      <div class="lb-text">카카오로 로그인하면<br>사주를 저장하고 매일 확인할 수 있어요.<br><span style="font-weight:600;text-decoration:underline;cursor:pointer" onclick="openRegisterFresh()">로그인 없이 내 사주 먼저 보기 →</span></div>
       <button onclick="loginKakao()">카카오 로그인</button>
       <div style="font-size:12px;color:var(--sub);text-decoration:underline;cursor:pointer;margin-top:6px" onclick="switchTab('settings')">이메일로 로그인하기</div>
     </div>
@@ -1491,6 +1491,7 @@ auth.onAuthStateChanged(u=>{
   document.getElementById('avatarBtn').textContent=(u.displayName||'주').slice(0,1);
   loadProfiles();
   handleCardPayReturn();
+  if(pendingGuestSolo){pendingGuestSolo=false;switchTab('fortune');submitSolo();} // 맛보기에서 로그인한 경우 → 바로 종합 풀이
  }else{
   homeBanner.style.display='flex';
   pillWrap.style.display='none';
@@ -2121,10 +2122,62 @@ ${mbtiSection}「일과 돈」 어떤 방식으로 일할 때 성과가 나는�
    setTimeout(()=>{addMsg(pr,'me');pushUserMsg(pr);callDosa(2000);},300);
   }
  }else{
+  if(!currentUser){renderGuestTaster(A);return;} // 로그인 전: AI 호출 없이 코드 계산만으로 맛보기
   pendingCacheProfileId=profileId;
   pendingCachePersonaId=personaId;
   callDosa(7600,true);
  }
+}
+
+/* ===== 로그인 전 맛보기 (AI 비용 0원) =====
+   목적: 처음 온 사람이 로그인 전에 "내 사주가 실제로 계산된다"는 것을 먼저 보게 한다.
+   만세력·일간·오행·현재 대운은 전부 코드 계산이라 서버 호출이 없다. 로그인하면 입력값 그대로 종합 풀이로 이어진다. */
+const DAY_STEM_TASTE=[
+ ['큰 나무','곧게 위로 뻗는 큰 나무의 기운입니다. 방향을 정하면 굽히지 않고 밀고 가는 힘이 있습니다.'],
+ ['덩굴과 화초','부드럽게 휘어지며 끝내 자리를 잡는 기운입니다. 사람과 환경에 맞춰 길을 찾아내는 힘이 있습니다.'],
+ ['태양','숨기지 못하고 환하게 드러나는 기운입니다. 사람을 모으고 분위기를 여는 힘이 있습니다.'],
+ ['등불','가까운 곳을 오래 밝히는 기운입니다. 한 사람, 한 가지 일에 정성을 들이는 힘이 있습니다.'],
+ ['큰 산','쉽게 움직이지 않는 기운입니다. 주변이 흔들릴 때 중심을 잡아주는 힘이 있습니다.'],
+ ['논밭','무엇이든 받아 길러내는 기운입니다. 사람과 일을 차분히 가꾸는 힘이 있습니다.'],
+ ['무쇠와 원석','단단하고 결단이 빠른 기운입니다. 맺고 끊는 것이 분명하고, 다듬어질수록 쓰임이 커집니다.'],
+ ['보석','예리하고 섬세한 기운입니다. 작은 차이를 알아보고 완성도를 높이는 힘이 있습니다.'],
+ ['큰 강','넓게 흐르며 많은 것을 품는 기운입니다. 생각의 폭이 넓고 흐름을 읽는 힘이 있습니다.'],
+ ['비와 이슬','조용히 스며드는 기운입니다. 드러나지 않게 상황을 살피고 필요한 곳을 적시는 힘이 있습니다.']
+];
+let pendingGuestSolo=false;
+function renderGuestTaster(A){
+ const r=A.r,ds=r.pillars[2].stem,T=DAY_STEM_TASTE[ds],ec=r.elemCount;
+ const mx=Math.max(...ec),mn=Math.min(...ec);
+ const most=EK.filter((_,i)=>ec[i]===mx).join('·'),least=EK.filter((_,i)=>ec[i]===mn).join('·');
+ const elemLine=mx===mn?'오행이 고르게 놓인 명식입니다.'
+  :`오행 가운데 ${most}의 기운이 가장 많고(${mx}개), ${least}의 기운은 ${mn===0?'보이지 않습니다':'가장 적습니다('+mn+'개)'}.`;
+ const c=A.cur;
+ const daeunLine=c?`지금은 ${c.ageStart}~${c.ageEnd}세 대운, ${SK[c.stem]}${BK[c.branch]}(${SH[c.stem]}${BH[c.branch]})의 시기를 지나고 계십니다.`
+  :'태어난 시간을 알면 10년 단위의 큰 흐름(대운)까지 볼 수 있습니다.';
+ const row=(t,b)=>`<div style="margin-top:14px"><div style="font-size:12px;font-weight:800;color:var(--primary)">${t}</div><div style="font-size:14px;line-height:1.7;margin-top:4px">${b}</div></div>`;
+ const box=document.createElement('div');
+ box.innerHTML=`
+  <div class="pillars-card">
+   <div class="pillars-title">맛보기 풀이</div>
+   ${row('타고난 기운 · '+SK[ds]+'('+SH[ds]+') — '+T[0],T[1])}
+   ${row('오행의 균형',elemLine)}
+   ${row('지금의 큰 흐름',daeunLine)}
+  </div>
+  <div class="pillars-card" style="background:var(--primary-tint);box-shadow:none;text-align:center">
+   <div style="font-size:15px;font-weight:800">여기까지는 글자만 읽은 것입니다</div>
+   <div style="font-size:13px;color:var(--sub);line-height:1.7;margin-top:6px">타고난 성격 · 강점과 조심할 점 · 일과 돈 · 사람과 관계 · 건강 · 지난 흐름 · 지금과 앞으로<br>이 명식 그대로, 도사님의 종합 풀이로 이어집니다.</div>
+   <button onclick="tasterLogin()" style="width:100%;margin-top:14px;background:#FEE500;color:#191600;border:none;border-radius:14px;padding:15px;font-size:15px;font-weight:800;cursor:pointer">카카오로 로그인하고 무료 종합 풀이 받기</button>
+   <div style="font-size:12px;color:var(--sub);margin-top:8px">무료 · 종합 풀이 ${PLANS.free.limits.reading}회 + 상담 ${PLANS.free.limits.consult}회</div>
+   <div style="font-size:12px;color:var(--sub);text-decoration:underline;cursor:pointer;margin-top:10px" onclick="tasterLogin('email')">이메일로 로그인하기</div>
+  </div>`;
+ document.getElementById('summary').appendChild(box);
+ document.getElementById('chatArea').style.display='none';
+ pendingGuestSolo=true; // 로그인되면 입력해 둔 정보로 종합 풀이를 바로 시작한다 (onAuthStateChanged)
+ track('taster_view');
+}
+function tasterLogin(method){
+ track('taster_login_click',{method:method||'kakao'});
+ if(method==='email')switchTab('settings');else loginKakao();
 }
 
 function BASE_RULES(todayStr,personaName){
@@ -2370,6 +2423,7 @@ function goHome(){
  document.getElementById('chatArea').style.display='none';
  document.getElementById('log').innerHTML='';
  document.getElementById('cerr').style.display='none';
+ pendingGuestSolo=false;
  history=[];persona='';slimBase='';slimRef='';curDigest='';digestSeq++;
 }
 function addMsg(txt,cls){const log=document.getElementById('log');
